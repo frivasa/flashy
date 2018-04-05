@@ -151,7 +151,7 @@ def switchGeometry(file, output, verbose=True):
 
 
 def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=8, nzb=0,
-               geometry='cylindrical', maxbl=400, debug=False, clobber=True, portable=True):
+               geometry='cylindrical', maxbl=500, debug=False, portable=True):
     """calls ./setup at _FLASH_DIR with given parameters,
     writing the code to destination for compiling afterwards.
     (must be run on a Py2.X kernel)
@@ -170,7 +170,8 @@ def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=
     path = os.path.abspath(destination)
     if not os.path.exists(destination):
         os.makedirs(destination)
-    elif clobber:
+    else:
+        print 'Emptying {}'.format(destination)
         shutil.rmtree(destination)
         os.makedirs(destination)
     try:

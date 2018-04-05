@@ -107,6 +107,7 @@ def writeSubmit(subfile, code, pbsins=[],
     subHeader.append('#PBS -A {}'.format(proj))
     subHeader.append('#PBS -l walltime={},nodes={}'.format(time, nodes))
     subHeader.append('#PBS -N {}'.format(os.path.basename(subfile)[:-4]))
+    subHeader.append('#PBS -j oe')
     subScript = []
     subScript.append('date')
     subScript.append('echo Submitted from: $PBS_O_WORKDIR')
@@ -119,7 +120,6 @@ def writeSubmit(subfile, code, pbsins=[],
     if pbsins:
         subHeader = subHeader + pbsins
     subScript = subScript + code
-    subScript.append('wait')
     with open(subfile, 'w') as o:
         o.write("\n".join(subHeader))
         o.write("\n")
@@ -141,3 +141,11 @@ def probeFile(file, showrows=3):
         print("".join(lines[0:showrows]))
         print("".join(lines[l2:l2+showrows]))
         print("".join(lines[-showrows:]))
+
+
+def emptyFileTree(root):
+    """Empties 'root' folder."""
+    path = os.path.abspath(root)
+    shutil.rmtree(path)
+    os.makedirs(path)
+    

@@ -226,13 +226,14 @@ def mainProps(fname, mhead=True, grids=False, show=False,
         print "Wrote: {}".format(savp)
 
 
-def fileProfile(fname, species=ap13, thresh=1e-6, angle=45, radius=5e9, show=False):
+def fileProfile(fname, species=ap13, thresh=1e-6, mrange=[0.0, 0.0], angle=45, radius=5e9, show=False):
     """plots a checkpoint file ray through the domain.
     
     Args:
         fname (str): filename of checkpoint.
         species (list of str): list of species names to plot.
         thresh (float): ymin for species fraction plot.
+        mrange (list of float): if set, change the mass range of the abundance plot.
         angle (float): angle of ray in degrees (measured from +y towards +x).
         radius (float): reach of ray.
         show (bool): return figure instead of saving it to file.
@@ -244,11 +245,13 @@ def fileProfile(fname, species=ap13, thresh=1e-6, angle=45, radius=5e9, show=Fal
     else:
         plotsp = True
     ds = yt.load(fname)
+    cname = 'radius'
     ray = ds.ray([0e5, 0e5, 0] , [radius*np.sin(np.radians(angle)), radius*np.cos(np.radians(angle)), 0])
     ray_sort = np.argsort(ray['t'])
     fig = plt.figure(figsize=(16, 8))
     if plotsp:
-        layout = (3, 3) # extra plot space for legend spacing
+        #layout = (3, 3) # extra plot space for legend spacing
+        layout = (3, 2)
         ax4 = plt.subplot2grid(layout, (0, 1), aspect="auto", adjustable='box-forced', rowspan=2)
     else:
         layout = (3,1)
@@ -256,7 +259,7 @@ def fileProfile(fname, species=ap13, thresh=1e-6, angle=45, radius=5e9, show=Fal
     ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", adjustable='box-forced')
     ax3 = plt.subplot2grid(layout, (2, 0), aspect="auto", adjustable='box-forced')
 
-    ax1.loglog(ray['radius'][ray_sort], ray['density'][ray_sort], color='black')
+    ax1.loglog(ray[cname][ray_sort], ray['density'][ray_sort], color='black')
     ax1.set_ylabel('Density($g/cm^3$)')
     ax1.set_xlabel('Radius ($cm$)')
     ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:.2e}'))
@@ -264,13 +267,13 @@ def fileProfile(fname, species=ap13, thresh=1e-6, angle=45, radius=5e9, show=Fal
                  xy=(0.0, 0.0), xytext=(0.05, 0.15), size=12,
                  textcoords='axes fraction', xycoords='axes fraction')
 
-    ax2.loglog(ray['radius'][ray_sort], ray['temperature'][ray_sort], color='red')
+    ax2.loglog(ray[cname][ray_sort], ray['temperature'][ray_sort], color='red')
     ax2.set_ylabel('Temperature($K$)')
     ax2.set_xlabel('Radius ($cm$)')
     ax2.yaxis.set_major_formatter(StrMethodFormatter('{x:.2e}'))
     ax2.yaxis.set_minor_formatter(StrMethodFormatter(''))
     
-    ax3.loglog(ray['radius'][ray_sort], ray['pressure'][ray_sort], color='blue')
+    ax3.loglog(ray[cname][ray_sort], ray['pressure'][ray_sort], color='blue')
     ax3.set_ylabel('Pressure($dyne/cm^2$)')
     ax3.set_xlabel('Radius ($cm$)')
     ax3.yaxis.set_major_formatter(StrMethodFormatter('{x:.2e}'))
@@ -290,19 +293,22 @@ def fileProfile(fname, species=ap13, thresh=1e-6, angle=45, radius=5e9, show=Fal
         styleIter = colIter()
         # don't skip any plot to ensure colors stick to species, and legend doesn't 
         # shapeshift.
+        xs = byMass(ray[cname][ray_sort], ray['density'][ray_sort])
         for s in [sp[1] for sp in species]:
             tag = '$^{{{}}}{}$'.format(*elemSplit(s))
             c, ls = styleIter.next()
-            ax4.loglog(ray['radius'], ray[s][ray_sort], label=tag, color=c, linestyle=ls, alpha=0.7)
-        ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
+            ax4.semilogy(xs, ray[s][ray_sort], label=tag, color=c, linestyle=ls, alpha=0.7)
+        lgd = ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
           columnspacing=0.5, labelspacing=0.5, markerfirst=False, 
           numpoints=4)
+        if np.sum(mrange)!=0.0:
+            ax4.set_xlim(mrange)
         ax4.axhline(1e0, linewidth=1, linestyle=':', color='black')
-        #ax4.legend(bbox_to_anchor=(1.0, 1.0), ncol=2)
         ax4.set_ylim(thresh, 2.0)
-        ax4.set_xlabel('Radius ($cm$)')
+        ax4.set_xlabel('Mass ($M_{\odot}$)')
         ax4.set_ylabel('$X_{frac}$')
-    plt.tight_layout()
+    #plt.tight_layout()
+    plt.tight_layout(pad=1.0, h_pad=0.0, w_pad=0.5, rect=(0,0,0.67,1))
     if show:
         return fig
     else:
@@ -318,7 +324,8 @@ def fileProfile(fname, species=ap13, thresh=1e-6, angle=45, radius=5e9, show=Fal
             os.mkdir(os.path.join(savf, tag))
         elif not os.path.exists(os.path.join(savf, tag)):
             os.mkdir(os.path.join(savf, tag))
-        plt.savefig(savp)
+        #plt.savefig(savp)
+        plt.savefig(savp,  bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close(fig)
         print "Wrote: {}".format(savp)
 
@@ -413,141 +420,3 @@ def gridInfo(filename, silent=True):
 def getDset(filename):
     """Returns the yt dataset (not compatible with batch/parallel scripts)"""
     return yt.load(filename)
-
-
-def split(x, xsplit, inward=True):
-    """returns indices below or above xsplit and offset
-    [0,1,2,3,4,5,6]
-    inward True, xsplit 3: [0,1,2], 0
-    inward False, xsplit 3: [4,5,6], 4
-    """
-    if inward:
-        return np.where(x<xsplit), 0
-    else:
-        filt = np.where(x>xsplit)
-        return filt, filt[0][0]
-
-
-def colIter2():
-    """Simple color iterator. Colors selected from Sasha Trubetskoy's 
-    simple 20 color list (based on metro lines).
-    https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-    """
-    cols = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', '#911eb4', 
-            '#008080', '#e6beff', '#aa6e28', '#fffac8', '#800000', '#aaffc3', 
-            '#808000', '#ffd8b1', '#000080', '#808080', '#ffe119', '#f032e6', 
-            '#46f0f0', '#d2f53c', '#fabebe']
-    i=-1
-    while(True):
-        i+=1
-        if i==len(cols):
-            i=0
-        yield cols[i]
-
-
-def colIter():
-    """Simple color/linestyle iterator. Colors selected from Sasha 
-    Trubetskoy's simple 20 color list (based on metro lines)
-    https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-    """
-    cols = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', '#911eb4', 
-            '#008080', '#e6beff', '#aa6e28', '#999678', '#800000', '#88cc9c', 
-            '#808000', '#ffb265', '#000080', '#fabebe', '#e5c700']
-            #, '#f032e6', '#46f0f0', '#d2f53c', '#808080']ffe119
-    styles = [(0, ()),
-              # dotted loose/normal/dense
-              (0, (1, 10)),
-              #(0, (1, 5)),
-              (0, (1, 1)),
-              # dashed loose/normal/dense
-              (0, (5, 10)), 
-              #(0, (5, 5)),
-              (0, (5, 1)),
-              # dash-dot loose/normal/dense
-              (0, (3, 10, 1, 10)), 
-              #(0, (3, 5, 1, 5)),
-              (0, (3, 1, 1, 1)),
-              # dash-dot-dot loose/normal/dense
-              (0, (3, 10, 1, 10, 1, 10)),
-              #(0, (3, 5, 1, 5, 1, 5))] 
-              (0, (3, 1, 1, 1, 1, 1))]
-    lstyles = len(styles)
-    lcols = len(cols)
-    alphas = np.linspace(0.0, 1.0, num=lstyles)
-    i, j = -1, 0
-    while(True):
-        i+=1
-        if i==lcols:
-            i=0
-            j+=1
-        yield cols[i], styles[j]#, alphas[i]
-        #if i==lcols:
-        #    i=0
-        #yield cols[i], styles[i%lstyles]
-
-
-def elemSplit(s):
-    """Standalone element name spliter. 
-    he4 -> (4, He)
-    
-    Args:
-        s(str): element string of the form "numberSpecies".
-    
-    Returns:
-        tuple of str: (element number, capitalized name)
-    
-    """
-    sym = s.rstrip('0123456789 ')
-    A = s[len(sym):].strip()
-    return A, sym.title()
-
-
-# batch functions
-def writeBatch(filenames, runf, procs, method, args):
-    sp = os.path.dirname(os.path.realpath(__file__))
-    runf = os.path.abspath(runf)
-    with open(os.path.join(runf, "batch_{}".format(method)), 'w') as f:
-        for i, file in enumerate(filenames, 1):
-            _, name = os.path.split(file)
-            line = ['python {}'.format(os.path.join(sp, "flash_plot.py"))]
-            line.append(method)
-            line.append(os.path.join(runf, "otp", name))
-            for a in args:
-                line.append(str(a))
-            line.append("&\n")
-            f.write(" ".join(line))
-            if i%procs==0:
-                f.write("wait\n")
-
-
-if __name__=="__main__":
-    import sys
-    import os
-    methods = {'planeSlice': planeSlice, 
-               'bifold': bifold, 
-               'fileProfile': fileProfile,
-               'mainProps': mainProps}
-    method = sys.argv[1]
-    if method in methods:
-        if method=='fileProfile':
-            fname, thresh = sys.argv[2:]
-            folder = 'xProfile'
-            fig = methods[method](fname, thresh=thresh)
-        elif method=='bifold':
-            fname, tfield, mi, ma, lin = sys.argv[2:]
-            if len(tfield)<4:
-                tfield = tfield.ljust(4)
-            folder = tfield
-            fig = methods[method](fname, topfield=tfield, 
-                                  tlims=[float(mi), float(ma)],
-                                  lintop=int(lin))
-        else:
-            print "Fill with more methods"
-    else:
-        raise Exception("Method {} is not implemented".format(method))
-    otp, name = os.path.split(fname)
-    runf, _ = os.path.split(otp)
-    if not os.path.exists(os.path.join(runf, "png", folder)):
-        os.mkdir(os.path.join(runf, "png", folder))
-    plt.savefig('{}.png'.format(os.path.join(runf, "png", folder, name)))
-    print "Wrote: {}.png".format(os.path.join(runf, "png", folder, name))

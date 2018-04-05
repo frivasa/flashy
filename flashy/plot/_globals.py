@@ -1,6 +1,6 @@
 import os
-import numpy as np
 import yt
+import numpy as np
 # avoid yt warnings
 from yt.funcs import mylog
 mylog.setLevel(50)
@@ -15,7 +15,7 @@ for nongui in nonguis:
         break
     except:
         continue
-print "[flash.plot.oneD]: Using",mpl.get_backend()
+print "[flash.plot]: Using",mpl.get_backend()
 from mpl_toolkits.axes_grid1 import AxesGrid
 from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
 from matplotlib.ticker import FuncFormatter, StrMethodFormatter
@@ -73,6 +73,7 @@ plR = 1.1e9 # cm, sphere radius cutoff
 
 # COLORMAPS
 # https://jiffyclub.github.io/palettable/colorbrewer/
+# colorscheme names: http://jiffyclub.github.io/palettable +/colorbrewer /matplotlib /cmocean
 import palettable  # cmocean colors are included in palettable
 # palettable schemes are not interpolated so make a new one for yt
 # yt call: (name, type, num): num<=11 type={diverging, qualitative, sequential}
@@ -86,3 +87,112 @@ _ytcmap = palettable.matplotlib.Inferno_20_r.mpl_colors
 cols = [tuple([list(x),1]) for x in _ytcmap]
 cols.append(([0.0, 0.0, 0.0], 0))
 setcmap = yt.make_colormap(cols, name='custom')
+
+
+# Auxiliary Functions
+
+def byMass(rads, dens):
+    """Returns a mass abscissa for plots."""
+    xs = len(rads)
+    dr = rads[0]
+    vol = dr**3 *4.0*np.pi/3.0
+    mass = vol*dens[0]/Ms
+    absc = []
+    absc.append(mass)
+    for i in range(1, xs):
+        dr = rads[i] - rads[i-1]
+        dvol = dr * ( 3.0*rads[i-1]*rads[i] + dr*dr ) * 4.0*np.pi/3.0
+        mass = mass + dvol*dens[i]/Ms
+        absc.append(mass)
+    return absc
+
+
+def split(x, xsplit, inward=True):
+    """returns indices below or above xsplit and offset
+    [0,1,2,3,4,5,6]
+    inward True, xsplit 3: [0,1,2], 0
+    inward False, xsplit 3: [4,5,6], 4
+    """
+    if inward:
+        return np.where(x<xsplit), 0
+    else:
+        filt = np.where(x>xsplit)
+        return filt, filt[0][0]
+
+
+def colIter2():
+    """Simple color iterator. Colors selected from Sasha Trubetskoy's 
+    simple 20 color list (based on metro lines).
+    https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
+    """
+    cols = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', '#911eb4', 
+            '#008080', '#e6beff', '#aa6e28', '#fffac8', '#800000', '#aaffc3', 
+            '#808000', '#ffd8b1', '#000080', '#808080', '#ffe119', '#f032e6', 
+            '#46f0f0', '#d2f53c', '#fabebe']
+    i=-1
+    while(True):
+        i+=1
+        if i==len(cols):
+            i=0
+        yield cols[i]
+
+
+def colIter():
+    """Simple color/linestyle iterator. Colors selected from Sasha 
+    Trubetskoy's simple 20 color list (based on metro lines)
+    https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
+    """
+    cols = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', '#911eb4', 
+            '#008080', '#e6beff', '#aa6e28', '#999678', '#800000', '#88cc9c', 
+            '#808000', '#ffb265', '#000080', '#fabebe', '#e5c700']
+            #, '#f032e6', '#46f0f0', '#d2f53c', '#808080']ffe119
+    styles = [(0, ()),
+              # dotted loose/normal/dense
+              (0, (1, 10)),
+              #(0, (1, 5)),
+              (0, (1, 1)),
+              # dashed loose/normal/dense
+              (0, (5, 10)), 
+              #(0, (5, 5)),
+              (0, (5, 1)),
+              # dash-dot loose/normal/dense
+              (0, (3, 10, 1, 10)), 
+              #(0, (3, 5, 1, 5)),
+              (0, (3, 1, 1, 1)),
+              # dash-dot-dot loose/normal/dense
+              (0, (3, 10, 1, 10, 1, 10)),
+              #(0, (3, 5, 1, 5, 1, 5))] 
+              (0, (3, 1, 1, 1, 1, 1))]
+    lstyles = len(styles)
+    lcols = len(cols)
+    alphas = np.linspace(0.0, 1.0, num=lstyles)
+    i, j = -1, 0
+    while(True):
+        i+=1
+        if i==lcols:
+            i=0
+            j+=1
+        yield cols[i], styles[j]#, alphas[i]
+        #if i==lcols:
+        #    i=0
+        #yield cols[i], styles[i%lstyles]
+
+
+def elemSplit(s):
+    """Standalone element name spliter. 
+    he4 -> (4, He)
+    
+    Args:
+        s(str): element string of the form "numberSpecies".
+    
+    Returns:
+        tuple of str: (element number, capitalized name)
+    
+    """
+    sym = s.rstrip('0123456789 ')
+    A = s[len(sym):].strip()
+    return A, sym.title()
+
+
+
+

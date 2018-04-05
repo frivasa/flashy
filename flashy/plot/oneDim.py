@@ -11,15 +11,16 @@ def _speed(field, data):
 #yt.add_field(("flash","speed"), function=_speed, units="cm/s", take_log=False)
 
 # yt plotting functions
-def fileProfile(fname, species=ap13, thresh=1e-6, radius=5e9, byM=False, filetag='prof', show=False):
+def fileProfile(fname, species=ap13, thresh=1e-6, mrange=[0.0, 0.0], radius=5e9, filetag='prof', show=False):
     """plots a checkpoint file ray through the domain.
     
     Args:
         fname (str): filename of checkpoint.
         species (list of str): list of species names to plot.
         thresh (float): ymin for species fraction plot.
-        angle (float): angle of ray in degrees (measured from +y towards +x).
         radius (float): reach of ray.
+        mrange (list of float): if set, change the mass range of the abundance plot.
+        filetag (str): change prefix of png output files.
         show (bool): return figure instead of saving it to file.
     
     """
@@ -80,22 +81,19 @@ def fileProfile(fname, species=ap13, thresh=1e-6, radius=5e9, byM=False, filetag
         styleIter = colIter()
         # don't skip any plot to ensure colors stick to species, and legend doesn't 
         # shapeshift.
-        if byM:
-            xs = byMass(ray[cname][ray_sort], ray['density'][ray_sort])
-        else:
-            xs = ray[cname][ray_sort]
+        xs = byMass(ray[cname][ray_sort], ray['density'][ray_sort])
         for s in [sp[1].strip() for sp in species]:
             tag = '$^{{{}}}{}$'.format(*elemSplit(s))
             c, ls = styleIter.next()
             ax4.semilogy(xs, ray[s][ray_sort], label=tag, color=c, linestyle=ls, alpha=0.7)
-            #ax4.loglog(xs, ray[s][ray_sort], label=tag, color=c, linestyle=ls, alpha=0.7)
         lgd = ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
           columnspacing=0.5, labelspacing=0.5, markerfirst=False, 
           numpoints=4)
+        if np.sum(mrange)!=0.0:
+            ax4.set_xlim(mrange)
         ax4.axhline(1e0, linewidth=1, linestyle=':', color='black')
-        #ax4.legend(bbox_to_anchor=(1.0, 1.0), ncol=2)
         ax4.set_ylim(thresh, 2.0)
-        ax4.set_xlabel('Radius ($cm$)')
+        ax4.set_xlabel('Mass ($M_{\odot}$)')
         ax4.set_ylabel('$X_{frac}$')
     plt.tight_layout(pad=1.0, h_pad=0.0, w_pad=0.5, rect=(0,0,0.67,1))
     if show:
@@ -230,6 +228,7 @@ def gridInfo(filename, silent=True):
 
 
 def writeProf(filename, profD):
+    """writes a 1D profile dict to a file."""
     points = len(profD['Radius'])
     header = " ".join(profD.keys())
     with open(filename, 'w') as f:
@@ -304,90 +303,3 @@ def percentDiff(ax, file1, file2, diffkey, xkey='Radius', label='', **kw):
 def getDset(filename):
     """Returns the yt dataset (not compatible with batch/parallel scripts)"""
     return yt.load(filename)
-
-
-def split(x, xsplit, inward=True):
-    """returns indices below or above xsplit and offset
-    [0,1,2,3,4,5,6]
-    inward True, xsplit 3: [0,1,2], 0
-    inward False, xsplit 3: [4,5,6], 4
-    """
-    if inward:
-        return np.where(x<xsplit), 0
-    else:
-        filt = np.where(x>xsplit)
-        return filt, filt[0][0]
-
-
-def colIter2():
-    """Simple color iterator. Colors selected from Sasha Trubetskoy's 
-    simple 20 color list (based on metro lines).
-    https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-    """
-    cols = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', '#911eb4', 
-            '#008080', '#e6beff', '#aa6e28', '#fffac8', '#800000', '#aaffc3', 
-            '#808000', '#ffd8b1', '#000080', '#808080', '#ffe119', '#f032e6', 
-            '#46f0f0', '#d2f53c', '#fabebe']
-    i=-1
-    while(True):
-        i+=1
-        if i==len(cols):
-            i=0
-        yield cols[i]
-
-
-def colIter():
-    """Simple color/linestyle iterator. Colors selected from Sasha 
-    Trubetskoy's simple 20 color list (based on metro lines)
-    https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-    """
-    cols = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', '#911eb4', 
-            '#008080', '#e6beff', '#aa6e28', '#999678', '#800000', '#88cc9c', 
-            '#808000', '#ffb265', '#000080', '#fabebe', '#e5c700']
-            #, '#f032e6', '#46f0f0', '#d2f53c', '#808080']ffe119
-    styles = [(0, ()),
-              # dotted loose/normal/dense
-              (0, (1, 10)),
-              #(0, (1, 5)),
-              (0, (1, 1)),
-              # dashed loose/normal/dense
-              (0, (5, 10)), 
-              #(0, (5, 5)),
-              (0, (5, 1)),
-              # dash-dot loose/normal/dense
-              (0, (3, 10, 1, 10)), 
-              #(0, (3, 5, 1, 5)),
-              (0, (3, 1, 1, 1)),
-              # dash-dot-dot loose/normal/dense
-              (0, (3, 10, 1, 10, 1, 10)),
-              #(0, (3, 5, 1, 5, 1, 5))] 
-              (0, (3, 1, 1, 1, 1, 1))]
-    lstyles = len(styles)
-    lcols = len(cols)
-    alphas = np.linspace(0.0, 1.0, num=lstyles)
-    i, j = -1, 0
-    while(True):
-        i+=1
-        if i==lcols:
-            i=0
-            j+=1
-        yield cols[i], styles[j]#, alphas[i]
-        #if i==lcols:
-        #    i=0
-        #yield cols[i], styles[i%lstyles]
-
-
-def elemSplit(s):
-    """Standalone element name spliter. 
-    he4 -> (4, He)
-    
-    Args:
-        s(str): element string of the form "numberSpecies".
-    
-    Returns:
-        tuple of str: (element number, capitalized name)
-    
-    """
-    sym = s.rstrip('0123456789 ')
-    A = s[len(sym):].strip()
-    return A, sym.title()
