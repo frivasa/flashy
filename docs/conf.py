@@ -161,3 +161,5 @@ texinfo_documents = [
 
 
 # -- Extension configuration -------------------------------------------------
+
+autodoc_mock_imports = ['yt', 'astropy', 'scipy', 'matplotlib', 'pandas']

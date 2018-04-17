@@ -10,6 +10,12 @@ Welcome to flashy's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+.. automodule :: butils
+.. automodule :: cgs
+.. automodule :: paramSetup
+.. automodule :: oneDim
+.. automodule :: twoDim
+.. automodule :: _globals
 
 
 Indices and tables
