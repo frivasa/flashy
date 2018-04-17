@@ -1,10 +1,6 @@
 """CGS and Nuclide module. This module can handle abundances,
 mass fractions and Isotope weighing.
 
-Todo:
-    * read both compositions and mass fractions and relate them through atomic masses.
-    * plotting functions.
-
 """
 import numpy as np
 import os
@@ -25,7 +21,7 @@ AGSS09 = pkg_resources.resource_filename('flashy', 'data/suncomp/AGSS09.comp')
 # WARNING: EVERYTHING IS ADJUSTED TO CGS
 G = G*hecto*hecto*hecto/kilo  # Newtonian constant of gravitation cm3/g/s2
 c = c*hecto  # speed of light in vacuum cm/s
-h = Planck/erg  # Planck constant erg/s 
+h = Planck/erg  # Planck constant erg/s
 sigma = value('Stefan-Boltzmann constant')/hecto/hecto/erg
 msol = M_sun*kilo
 lsol = L_sun/erg
@@ -45,14 +41,14 @@ def readStandardWeights():
     vals = [a[2]for a in dblock]
     masses = dict(zip(keys, 2*vals))
     return masses
-    
+
 
 def readNuclideMasses():
     """Reads an AMDC format table (Wang 2017 41 030003).
     AMDC atomic masses (2017): http://amdc.in2p3.fr/web/masseval.html
-    Reads only masses, there's more data within it so 
+    Reads only masses, there's more data within it so
     this function is extensible.
-    output is a dict with capitalized element names, then a 
+    output is a dict with capitalized element names, then a
     z and n key to access z and a keyset of N numbers.
     """
     massdict = {}
@@ -70,7 +66,7 @@ def readNuclideMasses():
             except:
                 beta, beunc = np.nan, np.nan
             mass, maunc = float(l[96:114].replace(' ','')), float(l[115:])
-            # neutrons have the same name as nitrogen x_x 
+            # neutrons have the same name as nitrogen x_x
             # dictionaries are case sensitive though.
             if ' n' in name:
                 name = 'n'
@@ -87,7 +83,7 @@ def readNuclideMasses():
 
 
 def readYield(filename):
-    """Reads a mass yield file or a zipped list (for simulation yields) 
+    """Reads a mass yield file or a zipped list (for simulation yields)
     Returns a mass dictionary."""
     if type(filename)==list:
         codes, values = zip(*filename)
@@ -148,7 +144,7 @@ def readSunComp(filename):
 
 
 def getAbundances(names, massfrac, scale='H', offset=12):
-    """Returns abundances for a list of species and mass Fractions, 
+    """Returns abundances for a list of species and mass Fractions,
     scaled by a set species.
     """
     if scale not in names:
@@ -166,7 +162,7 @@ def getAbundances(names, massfrac, scale='H', offset=12):
 
 
 def getMassFractions(names, abun):
-    """Takes log abundances and species names to weigh them and return 
+    """Takes log abundances and species names to weigh them and return
     mass fractions.
     returns mass fractions."""
     wgtdict = readStandardWeights()
@@ -178,7 +174,7 @@ def getMassFractions(names, abun):
 
 
 def getXYZ(masses):
-    """Returns Hydrogen, Helium and Metal Fractions from 
+    """Returns Hydrogen, Helium and Metal Fractions from
     given mass fractions (assumes H and He at start of list).
     """
     atot = reduce(lambda x, y: x + y, masses)
@@ -196,9 +192,9 @@ def getTotalMass(massdict):
             mass += massdict[k]['n'][n]
     print sum(mass)
 
-    
+
 def fetchNuclides(flist, lowercase=True):
-    """filters flash otp field list, extracting species found 
+    """filters flash otp field list, extracting species found
     in the checkpoint.
     """
     species = []
@@ -211,7 +207,7 @@ def fetchNuclides(flist, lowercase=True):
 
 
 def convXmass2Abun(species, xmasses):
-    """Returns abundances, abar and zbar from a list of nuclide 
+    """Returns abundances, abar and zbar from a list of nuclide
     codes and mass fractions."""
     _, Zs, _, As = splitSpecies(species, trueA=True)
     abar = 1.0e0/sum([x/a for (x,a) in zip(xmasses, As)])
@@ -220,7 +216,7 @@ def convXmass2Abun(species, xmasses):
 
 
 def splitSpecies(Spcodes, trueA=True):
-    """returns list of symbols, Z, N, A from a list of 
+    """returns list of symbols, Z, N, A from a list of
     nuclide codes.(Ni56, He4, U238, ...)
     """
     Sp, As = zip(*[elemSplit(s) for s in Spcodes])
@@ -229,7 +225,7 @@ def splitSpecies(Spcodes, trueA=True):
     Zs = np.array([mdict[n]['z'] for n in Sp])
     Ns = As - Zs
     if trueA:
-        As = [mdict[s]['n'][n] for (s,n) in zip(Sp,Ns)] 
+        As = [mdict[s]['n'][n] for (s,n) in zip(Sp,Ns)]
     return Sp, Zs, Ns, As
 
 
@@ -253,7 +249,7 @@ def elemSplit(s):
     return sym.capitalize(), int(A)
 
 #Plotting. this should be elsewhere... maybe this whole module can be isolated
-def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',#  ylims=[1e-9, 1], 
+def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',#  ylims=[1e-9, 1],
              norm='Si', offset=6, reftype='solar'):
     """draws abundquery/abundref from a massdict and a filename,
     types of reference are 'solar'(for solar composition) and 'yield' (for other sims)
@@ -334,6 +330,6 @@ def speciesGrid(ax, spcodes, yoffset=5.0):
     for i, sp in enumerate(Sp):
         col = clrs.next()[0]
         ax.axvline(Zs[i], alpha=1.0, lw=1, ls='--', c=col)
-        ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset, '${}$'.format(sp), color=col, size=10, 
+        ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset, '${}$'.format(sp), color=col, size=10,
                 horizontalalignment='left', verticalalignment='bottom')
     return 0
