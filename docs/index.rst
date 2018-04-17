@@ -7,3 +7,4 @@ flashy
    :maxdepth: 4
 
    flashy
+   cgs

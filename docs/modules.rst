@@ -1,5 +1,3 @@
-.. flashy documentation
-
 flashy
 ======
 
