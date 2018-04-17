@@ -8,6 +8,6 @@ formats:
 python:
 #    setup_py_install: true  # use setup.py to include module itself
     pip_install: true  # use pip install -e to include module itself
-    extra_requirements:
-        - matplotlib
-        - pandas
+#    extra_requirements:
+#        - matplotlib
+#        - pandas
