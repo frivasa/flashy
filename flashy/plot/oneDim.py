@@ -11,7 +11,7 @@ def _speed(field, data):
 #yt.add_field(("flash","speed"), function=_speed, units="cm/s", take_log=False)
 
 # yt plotting functions
-def fileProfile(fname, species=ap13, thresh=1e-6, mrange=[0.0, 0.0], radius=5e9, filetag='prof', show=False):
+def fileProfile(fname, species=ap13, thresh=1e-6, mrange=[0.0, 0.0], radius=5e10, filetag='prof', show=False):
     """plots a checkpoint file ray through the domain.
     
     Args:
@@ -191,7 +191,7 @@ def shock1D(rad, soundspeeds, inward=True):
         return pertp[0][-1]
 
 
-def getRay(fname, radius=5e9):
+def getRay(fname, radius=5e11):
     """returns a ray trace through the domain."""
     ds = yt.load(fname)
     ray = ds.ray([0e5, 0e5, 0] , [radius, 0, 0])

@@ -109,7 +109,7 @@ def readYield(filename):
 
 
 def convertYield2Abundance(mdict, norm='H', offset=12.0):
-    # plot weighted isotopes to compare to the sun
+    """Turns mass yields into abundances."""
     nucmass = readNuclideMasses()
     partdict = {}
     for k in mdict.keys():
@@ -196,13 +196,40 @@ def getTotalMass(massdict):
             mass += massdict[k]['n'][n]
     print sum(mass)
 
+    
+def fetchNuclides(flist, lowercase=True):
+    """filters flash otp field list, extracting species found 
+    in the checkpoint.
+    """
+    species = []
+    for (t, field) in flist:
+        if any(char.isdigit() for char in field):
+            species.append(field)
+    ss, zs, ns, ms = splitSpecies(species, trueA=False)
+    otp = sorted(zip(ms, ss))
+    return ['{}{}'.format(s.lower(), m) for (m, s) in otp]
 
-def splitSpecies(Spcodes):
+
+def convXmass2Abun(species, xmasses):
+    """Returns abundances, abar and zbar from a list of nuclide 
+    codes and mass fractions."""
+    _, Zs, _, As = splitSpecies(species, trueA=True)
+    abar = 1.0e0/sum([x/a for (x,a) in zip(xmasses, As)])
+    zbar = abar * sum([x*z/a for (z,x,a) in zip(Zs, xmasses, As)])
+    return [x/a for (x,a) in zip(xmasses, As)], abar, zbar
+
+
+def splitSpecies(Spcodes, trueA=True):
+    """returns list of symbols, Z, N, A from a list of 
+    nuclide codes.(Ni56, He4, U238, ...)
+    """
     Sp, As = zip(*[elemSplit(s) for s in Spcodes])
     As = np.array(As)
     mdict = readNuclideMasses()
     Zs = np.array([mdict[n]['z'] for n in Sp])
     Ns = As - Zs
+    if trueA:
+        As = [mdict[s]['n'][n] for (s,n) in zip(Sp,Ns)] 
     return Sp, Zs, Ns, As
 
 

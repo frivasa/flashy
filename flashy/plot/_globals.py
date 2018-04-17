@@ -92,7 +92,7 @@ setcmap = yt.make_colormap(cols, name='custom')
 # Auxiliary Functions
 
 def byMass(rads, dens):
-    """Returns a mass abscissa for plots."""
+    """Returns a mass abscissa from radial and density ordinates."""
     xs = len(rads)
     dr = rads[0]
     vol = dr**3 *4.0*np.pi/3.0
