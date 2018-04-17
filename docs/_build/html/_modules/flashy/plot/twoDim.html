@@ -26,7 +26,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../modules.html">flashy 0.0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -48,7 +48,7 @@
 <span class="c1">#yt.add_field((&quot;flash&quot;,&quot;speed&quot;), function=_speed, units=&quot;cm/s&quot;, take_log=False)</span>
 
 <span class="c1"># yt plotting functions</span>
-<div class="viewcode-block" id="planeSlice"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.planeSlice">[docs]</a><span class="k">def</span> <span class="nf">planeSlice</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">lims</span><span class="p">,</span> <span class="n">zcut</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">plR</span><span class="p">):</span>
+<div class="viewcode-block" id="planeSlice"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.planeSlice">[docs]</a><span class="k">def</span> <span class="nf">planeSlice</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">lims</span><span class="p">,</span> <span class="n">zcut</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">plR</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Makes a slice at zcut&quot;&quot;&quot;</span>
     <span class="n">ds</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
     <span class="n">p</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">SlicePlot</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">center</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">zcut</span><span class="p">])</span>
@@ -88,7 +88,7 @@
         <span class="nb">print</span> <span class="s2">&quot;Wrote: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">savp</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="bifold"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.bifold">[docs]</a><span class="k">def</span> <span class="nf">bifold</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">mhead</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">topfield</span><span class="o">=</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="n">tlims</span><span class="o">=</span><span class="p">[</span><span class="mf">1e-1</span><span class="p">,</span> <span class="mf">4e7</span><span class="p">],</span> <span class="n">width</span><span class="o">=</span><span class="n">plR</span><span class="p">,</span>
+<div class="viewcode-block" id="bifold"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.bifold">[docs]</a><span class="k">def</span> <span class="nf">bifold</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">mhead</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">topfield</span><span class="o">=</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="n">tlims</span><span class="o">=</span><span class="p">[</span><span class="mf">1e-1</span><span class="p">,</span> <span class="mf">4e7</span><span class="p">],</span> <span class="n">width</span><span class="o">=</span><span class="n">plR</span><span class="p">,</span>
            <span class="n">botfield</span><span class="o">=</span><span class="s1">&#39;temperature&#39;</span><span class="p">,</span> <span class="n">blims</span><span class="o">=</span><span class="p">[</span><span class="mf">3e7</span><span class="p">,</span> <span class="mf">2e9</span><span class="p">],</span> <span class="n">lintop</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
            <span class="n">linbot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Plots 2 properties as a joined sphere.&quot;&quot;&quot;</span>
@@ -144,7 +144,7 @@
         <span class="nb">print</span> <span class="s2">&quot;Wrote: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">savp</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="plotFRB"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.plotFRB">[docs]</a><span class="k">def</span> <span class="nf">plotFRB</span><span class="p">(</span><span class="n">gridAx</span><span class="p">,</span> <span class="n">cbgAx</span><span class="p">,</span> <span class="n">imArr</span><span class="p">,</span> <span class="n">lims</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="plotFRB"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.plotFRB">[docs]</a><span class="k">def</span> <span class="nf">plotFRB</span><span class="p">(</span><span class="n">gridAx</span><span class="p">,</span> <span class="n">cbgAx</span><span class="p">,</span> <span class="n">imArr</span><span class="p">,</span> <span class="n">lims</span><span class="p">,</span> <span class="n">top</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="n">unit</span> <span class="o">=</span> <span class="n">imArr</span><span class="o">.</span><span class="n">units</span>
     <span class="n">field</span> <span class="o">=</span> <span class="n">imArr</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;field&#39;</span><span class="p">]</span>
     <span class="n">yl</span><span class="p">,</span> <span class="n">yr</span> <span class="o">=</span> <span class="n">imArr</span><span class="o">.</span><span class="n">info</span><span class="p">[</span><span class="s1">&#39;ylim&#39;</span><span class="p">]</span>
@@ -195,7 +195,7 @@
     <span class="k">return</span> <span class="n">im</span><span class="p">,</span> <span class="n">cax</span></div>
 
 
-<div class="viewcode-block" id="mainProps"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.mainProps">[docs]</a><span class="k">def</span> <span class="nf">mainProps</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">mhead</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">grids</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<div class="viewcode-block" id="mainProps"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.mainProps">[docs]</a><span class="k">def</span> <span class="nf">mainProps</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">mhead</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">grids</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
               <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature&#39;</span><span class="p">],</span> <span class="n">linear</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> 
               <span class="n">mins</span><span class="o">=</span><span class="p">[</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">1e+16</span><span class="p">,</span> <span class="mf">3e7</span><span class="p">],</span> <span class="n">maxs</span><span class="o">=</span><span class="p">[</span><span class="mf">4e7</span><span class="p">,</span> <span class="mf">6e+24</span><span class="p">,</span> <span class="mf">2e9</span><span class="p">]):</span>
     <span class="sd">&quot;&quot;&quot;Plots the list of fields specified in yt.</span>
@@ -265,7 +265,7 @@
         <span class="nb">print</span> <span class="s2">&quot;Wrote: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">savp</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="fileProfile"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.fileProfile">[docs]</a><span class="k">def</span> <span class="nf">fileProfile</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="n">ap13</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">mrange</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">angle</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">5e9</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="fileProfile"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.fileProfile">[docs]</a><span class="k">def</span> <span class="nf">fileProfile</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="n">ap13</span><span class="p">,</span> <span class="n">thresh</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">mrange</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">angle</span><span class="o">=</span><span class="mi">45</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">5e9</span><span class="p">,</span> <span class="n">show</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;plots a checkpoint file ray through the domain.</span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
@@ -369,7 +369,7 @@
         <span class="nb">print</span> <span class="s2">&quot;Wrote: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">savp</span><span class="p">)</span></div>
 
 <span class="c1"># utility functions</span>
-<div class="viewcode-block" id="roughCJ"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.roughCJ">[docs]</a><span class="k">def</span> <span class="nf">roughCJ</span><span class="p">(</span><span class="n">ray</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
+<div class="viewcode-block" id="roughCJ"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.roughCJ">[docs]</a><span class="k">def</span> <span class="nf">roughCJ</span><span class="p">(</span><span class="n">ray</span><span class="p">,</span> <span class="n">point</span><span class="p">):</span>
     <span class="n">ray_sort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">ray</span><span class="p">[</span><span class="s1">&#39;t&#39;</span><span class="p">])</span> <span class="c1"># not time, this is a grid variable for ordering points</span>
     <span class="n">dp</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ray</span><span class="p">[</span><span class="s1">&#39;pressure&#39;</span><span class="p">][</span><span class="n">ray_sort</span><span class="p">][</span><span class="n">point</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">ray</span><span class="p">[</span><span class="s1">&#39;pressure&#39;</span><span class="p">][</span><span class="n">ray_sort</span><span class="p">][</span><span class="n">point</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
     <span class="n">nu1</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="nb">float</span><span class="p">(</span><span class="n">ray</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">][</span><span class="n">ray_sort</span><span class="p">][</span><span class="n">point</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span>
@@ -380,7 +380,7 @@
     <span class="k">return</span> <span class="n">svel</span></div>
 
 
-<div class="viewcode-block" id="locateShock"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.locateShock">[docs]</a><span class="k">def</span> <span class="nf">locateShock</span><span class="p">(</span><span class="n">ray</span><span class="p">,</span> <span class="n">vvv</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="locateShock"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.locateShock">[docs]</a><span class="k">def</span> <span class="nf">locateShock</span><span class="p">(</span><span class="n">ray</span><span class="p">,</span> <span class="n">vvv</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;returns index within ray of detected shock.&quot;&quot;&quot;</span>
     <span class="n">ray_sort</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">ray</span><span class="p">[</span><span class="s1">&#39;t&#39;</span><span class="p">])</span>
     <span class="c1"># build reference vectors</span>
@@ -404,7 +404,7 @@
     <span class="k">return</span> <span class="n">shockin</span><span class="o">+</span><span class="n">offs1</span><span class="p">,</span> <span class="n">shockout</span><span class="o">+</span><span class="n">offs2</span></div>
 
 
-<div class="viewcode-block" id="shock1D"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.shock1D">[docs]</a><span class="k">def</span> <span class="nf">shock1D</span><span class="p">(</span><span class="n">rad</span><span class="p">,</span> <span class="n">soundspeeds</span><span class="p">,</span> <span class="n">inward</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="shock1D"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.shock1D">[docs]</a><span class="k">def</span> <span class="nf">shock1D</span><span class="p">(</span><span class="n">rad</span><span class="p">,</span> <span class="n">soundspeeds</span><span class="p">,</span> <span class="n">inward</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;finds a shock in an array by detecting the last </span>
 <span class="sd">    large variation within it that is larger than the mean of deltas.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -420,7 +420,7 @@
         <span class="k">return</span> <span class="n">pertp</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="getRay"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.getRay">[docs]</a><span class="k">def</span> <span class="nf">getRay</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="mf">5e9</span><span class="p">):</span>
+<div class="viewcode-block" id="getRay"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.getRay">[docs]</a><span class="k">def</span> <span class="nf">getRay</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">radius</span><span class="o">=</span><span class="mf">5e9</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;returns a ray trace through the domain.&quot;&quot;&quot;</span>
     <span class="n">ds</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
     <span class="n">ray</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ray</span><span class="p">([</span><span class="mf">0e5</span><span class="p">,</span> <span class="mf">0e5</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span><span class="o">*</span><span class="n">radius</span><span class="p">)</span>
@@ -428,7 +428,7 @@
     <span class="k">return</span> <span class="n">ray</span><span class="p">,</span> <span class="n">ray_sort</span></div>
 
 
-<div class="viewcode-block" id="customFormatter"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.customFormatter">[docs]</a><span class="k">def</span> <span class="nf">customFormatter</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="n">prec</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<div class="viewcode-block" id="customFormatter"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.customFormatter">[docs]</a><span class="k">def</span> <span class="nf">customFormatter</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="n">prec</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;specialized format for plotting labels:</span>
 <span class="sd">    width(prec) x 10^factor.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -439,14 +439,14 @@
                                                    <span class="n">prec</span><span class="o">=</span><span class="n">prec</span><span class="p">))</span></div>
 
 
-<div class="viewcode-block" id="getExtrema"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.getExtrema">[docs]</a><span class="k">def</span> <span class="nf">getExtrema</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">flist</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">]):</span>
+<div class="viewcode-block" id="getExtrema"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.getExtrema">[docs]</a><span class="k">def</span> <span class="nf">getExtrema</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">flist</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">]):</span>
     <span class="sd">&quot;&quot;&quot;returns a list of tuples with extrema for given fields(flist).&quot;&quot;&quot;</span>
     <span class="n">ds</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
     <span class="n">ad</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">all_data</span><span class="p">()</span>
     <span class="k">return</span> <span class="n">ad</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">extrema</span><span class="p">(</span><span class="n">flist</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="gridInfo"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.gridInfo">[docs]</a><span class="k">def</span> <span class="nf">gridInfo</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="gridInfo"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.gridInfo">[docs]</a><span class="k">def</span> <span class="nf">gridInfo</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;prints checkpoint file grid stats </span>
 <span class="sd">    through yt.print_stats() method.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -456,7 +456,7 @@
     <span class="k">return</span> <span class="n">ds</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">current_time</span><span class="p">)</span></div>
 
 <span class="c1"># auxiliary functions</span>
-<div class="viewcode-block" id="getDset"><a class="viewcode-back" href="../../../source/flashy.plot.html#flashy.plot.twoDim.getDset">[docs]</a><span class="k">def</span> <span class="nf">getDset</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+<div class="viewcode-block" id="getDset"><a class="viewcode-back" href="../../../flashy.plot.html#flashy.plot.twoDim.getDset">[docs]</a><span class="k">def</span> <span class="nf">getDset</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns the yt dataset (not compatible with batch/parallel scripts)&quot;&quot;&quot;</span>
     <span class="k">return</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span></div>
 </pre></div>
@@ -491,7 +491,7 @@
         <li class="right" >
           <a href="../../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../../modules.html">flashy 0.0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>paramSetup</title>
+    <link rel="stylesheet" href="../_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for paramSetup</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">h5py</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">from</span> <span class="nn">subprocess</span> <span class="k">import</span> <span class="n">PIPE</span><span class="p">,</span> <span class="n">Popen</span>
+<span class="kn">import</span> <span class="nn">collections</span> <span class="k">as</span> <span class="nn">cl</span>
+<span class="kn">import</span> <span class="nn">butils</span> <span class="k">as</span> <span class="nn">bu</span>
+<span class="n">_cdxfolder</span> <span class="o">=</span> <span class="s2">&quot;/cdx&quot;</span>
+<span class="n">_otpfolder</span> <span class="o">=</span> <span class="s2">&quot;/otp&quot;</span>
+<span class="n">_FLASH_DIR</span> <span class="o">=</span> <span class="s2">&quot;/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR&quot;</span>
+<span class="n">_delchar</span> <span class="o">=</span> <span class="sa">u</span><span class="s1">&#39;!&#39;</span>
+
+
+<span class="k">class</span> <span class="nc">parameterGroup</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parfile</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">docked</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;setup_params&quot;</span> <span class="ow">in</span> <span class="n">parfile</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setPars</span><span class="p">(</span><span class="n">parfile</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">setPars</span><span class="p">(</span><span class="n">parfile</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">setPars</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parfile</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;sets the parameters from a .par file in the</span>
+<span class="sd">        object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">defaults</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">readSetupParams</span><span class="p">(</span><span class="n">parfile</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cd</span> <span class="o">=</span> <span class="n">makeParDict</span><span class="p">(</span><span class="n">parfile</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cd</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">addDocs</span><span class="p">()</span>
+                    
+    <span class="k">def</span> <span class="nf">addDocs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="s2">&quot;paramGroup: addDocs is missing params or defaults.&quot;</span>
+            <span class="k">return</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span><span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;default&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;default&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;family&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;family&#39;</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">tabulateDocked</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">docked</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns a pandas dataframe with defaults from setup_params.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">docked</span><span class="p">:</span>
+            <span class="n">A</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">A</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">)</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">A</span><span class="o">.</span><span class="n">transpose</span><span class="p">()</span>
+        <span class="n">A</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;Parameter&#39;</span>
+        <span class="k">return</span> <span class="n">A</span>
+
+    <span class="k">def</span> <span class="nf">tabulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;returns a pandas dataframe with parameters</span>
+<span class="sd">        being used.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">defaults</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tabulateDocked</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tabulateDocked</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">A</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;Parameter&#39;</span><span class="p">,</span> <span class="s1">&#39;Value&#39;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">A</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;Parameter&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">writeParfile</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">terse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="n">outpath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">outfile</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">addDocs</span><span class="p">()</span>
+            <span class="n">writeDictionary</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">terse</span><span class="o">=</span><span class="n">terse</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">writeDictionary</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">comp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;compares self.defaults to self.params, returning only changed</span>
+<span class="sd">        parameters&quot;&quot;&quot;</span>
+        <span class="n">shared</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="nb">print</span> <span class="s2">&quot;parameterGroup.comp: defaults not set, returning empty dict.&quot;</span>
+            <span class="k">return</span> <span class="n">shared</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">!=</span><span class="n">v</span><span class="p">:</span>
+                    <span class="n">shared</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+        <span class="k">return</span> <span class="n">shared</span>
+
+    <span class="k">def</span> <span class="nf">readChanges</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
+        <span class="c1"># turn df to a simple dictionary</span>
+        <span class="k">if</span> <span class="s1">&#39;comment&#39;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">pars</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">index</span><span class="p">),</span> <span class="nb">list</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+            <span class="n">newpdict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">pars</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">newpdict</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="c1"># parse values to avoid &#39;int&#39;</span>
+        <span class="n">parsedv</span> <span class="o">=</span> <span class="p">[</span><span class="n">bu</span><span class="o">.</span><span class="n">fortParse</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">newpdict</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">newpdict</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">parsedv</span><span class="p">)))</span>
+        <span class="c1"># refresh docked values and delete banged(!) value parameters.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">addDocs</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">deleteSkipped</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">deleteSkipped</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">_delchar</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+                <span class="nb">print</span> <span class="s2">&quot;[deleteSkipped]: Removing </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">docked</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">turn2cartesian</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;all&#39;</span><span class="p">,</span> <span class="n">nowitness</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">prefix</span><span class="o">==</span><span class="s1">&#39;all&#39;</span><span class="p">:</span>
+        <span class="n">finns</span> <span class="o">=</span> <span class="n">getFileList</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+        <span class="n">finns</span> <span class="o">+=</span> <span class="n">getFileList</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;chk&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">finns</span> <span class="o">=</span> <span class="n">getFileList</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+    <span class="n">finns</span> <span class="o">=</span> <span class="p">[</span><span class="n">f</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">finns</span> <span class="k">if</span> <span class="s2">&quot;cart_&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">f</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">finn</span> <span class="ow">in</span> <span class="n">finns</span><span class="p">:</span>
+        <span class="n">jake</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="s1">&#39;cart_&#39;</span><span class="o">+</span><span class="n">finn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">jake</span><span class="p">):</span>
+            <span class="nb">print</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2"> found. Skipping.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">jake</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">switchGeometry</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="n">finn</span><span class="p">),</span> <span class="n">jake</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">nowitness</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span><span class="n">finn</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">switchGeometry</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">finn</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span>
+    <span class="n">jake</span> <span class="o">=</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">finn</span><span class="o">.</span><span class="n">iterkeys</span><span class="p">():</span>
+        <span class="n">finn</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">jake</span><span class="p">)</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">jake</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;string scalars&#39;</span><span class="p">]</span>
+    <span class="n">newt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">ds</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
+    <span class="n">newt</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;cylindrical&quot;</span><span class="p">,</span> <span class="s2">&quot;cartesian  &quot;</span><span class="p">)</span>
+    <span class="n">ds</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">newt</span>
+    <span class="n">ds2</span> <span class="o">=</span> <span class="n">jake</span><span class="p">[</span><span class="sa">u</span><span class="s1">&#39;string runtime parameters&#39;</span><span class="p">]</span>
+    <span class="n">newt2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">ds2</span><span class="p">[</span><span class="o">...</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ds2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;cylindrical&quot;</span> <span class="ow">in</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+            <span class="n">newt2</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;cylindrical&quot;</span><span class="p">,</span> <span class="s2">&quot;cartesian  &quot;</span><span class="p">)</span>
+    <span class="n">ds2</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">newt2</span>
+    <span class="n">finn</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="n">jake</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Wrote </span><span class="si">{}</span><span class="s2"> from </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">file</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="setupFLASH"><a class="viewcode-back" href="../index.xhtml#paramSetup.setupFLASH">[docs]</a><span class="k">def</span> <span class="nf">setupFLASH</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">runfolder</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;threadBlockList&#39;</span><span class="p">:</span><span class="s1">&#39;true&#39;</span><span class="p">},</span> <span class="n">nxb</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">nyb</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">nzb</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+               <span class="n">geometry</span><span class="o">=</span><span class="s1">&#39;cylindrical&#39;</span><span class="p">,</span> <span class="n">maxbl</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">portable</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calls ./setup at _FLASH_DIR with given parameters,</span>
+<span class="sd">    writing the code to destination for compiling afterwards.</span>
+<span class="sd">    (must be run on a Py2.X kernel)</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        module(str): name of Simulation folder to setup.</span>
+<span class="sd">        runfolder(str): run folder (creates _cdx, and _otp within it).</span>
+<span class="sd">        kwargs(dict): keyword arguments to setup</span>
+<span class="sd">        n[xyz]b(int): cells per block for setup.</span>
+<span class="sd">        geometry(str): cartesian, spherical, cylindrical(default).</span>
+<span class="sd">        maxbl(int): maximum blocks per proc. elem.</span>
+<span class="sd">        debug(bool): show terminal output.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">destination</span> <span class="o">=</span> <span class="n">runfolder</span> <span class="o">+</span> <span class="n">_cdxfolder</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">destination</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;Emptying </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">runfolder</span> <span class="o">+</span> <span class="n">_otpfolder</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">pass</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">nzb</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">nyb</span><span class="p">:</span>
+            <span class="n">dimstr</span> <span class="o">=</span> <span class="s2">&quot;-1d -nxb=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nxb</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dimstr</span> <span class="o">=</span> <span class="s2">&quot;-2d -nxb=</span><span class="si">{}</span><span class="s2"> -nyb=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nxb</span><span class="p">,</span> <span class="n">nyb</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dimstr</span> <span class="o">=</span> <span class="s2">&quot;-3d -nxb=</span><span class="si">{}</span><span class="s2"> -nyb=</span><span class="si">{}</span><span class="s2"> -nzb=</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nxb</span><span class="p">,</span> <span class="n">nyb</span><span class="p">,</span> <span class="n">nzb</span><span class="p">)</span>
+    <span class="n">portag</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">if</span> <span class="n">portable</span><span class="p">:</span>
+        <span class="n">portag</span> <span class="o">=</span> <span class="s1">&#39;-portable&#39;</span>
+    <span class="n">cstub</span> <span class="o">=</span> <span class="s1">&#39;cd </span><span class="si">{}</span><span class="s1"> &amp;&amp; ./setup </span><span class="si">{}</span><span class="s1"> -auto </span><span class="si">{}</span><span class="s1"> &#39;</span>\
+            <span class="s1">&#39;-objdir=&quot;</span><span class="si">{}</span><span class="s1">&quot; </span><span class="si">{}</span><span class="s1"> -geometry=</span><span class="si">{}</span><span class="s1"> -maxblocks=</span><span class="si">{}</span><span class="s1"> &#39;</span>
+    <span class="n">comm</span> <span class="o">=</span> <span class="n">cstub</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">_FLASH_DIR</span><span class="p">,</span> <span class="n">module</span><span class="p">,</span> <span class="n">portag</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span>
+                        <span class="n">dimstr</span><span class="p">,</span> <span class="n">geometry</span><span class="p">,</span> <span class="n">maxbl</span><span class="p">)</span>
+    <span class="n">kwstr</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="s1">&#39;+&#39;</span> <span class="ow">in</span> <span class="n">k</span><span class="p">:</span>
+            <span class="n">kwstr</span><span class="o">+=</span><span class="s1">&#39; </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">kwstr</span><span class="o">+=</span><span class="s1">&#39; </span><span class="si">{}</span><span class="s1">=</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+    <span class="c1">#kwstr = &#39; &#39;.join([&#39;{}={}&#39;.format(k,v) for (k, v) in kwargs.items()])</span>
+    <span class="n">comm</span> <span class="o">=</span> <span class="n">comm</span> <span class="o">+</span> <span class="n">kwstr</span>
+    <span class="nb">print</span> <span class="n">comm</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s1">&#39;/bin/bash&#39;</span><span class="p">],</span> <span class="n">stdin</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">communicate</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">comm</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+    <span class="n">exitcode</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">returncode</span>
+    <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="n">out</span>
+        <span class="nb">print</span> <span class="n">err</span>
+    <span class="k">return</span> <span class="n">comm</span><span class="p">,</span> <span class="n">exitcode</span></div>
+
+
+<div class="viewcode-block" id="compileFLASH"><a class="viewcode-back" href="../index.xhtml#paramSetup.compileFLASH">[docs]</a><span class="k">def</span> <span class="nf">compileFLASH</span><span class="p">(</span><span class="n">runfolder</span><span class="p">,</span> <span class="n">resultlines</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">slines</span><span class="o">=</span><span class="p">[],</span> <span class="n">procs</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calls &#39;make -j procs&#39; at outpath, compiling the run</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">comm</span> <span class="o">=</span> <span class="s1">&#39;make -j </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">procs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">slines</span><span class="p">:</span>
+        <span class="n">comm</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> &amp;&amp; </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot; &amp;&amp; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">slines</span><span class="p">),</span> <span class="n">comm</span><span class="p">)</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">runfolder</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">Popen</span><span class="p">([</span><span class="s1">&#39;/bin/bash&#39;</span><span class="p">],</span> <span class="n">cwd</span><span class="o">=</span><span class="n">path</span><span class="p">,</span> <span class="n">stdin</span><span class="o">=</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">PIPE</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">,</span> <span class="n">err</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">communicate</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">comm</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span>
+    <span class="nb">print</span> <span class="n">err</span>
+    <span class="nb">print</span> <span class="n">out</span>
+    <span class="n">exitcode</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">returncode</span>
+    <span class="k">return</span> <span class="n">path</span><span class="p">,</span> <span class="n">exitcode</span></div>
+
+
+<span class="k">def</span> <span class="nf">readSetupParams</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="n">pardict</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="n">setp</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="n">comment</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">readlines</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;        &#39;</span><span class="p">):</span>
+            <span class="n">comment</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">((</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)):</span>
+            <span class="n">fam</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1"> &#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">pardict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">pardict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;family&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fam</span>
+            <span class="c1">#setp[fam] = pardict</span>
+            <span class="n">setp</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pardict</span><span class="p">)</span>
+            <span class="n">pardict</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;    &#39;</span><span class="p">):</span>
+            <span class="n">par</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">pardict</span><span class="p">[</span><span class="n">par</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">pardict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+            <span class="n">pardict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;default&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">pardict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">comment</span><span class="p">))</span>
+            <span class="n">comment</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">return</span> <span class="n">setp</span>
+
+
+<span class="k">def</span> <span class="nf">getListedDefs</span><span class="p">(</span><span class="n">supradict</span><span class="p">):</span>
+    <span class="n">pars</span><span class="p">,</span> <span class="n">vals</span><span class="p">,</span> <span class="n">defs</span><span class="p">,</span> <span class="n">docs</span><span class="p">,</span> <span class="n">fams</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">par</span> <span class="ow">in</span> <span class="n">supradict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">pars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">par</span><span class="p">)</span>
+        <span class="n">docs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">supradict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;comment&#39;</span><span class="p">])</span>
+        <span class="n">vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">supradict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+        <span class="n">defs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">supradict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;default&#39;</span><span class="p">])</span>
+        <span class="n">fams</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">supradict</span><span class="p">[</span><span class="n">par</span><span class="p">][</span><span class="s1">&#39;family&#39;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">pars</span><span class="p">,</span> <span class="n">vals</span><span class="p">,</span> <span class="n">defs</span><span class="p">,</span> <span class="n">docs</span><span class="p">,</span> <span class="n">fams</span>
+
+
+<div class="viewcode-block" id="makeParDict"><a class="viewcode-back" href="../index.xhtml#paramSetup.makeParDict">[docs]</a><span class="k">def</span> <span class="nf">makeParDict</span><span class="p">(</span><span class="n">parfile</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; get a dictionary of parameters from a flash.par file&quot;&quot;&quot;</span>
+    <span class="n">pars</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">parfile</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">par</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">par</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="s1">&#39;=&#39;</span> <span class="ow">in</span> <span class="n">l</span><span class="p">:</span>
+                <span class="n">lsplit</span> <span class="o">=</span> <span class="n">l</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;=&#39;</span><span class="p">)</span>
+                <span class="c1"># get name of parameter (left of &#39;=&#39;)</span>
+                <span class="n">p</span> <span class="o">=</span> <span class="n">lsplit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="c1"># remove comment from value (right of &#39;=&#39;)</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="n">lsplit</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+                <span class="n">pars</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">p</span><span class="p">,</span><span class="n">v</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">pars</span><span class="p">)</span></div>
+
+
+<span class="k">def</span> <span class="nf">writeDictionary</span><span class="p">(</span><span class="n">indict</span><span class="p">,</span> <span class="n">outfile</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">terse</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">meta</span><span class="p">:</span>
+        <span class="n">ps</span><span class="p">,</span> <span class="n">vs</span><span class="p">,</span> <span class="n">ds</span><span class="p">,</span> <span class="n">dcs</span><span class="p">,</span> <span class="n">fms</span> <span class="o">=</span> <span class="n">getListedDefs</span><span class="p">(</span><span class="n">indict</span><span class="p">)</span>
+        <span class="n">dat</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="n">ps</span><span class="p">,</span><span class="n">vs</span><span class="p">,</span><span class="n">ds</span><span class="p">,</span><span class="n">dcs</span><span class="p">,</span><span class="n">fms</span><span class="p">)</span>
+        <span class="n">dat</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span>
+        <span class="n">groups</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">fms</span><span class="p">))</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">o</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">##### </span><span class="si">{}</span><span class="s2"> #####</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">g</span><span class="p">))</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">dat</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">==</span><span class="n">g</span><span class="p">]</span>
+                <span class="n">maxlen</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">vals</span><span class="p">])</span>
+                <span class="k">for</span> <span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">dc</span><span class="p">,</span> <span class="n">fm</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">vals</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">terse</span><span class="p">:</span>
+                        <span class="n">o</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;{:</span><span class="si">{length}</span><span class="s2">} = </span><span class="si">{}</span><span class="s2"> # </span><span class="si">{}</span><span class="s2"> </span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">maxlen</span><span class="p">))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">o</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;{:</span><span class="si">{length}</span><span class="s2">} = </span><span class="si">{}</span><span class="s2"> # </span><span class="si">{}</span><span class="s2"> </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">v</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">dc</span><span class="p">,</span> <span class="n">length</span><span class="o">=</span><span class="n">maxlen</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">maxlen</span> <span class="o">=</span> <span class="nb">max</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">indict</span><span class="o">.</span><span class="n">keys</span><span class="p">()])</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">outfile</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">o</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">indict</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+                <span class="n">o</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;{:</span><span class="si">{pal}</span><span class="s2">} = </span><span class="si">{:}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">bu</span><span class="o">.</span><span class="n">fortParse</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)),</span> <span class="n">pal</span><span class="o">=</span><span class="n">maxlen</span><span class="p">))</span>
+
+
+<span class="k">def</span> <span class="nf">getFileList</span><span class="p">(</span><span class="n">folder</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="s1">&#39;plt&#39;</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span> <span class="k">if</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="n">x</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="cpFLASHrun"><a class="viewcode-back" href="../index.xhtml#paramSetup.cpFLASHrun">[docs]</a><span class="k">def</span> <span class="nf">cpFLASHrun</span><span class="p">(</span><span class="n">runfolder</span><span class="p">,</span> <span class="n">newrunfol</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;copy the cdx folder to a new runfolder&quot;&quot;&quot;</span>
+    <span class="n">src</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">runfolder</span><span class="p">)</span> <span class="o">+</span> <span class="n">_cdxfolder</span>
+    <span class="n">dst</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">newrunfol</span><span class="p">)</span> <span class="o">+</span> <span class="n">_cdxfolder</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">dst</span><span class="p">):</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">dst</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">copytree</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">newrunfol</span> <span class="o">+</span> <span class="n">_otpfolder</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

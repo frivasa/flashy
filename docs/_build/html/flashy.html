@@ -7,7 +7,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>flashy package &#8212; flashy 0.0.4 documentation</title>
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script type="text/javascript" src="_static/documentation_options.js"></script>
     <script type="text/javascript" src="_static/jquery.js"></script>
@@ -16,14 +16,27 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-   
-  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-  
-  
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
-
+    <link rel="next" title="flashy.plot package" href="flashy.plot.html" />
+    <link rel="prev" title="flashy" href="modules.html" /> 
   </head><body>
-  
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="flashy.plot.html" title="flashy.plot package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="flashy"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="modules.html">flashy 0.0.4 documentation</a> &#187;</li> 
+      </ul>
+    </div>  
 
     <div class="document">
       <div class="documentwrapper">
@@ -38,8 +51,8 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="flashy.plot.html">flashy.plot package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="flashy.plot.html#submodules">Submodules</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flashy.plot.html#flashy-plot-onedim-module">flashy.plot.oneDim module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flashy.plot.html#flashy-plot-twodim-module">flashy.plot.twoDim module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flashy.plot.html#module-flashy.plot.oneDim">flashy.plot.oneDim module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flashy.plot.html#module-flashy.plot.twoDim">flashy.plot.twoDim module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="flashy.plot.html#module-flashy.plot">Module contents</a></li>
 </ul>
 </li>
@@ -140,8 +153,135 @@ Titan: &lt;125 nodes 2h, &lt;312 nodes 6h…</p>
 </dd></dl>
 
 </div>
-<div class="section" id="flashy-cgs-module">
-<h2>flashy.cgs module<a class="headerlink" href="#flashy-cgs-module" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-flashy.cgs">
+<span id="flashy-cgs-module"></span><h2>flashy.cgs module<a class="headerlink" href="#module-flashy.cgs" title="Permalink to this headline">¶</a></h2>
+<p>CGS and Nuclide module. This module can handle abundances,
+mass fractions and Isotope weighing.</p>
+<dl class="function">
+<dt id="flashy.cgs.convXmass2Abun">
+<code class="descclassname">flashy.cgs.</code><code class="descname">convXmass2Abun</code><span class="sig-paren">(</span><em>species</em>, <em>xmasses</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#convXmass2Abun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.convXmass2Abun" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns abundances, abar and zbar from a list of nuclide
+codes and mass fractions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.convertYield2Abundance">
+<code class="descclassname">flashy.cgs.</code><code class="descname">convertYield2Abundance</code><span class="sig-paren">(</span><em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#convertYield2Abundance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.convertYield2Abundance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns mass yields into abundances.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.elemSplit">
+<code class="descclassname">flashy.cgs.</code><code class="descname">elemSplit</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#elemSplit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.elemSplit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Standalone element name spliter.
+(A, name)
+he4 -&gt; (4, He)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.fetchNuclides">
+<code class="descclassname">flashy.cgs.</code><code class="descname">fetchNuclides</code><span class="sig-paren">(</span><em>flist</em>, <em>lowercase=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#fetchNuclides"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.fetchNuclides" title="Permalink to this definition">¶</a></dt>
+<dd><p>filters flash otp field list, extracting species found
+in the checkpoint.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getAbundances">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getAbundances</code><span class="sig-paren">(</span><em>names</em>, <em>massfrac</em>, <em>scale='H'</em>, <em>offset=12</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#getAbundances"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.getAbundances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns abundances for a list of species and mass Fractions,
+scaled by a set species.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getMassFractions">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getMassFractions</code><span class="sig-paren">(</span><em>names</em>, <em>abun</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#getMassFractions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.getMassFractions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes log abundances and species names to weigh them and return
+mass fractions.
+returns mass fractions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getTotalMass">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getTotalMass</code><span class="sig-paren">(</span><em>massdict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#getTotalMass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.getTotalMass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sums all isotope masses in a massdict</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getXYZ">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getXYZ</code><span class="sig-paren">(</span><em>masses</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#getXYZ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.getXYZ" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Hydrogen, Helium and Metal Fractions from
+given mass fractions (assumes H and He at start of list).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.plotAbun">
+<code class="descclassname">flashy.cgs.</code><code class="descname">plotAbun</code><span class="sig-paren">(</span><em>ax</em>, <em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em>, <em>label='W7'</em>, <em>color='black'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#plotAbun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.plotAbun" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws abundances vs atomic number, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.plotIsoMasses">
+<code class="descclassname">flashy.cgs.</code><code class="descname">plotIsoMasses</code><span class="sig-paren">(</span><em>ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], notag=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#plotIsoMasses"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.plotIsoMasses" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws isotopic masses vs atomic mass, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.plotPfac">
+<code class="descclassname">flashy.cgs.</code><code class="descname">plotPfac</code><span class="sig-paren">(</span><em>ax</em>, <em>querym</em>, <em>refname='/lustre/atlas/proj-shared/csc198/frivas/02.flashy/flashy/data/suncomp/AGSS09.comp'</em>, <em>label='Sun vs Ref'</em>, <em>norm='Si'</em>, <em>offset=6</em>, <em>reftype='solar'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#plotPfac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.plotPfac" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws abundquery/abundref from a massdict and a filename,
+types of reference are ‘solar’(for solar composition) and ‘yield’ (for other sims)
+returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readNuclideMasses">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readNuclideMasses</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#readNuclideMasses"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.readNuclideMasses" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads an AMDC format table (Wang 2017 41 030003).
+AMDC atomic masses (2017): <a class="reference external" href="http://amdc.in2p3.fr/web/masseval.html">http://amdc.in2p3.fr/web/masseval.html</a>
+Reads only masses, there’s more data within it so
+this function is extensible.
+output is a dict with capitalized element names, then a
+z and n key to access z and a keyset of N numbers.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readStandardWeights">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readStandardWeights</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#readStandardWeights"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.readStandardWeights" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a species dict with standard atomic weights from:
+<a class="reference external" href="http://www.ciaaw.org/atomic-weights.htm">http://www.ciaaw.org/atomic-weights.htm</a>:
+<a class="reference external" href="http://www.ciaaw.org/pubs/TSAW2013_xls.xls">http://www.ciaaw.org/pubs/TSAW2013_xls.xls</a>
+# CIAAW only tabulates 2013 values  so no Tennessine :( and only in xls.
+# Abridged values. Ranges are picked on their lower end.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readSunComp">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readSunComp</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#readSunComp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.readSunComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a 6 column file with solar composition
+(Z name abundance abunerror meteoriticAb mAberror)
+mixes meteor and spectral/inferred abundances for completion.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readYield">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readYield</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#readYield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.readYield" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads a mass yield file or a zipped list (for simulation yields)
+Returns a mass dictionary.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.speciesGrid">
+<code class="descclassname">flashy.cgs.</code><code class="descname">speciesGrid</code><span class="sig-paren">(</span><em>ax</em>, <em>spcodes</em>, <em>yoffset=5.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#speciesGrid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.speciesGrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws a grid of the specified species on target ax.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.splitSpecies">
+<code class="descclassname">flashy.cgs.</code><code class="descname">splitSpecies</code><span class="sig-paren">(</span><em>Spcodes</em>, <em>trueA=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.html#splitSpecies"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.cgs.splitSpecies" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns list of symbols, Z, N, A from a list of
+nuclide codes.(Ni56, He4, U238, …)</p>
+</dd></dl>
+
 </div>
 <div class="section" id="module-flashy.paramSetup">
 <span id="flashy-paramsetup-module"></span><h2>flashy.paramSetup module<a class="headerlink" href="#module-flashy.paramSetup" title="Permalink to this headline">¶</a></h2>
@@ -283,25 +423,25 @@ writing the code to destination for compiling afterwards.
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
+  <h3><a href="modules.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">flashy package</a><ul>
 <li><a class="reference internal" href="#subpackages">Subpackages</a></li>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
 <li><a class="reference internal" href="#module-flashy.butils">flashy.butils module</a></li>
-<li><a class="reference internal" href="#flashy-cgs-module">flashy.cgs module</a></li>
+<li><a class="reference internal" href="#module-flashy.cgs">flashy.cgs module</a></li>
 <li><a class="reference internal" href="#module-flashy.paramSetup">flashy.paramSetup module</a></li>
 <li><a class="reference internal" href="#module-flashy">Module contents</a></li>
 </ul>
 </li>
 </ul>
-<div class="relations">
-<h3>Related Topics</h3>
-<ul>
-  <li><a href="index.html">Documentation overview</a><ul>
-  </ul></li>
-</ul>
-</div>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="modules.html"
+                        title="previous chapter">flashy</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="flashy.plot.html"
+                        title="next chapter">flashy.plot package</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -325,20 +465,27 @@ writing the code to destination for compiling afterwards.
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="footer">
-      &copy;2018, Fernando Rivas.
-      
-      |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.2</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
-      
-      |
-      <a href="_sources/flashy.rst.txt"
-          rel="nofollow">Page source</a>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="flashy.plot.html" title="flashy.plot package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="flashy"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="modules.html">flashy 0.0.4 documentation</a> &#187;</li> 
+      </ul>
     </div>
-
-    
-
-    
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Fernando Rivas.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
   </body>
 </html>

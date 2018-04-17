@@ -26,7 +26,7 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../modules.html">flashy 0.0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
       </ul>
     </div>  
@@ -67,7 +67,7 @@
 <span class="n">rsol</span> <span class="o">=</span> <span class="n">R_sun</span><span class="o">*</span><span class="n">hecto</span>
 
 
-<div class="viewcode-block" id="readStandardWeights"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.readStandardWeights">[docs]</a><span class="k">def</span> <span class="nf">readStandardWeights</span><span class="p">():</span>
+<div class="viewcode-block" id="readStandardWeights"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readStandardWeights">[docs]</a><span class="k">def</span> <span class="nf">readStandardWeights</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Returns a species dict with standard atomic weights from:</span>
 <span class="sd">    http://www.ciaaw.org/atomic-weights.htm:</span>
 <span class="sd">    http://www.ciaaw.org/pubs/TSAW2013_xls.xls</span>
@@ -82,7 +82,7 @@
     <span class="k">return</span> <span class="n">masses</span></div>
 
 
-<div class="viewcode-block" id="readNuclideMasses"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.readNuclideMasses">[docs]</a><span class="k">def</span> <span class="nf">readNuclideMasses</span><span class="p">():</span>
+<div class="viewcode-block" id="readNuclideMasses"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readNuclideMasses">[docs]</a><span class="k">def</span> <span class="nf">readNuclideMasses</span><span class="p">():</span>
     <span class="sd">&quot;&quot;&quot;Reads an AMDC format table (Wang 2017 41 030003).</span>
 <span class="sd">    AMDC atomic masses (2017): http://amdc.in2p3.fr/web/masseval.html</span>
 <span class="sd">    Reads only masses, there&#39;s more data within it so</span>
@@ -121,7 +121,7 @@
     <span class="k">return</span> <span class="n">massdict</span></div>
 
 
-<div class="viewcode-block" id="readYield"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.readYield">[docs]</a><span class="k">def</span> <span class="nf">readYield</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+<div class="viewcode-block" id="readYield"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readYield">[docs]</a><span class="k">def</span> <span class="nf">readYield</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Reads a mass yield file or a zipped list (for simulation yields)</span>
 <span class="sd">    Returns a mass dictionary.&quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">==</span><span class="nb">list</span><span class="p">:</span>
@@ -143,7 +143,7 @@
     <span class="k">return</span> <span class="n">mdict</span></div>
 
 
-<div class="viewcode-block" id="convertYield2Abundance"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.convertYield2Abundance">[docs]</a><span class="k">def</span> <span class="nf">convertYield2Abundance</span><span class="p">(</span><span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">12.0</span><span class="p">):</span>
+<div class="viewcode-block" id="convertYield2Abundance"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.convertYield2Abundance">[docs]</a><span class="k">def</span> <span class="nf">convertYield2Abundance</span><span class="p">(</span><span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">12.0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Turns mass yields into abundances.&quot;&quot;&quot;</span>
     <span class="n">nucmass</span> <span class="o">=</span> <span class="n">readNuclideMasses</span><span class="p">()</span>
     <span class="n">partdict</span> <span class="o">=</span> <span class="p">{}</span>
@@ -165,7 +165,7 @@
     <span class="k">return</span> <span class="n">zs</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">mix</span></div>
 
 
-<div class="viewcode-block" id="readSunComp"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.readSunComp">[docs]</a><span class="k">def</span> <span class="nf">readSunComp</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+<div class="viewcode-block" id="readSunComp"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readSunComp">[docs]</a><span class="k">def</span> <span class="nf">readSunComp</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Read a 6 column file with solar composition</span>
 <span class="sd">    (Z name abundance abunerror meteoriticAb mAberror)</span>
 <span class="sd">    mixes meteor and spectral/inferred abundances for completion.</span>
@@ -182,7 +182,7 @@
     <span class="k">return</span> <span class="n">zs</span><span class="p">,</span> <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">],</span> <span class="n">mix</span></div>
 
 
-<div class="viewcode-block" id="getAbundances"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.getAbundances">[docs]</a><span class="k">def</span> <span class="nf">getAbundances</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">massfrac</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+<div class="viewcode-block" id="getAbundances"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getAbundances">[docs]</a><span class="k">def</span> <span class="nf">getAbundances</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">massfrac</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns abundances for a list of species and mass Fractions,</span>
 <span class="sd">    scaled by a set species.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -200,7 +200,7 @@
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">allabun</span><span class="p">)</span><span class="o">+</span><span class="n">offset</span></div>
 
 
-<div class="viewcode-block" id="getMassFractions"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.getMassFractions">[docs]</a><span class="k">def</span> <span class="nf">getMassFractions</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">abun</span><span class="p">):</span>
+<div class="viewcode-block" id="getMassFractions"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getMassFractions">[docs]</a><span class="k">def</span> <span class="nf">getMassFractions</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">abun</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Takes log abundances and species names to weigh them and return</span>
 <span class="sd">    mass fractions.</span>
 <span class="sd">    returns mass fractions.&quot;&quot;&quot;</span>
@@ -212,7 +212,7 @@
     <span class="k">return</span> <span class="n">masses</span><span class="o">/</span><span class="n">totmass</span></div>
 
 
-<div class="viewcode-block" id="getXYZ"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.getXYZ">[docs]</a><span class="k">def</span> <span class="nf">getXYZ</span><span class="p">(</span><span class="n">masses</span><span class="p">):</span>
+<div class="viewcode-block" id="getXYZ"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getXYZ">[docs]</a><span class="k">def</span> <span class="nf">getXYZ</span><span class="p">(</span><span class="n">masses</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns Hydrogen, Helium and Metal Fractions from</span>
 <span class="sd">    given mass fractions (assumes H and He at start of list).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -223,7 +223,7 @@
     <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span></div>
 
 
-<div class="viewcode-block" id="getTotalMass"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.getTotalMass">[docs]</a><span class="k">def</span> <span class="nf">getTotalMass</span><span class="p">(</span><span class="n">massdict</span><span class="p">):</span>
+<div class="viewcode-block" id="getTotalMass"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getTotalMass">[docs]</a><span class="k">def</span> <span class="nf">getTotalMass</span><span class="p">(</span><span class="n">massdict</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Sums all isotope masses in a massdict&quot;&quot;&quot;</span>
     <span class="n">mass</span> <span class="o">=</span> <span class="mf">0.0</span>
     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">massdict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
@@ -232,7 +232,7 @@
     <span class="nb">print</span> <span class="nb">sum</span><span class="p">(</span><span class="n">mass</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="fetchNuclides"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.fetchNuclides">[docs]</a><span class="k">def</span> <span class="nf">fetchNuclides</span><span class="p">(</span><span class="n">flist</span><span class="p">,</span> <span class="n">lowercase</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="fetchNuclides"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.fetchNuclides">[docs]</a><span class="k">def</span> <span class="nf">fetchNuclides</span><span class="p">(</span><span class="n">flist</span><span class="p">,</span> <span class="n">lowercase</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;filters flash otp field list, extracting species found</span>
 <span class="sd">    in the checkpoint.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -245,7 +245,7 @@
     <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;</span><span class="si">{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">otp</span><span class="p">]</span></div>
 
 
-<div class="viewcode-block" id="convXmass2Abun"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.convXmass2Abun">[docs]</a><span class="k">def</span> <span class="nf">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">):</span>
+<div class="viewcode-block" id="convXmass2Abun"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.convXmass2Abun">[docs]</a><span class="k">def</span> <span class="nf">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Returns abundances, abar and zbar from a list of nuclide</span>
 <span class="sd">    codes and mass fractions.&quot;&quot;&quot;</span>
     <span class="n">_</span><span class="p">,</span> <span class="n">Zs</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">As</span> <span class="o">=</span> <span class="n">splitSpecies</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">trueA</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -254,7 +254,7 @@
     <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="o">/</span><span class="n">a</span> <span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">xmasses</span><span class="p">,</span> <span class="n">As</span><span class="p">)],</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span></div>
 
 
-<div class="viewcode-block" id="splitSpecies"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.splitSpecies">[docs]</a><span class="k">def</span> <span class="nf">splitSpecies</span><span class="p">(</span><span class="n">Spcodes</span><span class="p">,</span> <span class="n">trueA</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<div class="viewcode-block" id="splitSpecies"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.splitSpecies">[docs]</a><span class="k">def</span> <span class="nf">splitSpecies</span><span class="p">(</span><span class="n">Spcodes</span><span class="p">,</span> <span class="n">trueA</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;returns list of symbols, Z, N, A from a list of</span>
 <span class="sd">    nuclide codes.(Ni56, He4, U238, ...)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -268,7 +268,7 @@
     <span class="k">return</span> <span class="n">Sp</span><span class="p">,</span> <span class="n">Zs</span><span class="p">,</span> <span class="n">Ns</span><span class="p">,</span> <span class="n">As</span></div>
 
 
-<div class="viewcode-block" id="elemSplit"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.elemSplit">[docs]</a><span class="k">def</span> <span class="nf">elemSplit</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+<div class="viewcode-block" id="elemSplit"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.elemSplit">[docs]</a><span class="k">def</span> <span class="nf">elemSplit</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Standalone element name spliter.</span>
 <span class="sd">    (A, name)</span>
 <span class="sd">    he4 -&gt; (4, He)</span>
@@ -288,7 +288,7 @@
     <span class="k">return</span> <span class="n">sym</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span> <span class="nb">int</span><span class="p">(</span><span class="n">A</span><span class="p">)</span></div>
 
 <span class="c1">#Plotting. this should be elsewhere... maybe this whole module can be isolated</span>
-<div class="viewcode-block" id="plotPfac"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.plotPfac">[docs]</a><span class="k">def</span> <span class="nf">plotPfac</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">querym</span><span class="p">,</span> <span class="n">refname</span><span class="o">=</span><span class="n">AGSS09</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Sun vs Ref&#39;</span><span class="p">,</span><span class="c1">#  ylims=[1e-9, 1],</span>
+<div class="viewcode-block" id="plotPfac"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.plotPfac">[docs]</a><span class="k">def</span> <span class="nf">plotPfac</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">querym</span><span class="p">,</span> <span class="n">refname</span><span class="o">=</span><span class="n">AGSS09</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Sun vs Ref&#39;</span><span class="p">,</span><span class="c1">#  ylims=[1e-9, 1],</span>
              <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;Si&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">reftype</span><span class="o">=</span><span class="s1">&#39;solar&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;draws abundquery/abundref from a massdict and a filename,</span>
 <span class="sd">    types of reference are &#39;solar&#39;(for solar composition) and &#39;yield&#39; (for other sims)</span>
@@ -322,7 +322,7 @@
     <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span></div>
 
 
-<div class="viewcode-block" id="plotIsoMasses"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.plotIsoMasses">[docs]</a><span class="k">def</span> <span class="nf">plotIsoMasses</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">mdict</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;W7&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">ylims</span><span class="o">=</span><span class="p">[</span><span class="mf">1e-18</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="n">notag</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<div class="viewcode-block" id="plotIsoMasses"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.plotIsoMasses">[docs]</a><span class="k">def</span> <span class="nf">plotIsoMasses</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">mdict</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;W7&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">ylims</span><span class="o">=</span><span class="p">[</span><span class="mf">1e-18</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="n">notag</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;draws isotopic masses vs atomic mass, returns label and line element for legend&quot;&quot;&quot;</span>
     <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mdict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
         <span class="n">zz</span> <span class="o">=</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span>
@@ -348,7 +348,7 @@
     <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span></div>
 
 
-<div class="viewcode-block" id="plotAbun"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.plotAbun">[docs]</a><span class="k">def</span> <span class="nf">plotAbun</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;W7&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">):</span>
+<div class="viewcode-block" id="plotAbun"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.plotAbun">[docs]</a><span class="k">def</span> <span class="nf">plotAbun</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;W7&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;draws abundances vs atomic number, returns label and line element for legend&quot;&quot;&quot;</span>
     <span class="n">zs</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">mix</span> <span class="o">=</span> <span class="n">convertYield2Abundance</span><span class="p">(</span><span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
     <span class="n">line</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">zs</span><span class="p">,</span> <span class="n">mix</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -362,7 +362,7 @@
     <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span></div>
 
 
-<div class="viewcode-block" id="speciesGrid"><a class="viewcode-back" href="../../source/flashy.html#flashy.cgs.speciesGrid">[docs]</a><span class="k">def</span> <span class="nf">speciesGrid</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">spcodes</span><span class="p">,</span> <span class="n">yoffset</span><span class="o">=</span><span class="mf">5.0</span><span class="p">):</span>
+<div class="viewcode-block" id="speciesGrid"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.speciesGrid">[docs]</a><span class="k">def</span> <span class="nf">speciesGrid</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">spcodes</span><span class="p">,</span> <span class="n">yoffset</span><span class="o">=</span><span class="mf">5.0</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;draws a grid of the specified species on target ax.&quot;&quot;&quot;</span>
     <span class="n">Sp</span><span class="p">,</span> <span class="n">Zs</span><span class="p">,</span> <span class="n">Ns</span><span class="p">,</span> <span class="n">As</span> <span class="o">=</span> <span class="n">splitSpecies</span><span class="p">(</span><span class="n">spcodes</span><span class="p">)</span>
     <span class="n">clrs</span> <span class="o">=</span> <span class="n">colIter</span><span class="p">()</span>
@@ -404,7 +404,7 @@
         <li class="right" >
           <a href="../../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-0"><a href="../../modules.html">flashy 0.0.4 documentation</a> &#187;</li>
           <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
       </ul>
     </div>

@@ -7,7 +7,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>flashy.plot package &#8212; flashy 0.0.4 documentation</title>
-    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     <script type="text/javascript" src="_static/documentation_options.js"></script>
     <script type="text/javascript" src="_static/jquery.js"></script>
@@ -16,14 +16,24 @@
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-   
-  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
-  
-  
-  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
-
+    <link rel="prev" title="flashy package" href="flashy.html" /> 
   </head><body>
-  
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="flashy.html" title="flashy package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="modules.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="flashy.html" accesskey="U">flashy package</a> &#187;</li> 
+      </ul>
+    </div>  
 
     <div class="document">
       <div class="documentwrapper">
@@ -35,11 +45,243 @@
 <div class="section" id="submodules">
 <h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
 </div>
-<div class="section" id="flashy-plot-onedim-module">
-<h2>flashy.plot.oneDim module<a class="headerlink" href="#flashy-plot-onedim-module" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-flashy.plot.oneDim">
+<span id="flashy-plot-onedim-module"></span><h2>flashy.plot.oneDim module<a class="headerlink" href="#module-flashy.plot.oneDim" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="flashy.plot.oneDim.byMass">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">byMass</code><span class="sig-paren">(</span><em>rads</em>, <em>dens</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#byMass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.byMass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a mass abscissa for plots.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.customFormatter">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">customFormatter</code><span class="sig-paren">(</span><em>factor</em>, <em>prec=1</em>, <em>width=2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#customFormatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.customFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>specialized format for plotting labels:
+width(prec) x 10^factor.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.fileProfile">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">fileProfile</code><span class="sig-paren">(</span><em>fname, species=['he4 ', 'c12 ', 'o16 ', 'ne20', 'mg24', 'si28', 's32 ', 'ar36', 'ca40', 'ti44', 'cr48', 'fe52', 'ni56'], thresh=1e-06, mrange=[0.0, 0.0], radius=50000000000.0, filetag='prof', show=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#fileProfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.fileProfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots a checkpoint file ray through the domain.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename of checkpoint.</li>
+<li><strong>species</strong> (<em>list of str</em>) – list of species names to plot.</li>
+<li><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</li>
+<li><strong>radius</strong> (<em>float</em>) – reach of ray.</li>
+<li><strong>mrange</strong> (<em>list of float</em>) – if set, change the mass range of the abundance plot.</li>
+<li><strong>filetag</strong> (<em>str</em>) – change prefix of png output files.</li>
+<li><strong>show</strong> (<em>bool</em>) – return figure instead of saving it to file.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.getDset">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">getDset</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#getDset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.getDset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the yt dataset (not compatible with batch/parallel scripts)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.getExtrema">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>filename, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#getExtrema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.getExtrema" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a list of tuples with extrema for given fields(flist).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.getProfData">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">getProfData</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#getProfData"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.getProfData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns arrays for radius, dens, temp and a matrix with abundances,
+as an ordered dictionary.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.getProps">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">getProps</code><span class="sig-paren">(</span><em>profD</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#getProps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.getProps" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns central dens, temp, rmin, rmax, volume and mass of a 1D profile.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.getRay">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">getRay</code><span class="sig-paren">(</span><em>fname</em>, <em>radius=500000000000.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#getRay"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.getRay" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a ray trace through the domain.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.getVelocities">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">getVelocities</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#getVelocities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.getVelocities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns positions of the shock, and both in an outer cj
+velocities for a file, plus the starting x_match.
+(xin, xout, cjin, cjout, float(ray.ds.current_time), ray.ds.parameters[‘x_match’])</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.gridInfo">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">gridInfo</code><span class="sig-paren">(</span><em>filename</em>, <em>silent=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#gridInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.gridInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>prints checkpoint file grid stats
+through yt.print_stats() method.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.locateShock">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">locateShock</code><span class="sig-paren">(</span><em>ray</em>, <em>vvv=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#locateShock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.locateShock" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns index within ray of detected shock.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.percentDiff">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">percentDiff</code><span class="sig-paren">(</span><em>ax</em>, <em>file1</em>, <em>file2</em>, <em>diffkey</em>, <em>xkey='Radius'</em>, <em>label=''</em>, <em>**kw</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#percentDiff"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.percentDiff" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots the percentage difference for diffkey for two filenames.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plotter">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plotter</code><span class="sig-paren">(</span><em>ax</em>, <em>filename</em>, <em>key</em>, <em>xkey='Radius'</em>, <em>label=''</em>, <em>log=1</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#plotter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.plotter" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots ‘key’ values from a data dictionary</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.roughCJ">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">roughCJ</code><span class="sig-paren">(</span><em>ray</em>, <em>point</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#roughCJ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.roughCJ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.shock1D">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">shock1D</code><span class="sig-paren">(</span><em>rad</em>, <em>soundspeeds</em>, <em>inward=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#shock1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.shock1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>finds a shock in an array by detecting the last
+large variation within it that is larger than the mean of deltas.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.writeProf">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">writeProf</code><span class="sig-paren">(</span><em>filename</em>, <em>profD</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/oneDim.html#writeProf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.oneDim.writeProf" title="Permalink to this definition">¶</a></dt>
+<dd><p>writes a 1D profile dict to a file.</p>
+</dd></dl>
+
 </div>
-<div class="section" id="flashy-plot-twodim-module">
-<h2>flashy.plot.twoDim module<a class="headerlink" href="#flashy-plot-twodim-module" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="module-flashy.plot.twoDim">
+<span id="flashy-plot-twodim-module"></span><h2>flashy.plot.twoDim module<a class="headerlink" href="#module-flashy.plot.twoDim" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="flashy.plot.twoDim.bifold">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">bifold</code><span class="sig-paren">(</span><em>fname, mhead=True, topfield='density', tlims=[0.1, 40000000.0], width=1100000000.0, botfield='temperature', blims=[30000000.0, 2000000000.0], lintop=False, show=False, linbot=False, name=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#bifold"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.bifold" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots 2 properties as a joined sphere.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.customFormatter">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">customFormatter</code><span class="sig-paren">(</span><em>factor</em>, <em>prec=1</em>, <em>width=2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#customFormatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.customFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>specialized format for plotting labels:
+width(prec) x 10^factor.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.fileProfile">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">fileProfile</code><span class="sig-paren">(</span><em>fname, species=['he4 ', 'c12 ', 'o16 ', 'ne20', 'mg24', 'si28', 's32 ', 'ar36', 'ca40', 'ti44', 'cr48', 'fe52', 'ni56'], thresh=1e-06, mrange=[0.0, 0.0], angle=45, radius=5000000000.0, show=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#fileProfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.fileProfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots a checkpoint file ray through the domain.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename of checkpoint.</li>
+<li><strong>species</strong> (<em>list of str</em>) – list of species names to plot.</li>
+<li><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</li>
+<li><strong>mrange</strong> (<em>list of float</em>) – if set, change the mass range of the abundance plot.</li>
+<li><strong>angle</strong> (<em>float</em>) – angle of ray in degrees (measured from +y towards +x).</li>
+<li><strong>radius</strong> (<em>float</em>) – reach of ray.</li>
+<li><strong>show</strong> (<em>bool</em>) – return figure instead of saving it to file.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.getDset">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">getDset</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#getDset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.getDset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the yt dataset (not compatible with batch/parallel scripts)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.getExtrema">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>filename, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#getExtrema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.getExtrema" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a list of tuples with extrema for given fields(flist).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.getRay">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">getRay</code><span class="sig-paren">(</span><em>fname, direction=[0.0, 1.0, 0.0], radius=5000000000.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#getRay"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.getRay" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a ray trace through the domain.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.gridInfo">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">gridInfo</code><span class="sig-paren">(</span><em>filename</em>, <em>silent=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#gridInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.gridInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>prints checkpoint file grid stats
+through yt.print_stats() method.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.locateShock">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">locateShock</code><span class="sig-paren">(</span><em>ray</em>, <em>vvv=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#locateShock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.locateShock" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns index within ray of detected shock.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.mainProps">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">mainProps</code><span class="sig-paren">(</span><em>fname, mhead=True, grids=False, show=False, fields=['density', 'pressure', 'temperature'], linear=False, mins=[0.1, 1e+16, 30000000.0], maxs=[40000000.0, 6e+24, 2000000000.0]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#mainProps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.mainProps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the list of fields specified in yt.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename to plot.</li>
+<li><strong>mhead</strong> (<em>bool</em>) – mark the position of the matchhead.</li>
+<li><strong>grids</strong> (<em>bool</em>) – overplot the grid structure.</li>
+<li><strong>show</strong> (<em>bool</em>) – return figure (true) or save to file (false)</li>
+<li><strong>fields</strong> (<em>list of str</em>) – list of named fields to plot.</li>
+<li><strong>linear</strong> (<em>bool</em>) – set linear or log scale(false).</li>
+<li><strong>mins</strong> (<em>list of float</em>) – minima of scale for each field.</li>
+<li><strong>maxs</strong> (<em>list of float</em>) – maxima of scale for each field.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.planeSlice">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">planeSlice</code><span class="sig-paren">(</span><em>fname</em>, <em>field</em>, <em>lims</em>, <em>zcut=0.0</em>, <em>linear=False</em>, <em>show=False</em>, <em>width=1100000000.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#planeSlice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.planeSlice" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a slice at zcut</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.plotFRB">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">plotFRB</code><span class="sig-paren">(</span><em>gridAx</em>, <em>cbgAx</em>, <em>imArr</em>, <em>lims</em>, <em>top=True</em>, <em>linear=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#plotFRB"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.plotFRB" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.roughCJ">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">roughCJ</code><span class="sig-paren">(</span><em>ray</em>, <em>point</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#roughCJ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.roughCJ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.twoDim.shock1D">
+<code class="descclassname">flashy.plot.twoDim.</code><code class="descname">shock1D</code><span class="sig-paren">(</span><em>rad</em>, <em>soundspeeds</em>, <em>inward=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/plot/twoDim.html#shock1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.plot.twoDim.shock1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>finds a shock in an array by detecting the last
+large variation within it that is larger than the mean of deltas.</p>
+</dd></dl>
+
 </div>
 <div class="section" id="module-flashy.plot">
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-flashy.plot" title="Permalink to this headline">¶</a></h2>
@@ -52,23 +294,20 @@
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
+  <h3><a href="modules.html">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">flashy.plot package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
-<li><a class="reference internal" href="#flashy-plot-onedim-module">flashy.plot.oneDim module</a></li>
-<li><a class="reference internal" href="#flashy-plot-twodim-module">flashy.plot.twoDim module</a></li>
+<li><a class="reference internal" href="#module-flashy.plot.oneDim">flashy.plot.oneDim module</a></li>
+<li><a class="reference internal" href="#module-flashy.plot.twoDim">flashy.plot.twoDim module</a></li>
 <li><a class="reference internal" href="#module-flashy.plot">Module contents</a></li>
 </ul>
 </li>
 </ul>
-<div class="relations">
-<h3>Related Topics</h3>
-<ul>
-  <li><a href="index.html">Documentation overview</a><ul>
-  </ul></li>
-</ul>
-</div>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="flashy.html"
+                        title="previous chapter">flashy package</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -92,20 +331,25 @@
       </div>
       <div class="clearer"></div>
     </div>
-    <div class="footer">
-      &copy;2018, Fernando Rivas.
-      
-      |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.2</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
-      
-      |
-      <a href="_sources/flashy.plot.rst.txt"
-          rel="nofollow">Page source</a>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="flashy.html" title="flashy package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="modules.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="flashy.html" >flashy package</a> &#187;</li> 
+      </ul>
     </div>
-
-    
-
-    
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Fernando Rivas.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
   </body>
 </html>
