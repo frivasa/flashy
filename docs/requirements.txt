@@ -1,6 +1,0 @@
-flashy
-flashy.cgs
-flashy.butils
-flashy.paramSetup
-flashy.plot.oneDim
-flashy.plot.twoDim
