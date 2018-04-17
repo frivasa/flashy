@@ -39,9 +39,527 @@
 <h1>flashy Documentation<a class="headerlink" href="#flashy-documentation" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
 </div>
-<span class="target" id="module-butils"></span><span class="target" id="module-cgs"></span><p>CGS and Nuclide module. This module can handle abundances,
+<span class="target" id="module-butils"></span><dl class="function">
+<dt id="butils.emptyFileTree">
+<code class="descclassname">butils.</code><code class="descname">emptyFileTree</code><span class="sig-paren">(</span><em>root</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/butils.html#emptyFileTree"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#butils.emptyFileTree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Empties ‘root’ folder.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="butils.execute">
+<code class="descclassname">butils.</code><code class="descname">execute</code><span class="sig-paren">(</span><em>outpath</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/butils.html#execute"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#butils.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>qsubs the sumbit.pbs at outpath</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>outpath</strong> (<em>str</em>) – runfolder</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">STDOUT, STDERR, ERRCODE</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(tuple)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="butils.fortParse">
+<code class="descclassname">butils.</code><code class="descname">fortParse</code><span class="sig-paren">(</span><em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/butils.html#fortParse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#butils.fortParse" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a parsed variable from a parameter (bool,
+str, or number)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>arg</strong> (<em>str</em>) – parameter value</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">decorated argument for fortran parsing.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">str</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="butils.makeGIF">
+<code class="descclassname">butils.</code><code class="descname">makeGIF</code><span class="sig-paren">(</span><em>runfolder</em>, <em>prefix=''</em>, <em>subf=''</em>, <em>speed=0.2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/butils.html#makeGIF"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#butils.makeGIF" title="Permalink to this definition">¶</a></dt>
+<dd><p>Join all png images within a folder in an animated .gif</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>runfolder</strong> (<em>str</em>) – folder path</li>
+<li><strong>prefix</strong> (<em>str</em>) – prefix for files</li>
+<li><strong>subf</strong> (<em>str</em>) – subfolder for files</li>
+<li><strong>speed</strong> (<em>float</em>) – seconds between frames</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="butils.probeFile">
+<code class="descclassname">butils.</code><code class="descname">probeFile</code><span class="sig-paren">(</span><em>file</em>, <em>showrows=3</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/butils.html#probeFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#butils.probeFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Shows ‘showrows’ lines from the start, midfile and
+ending of a plaintext file</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="butils.writeSubmit">
+<code class="descclassname">butils.</code><code class="descname">writeSubmit</code><span class="sig-paren">(</span><em>subfile</em>, <em>code</em>, <em>pbsins=[]</em>, <em>time='12:00:00'</em>, <em>nodes=1252</em>, <em>ompth=16</em>, <em>proj=''</em>, <em>mail=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/butils.html#writeSubmit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#butils.writeSubmit" title="Permalink to this definition">¶</a></dt>
+<dd><p>builds a submit.pbs with a typical header, specifying walltime and nodes,
+then adding slines of code below. Exports OMP_NUM_THREADS=ompth
+titan: aprun (-j1) -n 1 -d 16
+debug: -D (int)
+rhea: mpirun –map-by ppr:N:node:pe=Th or -n
+debug: –display-map / –report-bindings
+Rhea max: 48 hours on 16 nodes (2x8 core p/node: -np 256)
+Titan: &lt;125 nodes 2h, &lt;312 nodes 6h…</p>
+</dd></dl>
+
+<span class="target" id="module-cgs"></span><p>CGS and Nuclide module. This module can handle abundances,
 mass fractions and Isotope weighing.</p>
-<span class="target" id="module-paramSetup"></span><span class="target" id="module-oneDim"></span><span class="target" id="module-twoDim"></span><span class="target" id="module-_globals"></span></div>
+<dl class="function">
+<dt id="cgs.convXmass2Abun">
+<code class="descclassname">cgs.</code><code class="descname">convXmass2Abun</code><span class="sig-paren">(</span><em>species</em>, <em>xmasses</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#convXmass2Abun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.convXmass2Abun" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns abundances, abar and zbar from a list of nuclide
+codes and mass fractions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.convertYield2Abundance">
+<code class="descclassname">cgs.</code><code class="descname">convertYield2Abundance</code><span class="sig-paren">(</span><em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#convertYield2Abundance"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.convertYield2Abundance" title="Permalink to this definition">¶</a></dt>
+<dd><p>Turns mass yields into abundances.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.elemSplit">
+<code class="descclassname">cgs.</code><code class="descname">elemSplit</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#elemSplit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.elemSplit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Standalone element name spliter.
+(A, name)
+he4 -&gt; (4, He)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.fetchNuclides">
+<code class="descclassname">cgs.</code><code class="descname">fetchNuclides</code><span class="sig-paren">(</span><em>flist</em>, <em>lowercase=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#fetchNuclides"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.fetchNuclides" title="Permalink to this definition">¶</a></dt>
+<dd><p>filters flash otp field list, extracting species found
+in the checkpoint.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.getAbundances">
+<code class="descclassname">cgs.</code><code class="descname">getAbundances</code><span class="sig-paren">(</span><em>names</em>, <em>massfrac</em>, <em>scale='H'</em>, <em>offset=12</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#getAbundances"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.getAbundances" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns abundances for a list of species and mass Fractions,
+scaled by a set species.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.getMassFractions">
+<code class="descclassname">cgs.</code><code class="descname">getMassFractions</code><span class="sig-paren">(</span><em>names</em>, <em>abun</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#getMassFractions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.getMassFractions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes log abundances and species names to weigh them and return
+mass fractions.
+returns mass fractions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.getTotalMass">
+<code class="descclassname">cgs.</code><code class="descname">getTotalMass</code><span class="sig-paren">(</span><em>massdict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#getTotalMass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.getTotalMass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sums all isotope masses in a massdict</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.getXYZ">
+<code class="descclassname">cgs.</code><code class="descname">getXYZ</code><span class="sig-paren">(</span><em>masses</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#getXYZ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.getXYZ" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns Hydrogen, Helium and Metal Fractions from
+given mass fractions (assumes H and He at start of list).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.plotAbun">
+<code class="descclassname">cgs.</code><code class="descname">plotAbun</code><span class="sig-paren">(</span><em>ax</em>, <em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em>, <em>label='W7'</em>, <em>color='black'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#plotAbun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.plotAbun" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws abundances vs atomic number, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.plotIsoMasses">
+<code class="descclassname">cgs.</code><code class="descname">plotIsoMasses</code><span class="sig-paren">(</span><em>ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], notag=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#plotIsoMasses"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.plotIsoMasses" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws isotopic masses vs atomic mass, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.plotPfac">
+<code class="descclassname">cgs.</code><code class="descname">plotPfac</code><span class="sig-paren">(</span><em>ax</em>, <em>querym</em>, <em>refname='/lustre/atlas/proj-shared/csc198/frivas/02.flashy/flashy/data/suncomp/AGSS09.comp'</em>, <em>label='Sun vs Ref'</em>, <em>norm='Si'</em>, <em>offset=6</em>, <em>reftype='solar'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#plotPfac"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.plotPfac" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws abundquery/abundref from a massdict and a filename,
+types of reference are ‘solar’(for solar composition) and ‘yield’ (for other sims)
+returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.readNuclideMasses">
+<code class="descclassname">cgs.</code><code class="descname">readNuclideMasses</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#readNuclideMasses"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.readNuclideMasses" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads an AMDC format table (Wang 2017 41 030003).
+AMDC atomic masses (2017): <a class="reference external" href="http://amdc.in2p3.fr/web/masseval.html">http://amdc.in2p3.fr/web/masseval.html</a>
+Reads only masses, there’s more data within it so
+this function is extensible.
+output is a dict with capitalized element names, then a
+z and n key to access z and a keyset of N numbers.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.readStandardWeights">
+<code class="descclassname">cgs.</code><code class="descname">readStandardWeights</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#readStandardWeights"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.readStandardWeights" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a species dict with standard atomic weights from:
+<a class="reference external" href="http://www.ciaaw.org/atomic-weights.htm">http://www.ciaaw.org/atomic-weights.htm</a>:
+<a class="reference external" href="http://www.ciaaw.org/pubs/TSAW2013_xls.xls">http://www.ciaaw.org/pubs/TSAW2013_xls.xls</a>
+# CIAAW only tabulates 2013 values  so no Tennessine :( and only in xls.
+# Abridged values. Ranges are picked on their lower end.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.readSunComp">
+<code class="descclassname">cgs.</code><code class="descname">readSunComp</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#readSunComp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.readSunComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read a 6 column file with solar composition
+(Z name abundance abunerror meteoriticAb mAberror)
+mixes meteor and spectral/inferred abundances for completion.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.readYield">
+<code class="descclassname">cgs.</code><code class="descname">readYield</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#readYield"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.readYield" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reads a mass yield file or a zipped list (for simulation yields)
+Returns a mass dictionary.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.speciesGrid">
+<code class="descclassname">cgs.</code><code class="descname">speciesGrid</code><span class="sig-paren">(</span><em>ax</em>, <em>spcodes</em>, <em>yoffset=5.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#speciesGrid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.speciesGrid" title="Permalink to this definition">¶</a></dt>
+<dd><p>draws a grid of the specified species on target ax.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="cgs.splitSpecies">
+<code class="descclassname">cgs.</code><code class="descname">splitSpecies</code><span class="sig-paren">(</span><em>Spcodes</em>, <em>trueA=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cgs.html#splitSpecies"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cgs.splitSpecies" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns list of symbols, Z, N, A from a list of
+nuclide codes.(Ni56, He4, U238, …)</p>
+</dd></dl>
+
+<span class="target" id="module-paramSetup"></span><dl class="function">
+<dt id="paramSetup.compileFLASH">
+<code class="descclassname">paramSetup.</code><code class="descname">compileFLASH</code><span class="sig-paren">(</span><em>runfolder</em>, <em>resultlines=20</em>, <em>slines=[]</em>, <em>procs=8</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/paramSetup.html#compileFLASH"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#paramSetup.compileFLASH" title="Permalink to this definition">¶</a></dt>
+<dd><p>calls ‘make -j procs’ at outpath, compiling the run</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="paramSetup.cpFLASHrun">
+<code class="descclassname">paramSetup.</code><code class="descname">cpFLASHrun</code><span class="sig-paren">(</span><em>runfolder</em>, <em>newrunfol</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/paramSetup.html#cpFLASHrun"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#paramSetup.cpFLASHrun" title="Permalink to this definition">¶</a></dt>
+<dd><p>copy the cdx folder to a new runfolder</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="paramSetup.makeParDict">
+<code class="descclassname">paramSetup.</code><code class="descname">makeParDict</code><span class="sig-paren">(</span><em>parfile</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/paramSetup.html#makeParDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#paramSetup.makeParDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>get a dictionary of parameters from a flash.par file</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="paramSetup.setupFLASH">
+<code class="descclassname">paramSetup.</code><code class="descname">setupFLASH</code><span class="sig-paren">(</span><em>module</em>, <em>runfolder</em>, <em>kwargs={'threadBlockList': 'true'}</em>, <em>nxb=4</em>, <em>nyb=8</em>, <em>nzb=0</em>, <em>geometry='cylindrical'</em>, <em>maxbl=500</em>, <em>debug=False</em>, <em>portable=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/paramSetup.html#setupFLASH"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#paramSetup.setupFLASH" title="Permalink to this definition">¶</a></dt>
+<dd><p>calls ./setup at _FLASH_DIR with given parameters,
+writing the code to destination for compiling afterwards.
+(must be run on a Py2.X kernel)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>module</strong> (<em>str</em>) – name of Simulation folder to setup.</li>
+<li><strong>runfolder</strong> (<em>str</em>) – run folder (creates _cdx, and _otp within it).</li>
+<li><strong>kwargs</strong> (<em>dict</em>) – keyword arguments to setup</li>
+<li><strong>n</strong><strong>[</strong><strong>xyz</strong><strong>]</strong><strong>b</strong> (<em>int</em>) – cells per block for setup.</li>
+<li><strong>geometry</strong> (<em>str</em>) – cartesian, spherical, cylindrical(default).</li>
+<li><strong>maxbl</strong> (<em>int</em>) – maximum blocks per proc. elem.</li>
+<li><strong>debug</strong> (<em>bool</em>) – show terminal output.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<span class="target" id="module-oneDim"></span><dl class="function">
+<dt id="oneDim.byMass">
+<code class="descclassname">oneDim.</code><code class="descname">byMass</code><span class="sig-paren">(</span><em>rads</em>, <em>dens</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#byMass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.byMass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a mass abscissa for plots.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.customFormatter">
+<code class="descclassname">oneDim.</code><code class="descname">customFormatter</code><span class="sig-paren">(</span><em>factor</em>, <em>prec=1</em>, <em>width=2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#customFormatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.customFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>specialized format for plotting labels:
+width(prec) x 10^factor.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.fileProfile">
+<code class="descclassname">oneDim.</code><code class="descname">fileProfile</code><span class="sig-paren">(</span><em>fname, species=['he4 ', 'c12 ', 'o16 ', 'ne20', 'mg24', 'si28', 's32 ', 'ar36', 'ca40', 'ti44', 'cr48', 'fe52', 'ni56'], thresh=1e-06, mrange=[0.0, 0.0], radius=50000000000.0, filetag='prof', show=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#fileProfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.fileProfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots a checkpoint file ray through the domain.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename of checkpoint.</li>
+<li><strong>species</strong> (<em>list of str</em>) – list of species names to plot.</li>
+<li><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</li>
+<li><strong>radius</strong> (<em>float</em>) – reach of ray.</li>
+<li><strong>mrange</strong> (<em>list of float</em>) – if set, change the mass range of the abundance plot.</li>
+<li><strong>filetag</strong> (<em>str</em>) – change prefix of png output files.</li>
+<li><strong>show</strong> (<em>bool</em>) – return figure instead of saving it to file.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.getDset">
+<code class="descclassname">oneDim.</code><code class="descname">getDset</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#getDset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.getDset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the yt dataset (not compatible with batch/parallel scripts)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.getExtrema">
+<code class="descclassname">oneDim.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>filename, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#getExtrema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.getExtrema" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a list of tuples with extrema for given fields(flist).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.getProfData">
+<code class="descclassname">oneDim.</code><code class="descname">getProfData</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#getProfData"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.getProfData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns arrays for radius, dens, temp and a matrix with abundances,
+as an ordered dictionary.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.getProps">
+<code class="descclassname">oneDim.</code><code class="descname">getProps</code><span class="sig-paren">(</span><em>profD</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#getProps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.getProps" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns central dens, temp, rmin, rmax, volume and mass of a 1D profile.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.getRay">
+<code class="descclassname">oneDim.</code><code class="descname">getRay</code><span class="sig-paren">(</span><em>fname</em>, <em>radius=500000000000.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#getRay"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.getRay" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a ray trace through the domain.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.getVelocities">
+<code class="descclassname">oneDim.</code><code class="descname">getVelocities</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#getVelocities"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.getVelocities" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns positions of the shock, and both in an outer cj
+velocities for a file, plus the starting x_match.
+(xin, xout, cjin, cjout, float(ray.ds.current_time), ray.ds.parameters[‘x_match’])</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.gridInfo">
+<code class="descclassname">oneDim.</code><code class="descname">gridInfo</code><span class="sig-paren">(</span><em>filename</em>, <em>silent=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#gridInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.gridInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>prints checkpoint file grid stats
+through yt.print_stats() method.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.locateShock">
+<code class="descclassname">oneDim.</code><code class="descname">locateShock</code><span class="sig-paren">(</span><em>ray</em>, <em>vvv=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#locateShock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.locateShock" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns index within ray of detected shock.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.percentDiff">
+<code class="descclassname">oneDim.</code><code class="descname">percentDiff</code><span class="sig-paren">(</span><em>ax</em>, <em>file1</em>, <em>file2</em>, <em>diffkey</em>, <em>xkey='Radius'</em>, <em>label=''</em>, <em>**kw</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#percentDiff"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.percentDiff" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots the percentage difference for diffkey for two filenames.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.plotter">
+<code class="descclassname">oneDim.</code><code class="descname">plotter</code><span class="sig-paren">(</span><em>ax</em>, <em>filename</em>, <em>key</em>, <em>xkey='Radius'</em>, <em>label=''</em>, <em>log=1</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#plotter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.plotter" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots ‘key’ values from a data dictionary</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.shock1D">
+<code class="descclassname">oneDim.</code><code class="descname">shock1D</code><span class="sig-paren">(</span><em>rad</em>, <em>soundspeeds</em>, <em>inward=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#shock1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.shock1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>finds a shock in an array by detecting the last
+large variation within it that is larger than the mean of deltas.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="oneDim.writeProf">
+<code class="descclassname">oneDim.</code><code class="descname">writeProf</code><span class="sig-paren">(</span><em>filename</em>, <em>profD</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/oneDim.html#writeProf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#oneDim.writeProf" title="Permalink to this definition">¶</a></dt>
+<dd><p>writes a 1D profile dict to a file.</p>
+</dd></dl>
+
+<span class="target" id="module-twoDim"></span><dl class="function">
+<dt id="twoDim.bifold">
+<code class="descclassname">twoDim.</code><code class="descname">bifold</code><span class="sig-paren">(</span><em>fname, mhead=True, topfield='density', tlims=[0.1, 40000000.0], width=1100000000.0, botfield='temperature', blims=[30000000.0, 2000000000.0], lintop=False, show=False, linbot=False, name=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#bifold"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.bifold" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots 2 properties as a joined sphere.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.customFormatter">
+<code class="descclassname">twoDim.</code><code class="descname">customFormatter</code><span class="sig-paren">(</span><em>factor</em>, <em>prec=1</em>, <em>width=2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#customFormatter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.customFormatter" title="Permalink to this definition">¶</a></dt>
+<dd><p>specialized format for plotting labels:
+width(prec) x 10^factor.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.fileProfile">
+<code class="descclassname">twoDim.</code><code class="descname">fileProfile</code><span class="sig-paren">(</span><em>fname, species=['he4 ', 'c12 ', 'o16 ', 'ne20', 'mg24', 'si28', 's32 ', 'ar36', 'ca40', 'ti44', 'cr48', 'fe52', 'ni56'], thresh=1e-06, mrange=[0.0, 0.0], angle=45, radius=5000000000.0, show=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#fileProfile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.fileProfile" title="Permalink to this definition">¶</a></dt>
+<dd><p>plots a checkpoint file ray through the domain.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename of checkpoint.</li>
+<li><strong>species</strong> (<em>list of str</em>) – list of species names to plot.</li>
+<li><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</li>
+<li><strong>mrange</strong> (<em>list of float</em>) – if set, change the mass range of the abundance plot.</li>
+<li><strong>angle</strong> (<em>float</em>) – angle of ray in degrees (measured from +y towards +x).</li>
+<li><strong>radius</strong> (<em>float</em>) – reach of ray.</li>
+<li><strong>show</strong> (<em>bool</em>) – return figure instead of saving it to file.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.getDset">
+<code class="descclassname">twoDim.</code><code class="descname">getDset</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#getDset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.getDset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the yt dataset (not compatible with batch/parallel scripts)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.getExtrema">
+<code class="descclassname">twoDim.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>filename, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#getExtrema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.getExtrema" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a list of tuples with extrema for given fields(flist).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.getRay">
+<code class="descclassname">twoDim.</code><code class="descname">getRay</code><span class="sig-paren">(</span><em>fname, direction=[0.0, 1.0, 0.0], radius=5000000000.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#getRay"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.getRay" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a ray trace through the domain.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.gridInfo">
+<code class="descclassname">twoDim.</code><code class="descname">gridInfo</code><span class="sig-paren">(</span><em>filename</em>, <em>silent=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#gridInfo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.gridInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>prints checkpoint file grid stats
+through yt.print_stats() method.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.locateShock">
+<code class="descclassname">twoDim.</code><code class="descname">locateShock</code><span class="sig-paren">(</span><em>ray</em>, <em>vvv=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#locateShock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.locateShock" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns index within ray of detected shock.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.mainProps">
+<code class="descclassname">twoDim.</code><code class="descname">mainProps</code><span class="sig-paren">(</span><em>fname, mhead=True, grids=False, show=False, fields=['density', 'pressure', 'temperature'], linear=False, mins=[0.1, 1e+16, 30000000.0], maxs=[40000000.0, 6e+24, 2000000000.0]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#mainProps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.mainProps" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the list of fields specified in yt.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename to plot.</li>
+<li><strong>mhead</strong> (<em>bool</em>) – mark the position of the matchhead.</li>
+<li><strong>grids</strong> (<em>bool</em>) – overplot the grid structure.</li>
+<li><strong>show</strong> (<em>bool</em>) – return figure (true) or save to file (false)</li>
+<li><strong>fields</strong> (<em>list of str</em>) – list of named fields to plot.</li>
+<li><strong>linear</strong> (<em>bool</em>) – set linear or log scale(false).</li>
+<li><strong>mins</strong> (<em>list of float</em>) – minima of scale for each field.</li>
+<li><strong>maxs</strong> (<em>list of float</em>) – maxima of scale for each field.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.planeSlice">
+<code class="descclassname">twoDim.</code><code class="descname">planeSlice</code><span class="sig-paren">(</span><em>fname</em>, <em>field</em>, <em>lims</em>, <em>zcut=0.0</em>, <em>linear=False</em>, <em>show=False</em>, <em>width=1100000000.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#planeSlice"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.planeSlice" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a slice at zcut</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="twoDim.shock1D">
+<code class="descclassname">twoDim.</code><code class="descname">shock1D</code><span class="sig-paren">(</span><em>rad</em>, <em>soundspeeds</em>, <em>inward=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/twoDim.html#shock1D"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#twoDim.shock1D" title="Permalink to this definition">¶</a></dt>
+<dd><p>finds a shock in an array by detecting the last
+large variation within it that is larger than the mean of deltas.</p>
+</dd></dl>
+
+<span class="target" id="module-_globals"></span><dl class="function">
+<dt id="_globals.byMass">
+<code class="descclassname">_globals.</code><code class="descname">byMass</code><span class="sig-paren">(</span><em>rads</em>, <em>dens</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/_globals.html#byMass"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#_globals.byMass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a mass abscissa from radial and density ordinates.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_globals.colIter">
+<code class="descclassname">_globals.</code><code class="descname">colIter</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/_globals.html#colIter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#_globals.colIter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple color/linestyle iterator. Colors selected from Sasha
+Trubetskoy’s simple 20 color list (based on metro lines)
+<a class="reference external" href="https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/">https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_globals.colIter2">
+<code class="descclassname">_globals.</code><code class="descname">colIter2</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/_globals.html#colIter2"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#_globals.colIter2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simple color iterator. Colors selected from Sasha Trubetskoy’s
+simple 20 color list (based on metro lines).
+<a class="reference external" href="https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/">https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="_globals.elemSplit">
+<code class="descclassname">_globals.</code><code class="descname">elemSplit</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/_globals.html#elemSplit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#_globals.elemSplit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Standalone element name spliter.
+he4 -&gt; (4, He)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>s</strong> (<em>str</em>) – element string of the form “numberSpecies”.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">(element number, capitalized name)</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">tuple of str</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="_globals.split">
+<code class="descclassname">_globals.</code><code class="descname">split</code><span class="sig-paren">(</span><em>x</em>, <em>xsplit</em>, <em>inward=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/_globals.html#split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#_globals.split" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns indices below or above xsplit and offset
+[0,1,2,3,4,5,6]
+inward True, xsplit 3: [0,1,2], 0
+inward False, xsplit 3: [4,5,6], 4</p>
+</dd></dl>
+
+</div>
 <div class="section" id="indices-and-tables">
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline">¶</a></h1>
 <ul class="simple">

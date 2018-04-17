@@ -11,11 +11,17 @@ flashy Documentation
    :caption: Contents:
 
 .. automodule :: butils
+   :members:
 .. automodule :: cgs
+   :members:
 .. automodule :: paramSetup
+   :members:
 .. automodule :: oneDim
+   :members:
 .. automodule :: twoDim
+   :members:
 .. automodule :: _globals
+   :members:
 
 Indices and tables
 ==================
