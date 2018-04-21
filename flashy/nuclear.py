@@ -2,31 +2,12 @@
 mass fractions and Isotope weighing.
 
 """
-import numpy as np
-import os
-from scipy.constants import *
-from astropy.constants import M_sun, L_sun, R_sun
+from flashy.utils import np, msol, Avogadro
 import pkg_resources
-from matplotlib.ticker import StrMethodFormatter
-from flashy.plot._globals import colIter
 
-AMDC = pkg_resources.resource_filename('flashy', 'data/nuclides/ame2017.masses')
-CIAAW = pkg_resources.resource_filename('flashy', 'data/nuclides/ciaaw2013.masses')
-AGSS09 = pkg_resources.resource_filename('flashy', 'data/suncomp/AGSS09.comp')
-
-# CODATA 2014
-# tex source: https://arxiv.org/abs/1507.07956
-# web source: https://physics.nist.gov/cuu/Constants/index.html
-# enabled through scipy.constants
-# WARNING: EVERYTHING IS ADJUSTED TO CGS
-G = G*hecto*hecto*hecto/kilo  # Newtonian constant of gravitation cm3/g/s2
-c = c*hecto  # speed of light in vacuum cm/s
-h = Planck/erg  # Planck constant erg/s
-sigma = value('Stefan-Boltzmann constant')/hecto/hecto/erg
-msol = M_sun*kilo
-lsol = L_sun/erg
-rsol = R_sun*hecto
-
+AMDC = pkg_resources.resource_filename('flashy', '../data/nuclides/ame2017.masses')
+CIAAW = pkg_resources.resource_filename('flashy', '../data/nuclides/ciaaw2013.masses')
+AGSS09 = pkg_resources.resource_filename('flashy', '../data/suncomp/AGSS09.comp')
 
 def readStandardWeights():
     """Returns a species dict with standard atomic weights from:
@@ -193,19 +174,6 @@ def getTotalMass(massdict):
     print sum(mass)
 
 
-def fetchNuclides(flist, lowercase=True):
-    """filters flash otp field list, extracting species found
-    in the checkpoint.
-    """
-    species = []
-    for (t, field) in flist:
-        if any(char.isdigit() for char in field):
-            species.append(field)
-    ss, zs, ns, ms = splitSpecies(species, trueA=False)
-    otp = sorted(zip(ms, ss))
-    return ['{}{}'.format(s.lower(), m) for (m, s) in otp]
-
-
 def convXmass2Abun(species, xmasses):
     """Returns abundances, abar and zbar from a list of nuclide
     codes and mass fractions."""
@@ -229,107 +197,39 @@ def splitSpecies(Spcodes, trueA=True):
     return Sp, Zs, Ns, As
 
 
-def elemSplit(s):
+def sortNuclides(spcodes, capitalize=False):
+    """sorts a list of nuclides by atomic number."""
+    tuples = []
+    for s in spcodes:
+        if len(s.strip())==1:
+            tuples.append((s, ''))
+        else:
+            tuples.append(elemSplit(s, True))
+    nucs = ['{}{}'.format(s, a) for (a, s) in sorted(tuples)]
+    if capitalize:
+        return nucs
+    else:
+        return [n.lower() for n in nucs]
+
+
+def elemSplit(s, invert=False):
     """Standalone element name spliter.
     (A, name)
-    he4 -> (4, He)
+    he4 -> (He, 4)
     """
-    if len(s)==1:
+    if len(s.strip())==1:
         if s.lower()=='n':
             return 'n', 1
         elif s.lower()=='p':
-            return 'H', 1
+            return 'p', 1
         elif s.lower()=='d':
-            return 'H', 2
+            return 'd', 2
         elif s.lower()=='t':
-            return 'H', 3
+            return 't', 3
     else:
         sym = s.strip('0123456789 ')
         A = s[len(sym):]
-    return sym.capitalize(), int(A)
-
-#Plotting. this should be elsewhere... maybe this whole module can be isolated
-def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',#  ylims=[1e-9, 1],
-             norm='Si', offset=6, reftype='solar'):
-    """draws abundquery/abundref from a massdict and a filename,
-    types of reference are 'solar'(for solar composition) and 'yield' (for other sims)
-    returns label and line element for legend"""
-    zs, ns, ab = convertYield2Abundance(querym, norm=norm, offset=offset)
-    if reftype=='solar':
-        zss, nss, solab = readSunComp(refname)
-        massF = getMassFractions(nss, solab)
-        rescaledsolab = getAbundances(nss, massF, scale=norm, offset=offset)
-        soldict = dict(zip(nss, rescaledsolab))
-    elif reftype=='yield':
-        massdict = readYield(refname)
-        zss, nss, solab = convertYield2Abundance(massdict, norm=norm, offset=offset)
-        soldict = dict(zip(nss, solab))
-    pfacs = []
-    for i, n in enumerate(ns):
-        if n in soldict:
-            pfacs.append((zs[i], n, ab[i]-soldict[n]))
-            #pfacs.append((zs[i], n, ab[i]/soldict[n]))
-        else:
-            print '{} not found in ref.'.format(n)
-    x, _, y = zip(*sorted(pfacs))
-    ax.axhline(0, ls=':', lw=1, color='green')
-    line = ax.plot(x, y, label=label, ls='--', lw=0.5, marker='.', color='black')
-    # Prettify
-    ax.set_xlabel(u'Atomic Number (Z)')
-    ax.set_ylabel('$[X/{}]- [X/{}]_{{ref}}$'.format(norm, norm))
-    ax.autoscale()
-    ax.yaxis.set_major_formatter(StrMethodFormatter('{x:2.0f}'))
-    ax.xaxis.set_major_formatter(StrMethodFormatter('{x:2.0f}'))
-    return line[0], label
-
-
-def plotIsoMasses(ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], notag=False):
-    """draws isotopic masses vs atomic mass, returns label and line element for legend"""
-    for k in mdict.keys():
-        zz = mdict[k]['z']
-        vals = []
-        for n in mdict[k]['n'].keys():
-            vals.append((n+zz, mdict[k]['n'][n]))
-        purgevals = [v for v in vals if ylims[0]<= v[1]<=ylims[1]]
-        if len(purgevals)==0:
-            continue
-        xs, ys = zip(*sorted(purgevals))
-        line = ax.semilogy(xs, ys, ls='--', lw=0.5, marker='.', label=label, color=color)
-        if notag:
-            continue
-        ax.text(xs[0], ys[0], '${}$'.format(k), color=color,
-                size=8, horizontalalignment='right', verticalalignment='bottom',)
-    # Prettify
-    ax.set_xlabel(u'Atomic Mass (A)')
-    ax.set_ylabel('Mass ($M_{\odot}$)')
-    ax.set_xlim([-2, 78])
-    ax.set_ylim(ylims)
-    ax.yaxis.set_major_formatter(StrMethodFormatter('{x:0.0e}'))
-    ax.xaxis.set_major_formatter(StrMethodFormatter('{x:2.0f}'))
-    return line[0], label
-
-
-def plotAbun(ax, mdict, norm='H', offset=12.0, label='W7', color='black'):
-    """draws abundances vs atomic number, returns label and line element for legend"""
-    zs, names, mix = convertYield2Abundance(mdict, norm=norm, offset=offset)
-    line = ax.plot(zs, mix, color=color, label=label, marker='.', ls=':', lw=1)
-    # Prettify
-    ax.set_xlabel(u'Atomic Number (Z)')
-    ax.set_ylabel('[X/{}] + {:2.1f}'.format(norm, offset))
-    #ax.set_xlim([-2, 78])
-    #ax.set_ylim(ylims)
-    ax.yaxis.set_major_formatter(StrMethodFormatter('{x:2.0f}'))
-    ax.xaxis.set_major_formatter(StrMethodFormatter('{x:2.0f}'))
-    return line[0], label
-
-
-def speciesGrid(ax, spcodes, yoffset=5.0):
-    """draws a grid of the specified species on target ax."""
-    Sp, Zs, Ns, As = splitSpecies(spcodes)
-    clrs = colIter()
-    for i, sp in enumerate(Sp):
-        col = clrs.next()[0]
-        ax.axvline(Zs[i], alpha=1.0, lw=1, ls='--', c=col)
-        ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset, '${}$'.format(sp), color=col, size=10,
-                horizontalalignment='left', verticalalignment='bottom')
-    return 0
+    if invert:
+        return int(A), sym.capitalize()
+    else:
+        return sym.capitalize(), int(A)

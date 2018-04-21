@@ -1,10 +1,141 @@
 import os
+import sys
 import shutil
-import numpy as np
+import h5py
+import collections as cl
+from flashy.utils import np
 from subprocess import PIPE, Popen
 from PIL import Image
 import imageio
-import sys
+
+
+def turn2cartesian(folder, prefix='all', nowitness=False):
+    if prefix=='all':
+        finns = getFileList(folder)
+        finns += getFileList(folder, prefix='chk')
+    else:
+        finns = getFileList(folder)
+    finns = [f for f in finns if "cart_" not in f]
+    for finn in finns:
+        jake = os.path.join(folder,'cart_'+finn)
+        if os.path.exists(jake):
+            print "{} found. Skipping.".format(jake)
+            continue
+        switchGeometry(os.path.join(folder,finn), jake, verbose=True)
+        if nowitness:
+            os.remove(os.path.join(folder,finn))
+
+
+def switchGeometry(file, output, verbose=True):
+    finn = h5py.File(file, "r")
+    jake = h5py.File(output, "w")
+    for k in finn.iterkeys():
+        finn.copy(k, jake)
+    ds = jake[u'string scalars']
+    newt = np.copy(ds[...])
+    newt[0][0] = ds[0][0].replace("cylindrical", "cartesian  ")
+    ds[...] = newt
+    ds2 = jake[u'string runtime parameters']
+    newt2 = np.copy(ds2[...])
+    for i, v in enumerate(ds2):
+        if "cylindrical" in v[0]:
+            newt2[i][0] = v[0].replace("cylindrical", "cartesian  ")
+    ds2[...] = newt2
+    finn.close()
+    jake.close()
+    if verbose:
+        print("Wrote {} from {}".format(output, file))
+
+
+def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=8, nzb=0,
+               geometry='cylindrical', maxbl=500, debug=False, portable=True):
+    """calls ./setup at _FLASH_DIR with given parameters,
+    writing the code to destination for compiling afterwards.
+    (must be run on a Py2.X kernel)
+
+    Arguments:
+        module(str): name of Simulation folder to setup.
+        runfolder(str): run folder (creates _cdx, and _otp within it).
+        kwargs(dict): keyword arguments to setup
+        n[xyz]b(int): cells per block for setup.
+        geometry(str): cartesian, spherical, cylindrical(default).
+        maxbl(int): maximum blocks per proc. elem.
+        debug(bool): show terminal output.
+
+    """
+    destination = runfolder + _cdxfolder
+    path = os.path.abspath(destination)
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+    else:
+        print 'Emptying {}'.format(destination)
+        shutil.rmtree(destination)
+        os.makedirs(destination)
+    try:
+        os.makedirs(runfolder + _otpfolder)
+    except:
+        pass
+    if not nzb:
+        if not nyb:
+            dimstr = "-1d -nxb={}".format(nxb)
+        else:
+            dimstr = "-2d -nxb={} -nyb={}".format(nxb, nyb)
+    else:
+        dimstr = "-3d -nxb={} -nyb={} -nzb={}".format(nxb, nyb, nzb)
+    portag = ''
+    if portable:
+        portag = '-portable'
+    cstub = 'cd {} && ./setup {} -auto {} '\
+            '-objdir="{}" {} -geometry={} -maxblocks={} '
+    comm = cstub.format(_FLASH_DIR, module, portag, path,
+                        dimstr, geometry, maxbl)
+    kwstr = ''
+    for (k, v) in kwargs.items():
+        if '+' in k:
+            kwstr+=' {}'.format(k)
+        else:
+            kwstr+=' {}={}'.format(k,v)
+    #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
+    comm = comm + kwstr
+    print comm
+    p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
+    out, err = p.communicate(input=comm.encode())
+    exitcode = p.returncode
+    if debug:
+        print out
+        print err
+    return comm, exitcode
+
+
+def compileFLASH(runfolder, resultlines=20, slines=[], procs=8):
+    """calls 'make -j procs' at outpath, compiling the run
+    """
+    comm = 'make -j {}'.format(procs)
+    if slines:
+        comm = '{} && {}'.format(" && ".join(slines), comm)
+    path = os.path.abspath(runfolder)
+    p = Popen(['/bin/bash'], cwd=path, stdin=PIPE, stdout=PIPE)
+    out, err = p.communicate(input=comm.encode())
+    print err
+    print out
+    exitcode = p.returncode
+    return path, exitcode
+
+
+def getFileList(folder, prefix='plt'):
+    return sorted([x for x in os.listdir(folder) if prefix in x])
+
+
+def cpFLASHrun(runfolder, newrunfol):
+    """copy the cdx folder to a new runfolder"""
+    src = os.path.abspath(runfolder) + _cdxfolder
+    dst = os.path.abspath(newrunfol) + _cdxfolder
+    if os.path.exists(dst):
+        shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+    else:
+        shutil.copytree(src, dst)
+    os.makedirs(newrunfol + _otpfolder)
 
 
 def makeGIF(runfolder, prefix='', subf='', speed=0.2):
