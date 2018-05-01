@@ -1,6 +1,6 @@
 import yt
 from flashy.utils import np, getBearing
-from flashy.cgs import sortNuclides
+from flashy.nuclear import sortNuclides
 # avoid yt warnings
 from yt.funcs import mylog
 mylog.setLevel(50)
@@ -113,4 +113,3 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
         return [ad.quantities.extrema(flist).value]
     else:
         return [x.value for x in ad.quantities.extrema(flist)]
-

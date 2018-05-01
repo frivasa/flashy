@@ -1,60 +1,130 @@
-"""module for handling plain text 1D profiles sorted in columns and with a typical header
-
-There's some plotting routines here that should be taken elsewhere, plus headers are too 
-strict, for example, the main key is exactly 'Radius'...
+"""module for handling plain text 1D profiles sorted in columns and with structure:
+# col names
+length of data(rows int)
+<data block>
+# comments or anything
 """
 import linecache
-from flashy.utils import np
+from flashy.utils import np, byMass
 from flashy.IOutils import cl
-
-def writeProf(filename, profD):
-    """writes a 1D profile dict to a file."""
-    points = len(profD['Radius'])
-    header = " ".join(profD.keys())
-    with open(filename, 'w') as f:
-        f.write('# {}\n'.format(header))
-        f.write('{}\n'.format(points))
-        for i in range(points):
-            line = []
-            for k in profD.keys():
-                line.append('{:15.8e}'.format(profD[k][i]))
-            f.write("{}\n".format(" ".join(line)))
-    print 'Wrote: {}'.format(filename)
+from flashy.utils import msol, byMass
 
 
-def getProps(profD):
-    """returns central dens, temp, rmin, rmax, volume and mass of a 1D profile."""
-    pts = len(profD['Radius'])
-    mass, vol = 0 , 0
-    rads = np.insert(np.copy(profD['Radius']), 0, 0.0)
-    for i in range(1, pts):
-        r2, r1 = profD['Radius'][i], profD['Radius'][i-1]
-        dr = r2-r1
-        dvol = dr * ( 3.0*r1*r2 + dr*dr ) * 4.0*np.pi/3.0
-        vol += dvol
-        mass += dvol*profD['dens'][i-1]
-    cd, ct = profD['dens'][0], profD['temp'][0]
-    msuns = mass/(1.989e33)
-    res = (r2 - profD['Radius'][0])/pts
-    print "Points/resolution: {} / {:E}".format(pts, res)
-    print "Central Dens: {:E}".format(cd)
-    print "Central Temp: {:E}".format(ct)
-    print "Radius: {:E}".format(r2)
-    print "Volume: {:E}".format(vol)
-    print "Mass (Msun): {:E}".format(msuns)
-    return pts, res, cd, ct, r2, vol, msuns
+class dataMatrix(object):
+    """object for interacting with columned data in a plain text file.
+    format for file is strict at the start since it uses np.genfromtxt to handle 
+    the data block. after row 3 any comment is allowed (# marked).
+    Essential columns: radius and density.
+    Anything with a number becomes a species.
+    
+    # col names
+    length of data(rows int)
+    <data block>
+    # comments or anything
+    """
+    def __init__(self, filename, comment=''):
+        if isinstance(filename, list):
+            self.filekeys, self.data = filename[0], filename[1]
+        else:
+            self.filekeys, self.data = chopFile(filename)
+        self.species = []
+        self.bulkprops = []
+        self.meta = {}
+        skip = []
+        n, num = multiIndex(['radius', 'r', 'rad'], self.filekeys)
+        self.radius = self.data[:, num]
+        self.bulkprops.append('radius')
+        skip.append(num)
+        n, num = multiIndex(['rho', 'dens', 'density'], self.filekeys)
+        self.density = self.data[:, num]
+        skip.append(num)
+        self.bulkprops.append('density')
+        
+        for i, k in enumerate(self.filekeys):
+            if i not in skip:
+                setattr(self, k, self.data[:, i])
+                if any(i.isdigit() for i in k):
+                    self.species.append(k)
+                else:
+                    self.bulkprops.append(k)
+            else:
+                continue
+        self.masses = byMass(self.radius, self.density)
+        self.bulkprops.append('masses')
+        self.meta['mass'] = self.masses[-1]
+        self.meta['central dens'] = self.density[0]
+        self.meta['radius'] = self.radius[-1]
+        self.meta['resolution'] = (self.radius[-1] - self.radius[0])/len(self.radius)
+        self.meta['points'] = len(self.radius)
+        self.meta['comment'] = comment
 
-# auxiliary functions
-def getProfData(filename):
-    """Returns arrays for radius, dens, temp and a matrix with abundances, 
-    as an ordered dictionary.
+    def printMeta(self):
+        for k, v in self.meta.items():
+            print '{}: {:E}'.format(k.capitalize(), v)
+
+    def writeProf(self, output, subset=[]):
+        """Write profile to file
+        
+        Args:
+            ouput(str): otp filename.
+            subset(list): write a subset of keys to file.
+        
+        """
+        if subset:
+            keys = subset
+        else:
+            keys = self.bulkprops + self.species
+        print "Writing: {}".format(" ".join(keys))
+        missing = set()
+        with open(output, 'w') as f:
+            header = " ".join(keys)
+            f.write('# {}\n'.format(header))
+            f.write('{}\n'.format(self.meta['points']))
+            for i in range(self.meta['points']):
+                line = []
+                for k in keys:
+                    try:
+                        line.append('{:15.8e}'.format(getattr(self, k)[i]))
+                    except AttributeError:
+                        missing.add(k)
+                        line.append('{:15.8e}'.format(0.0))
+                f.write("{}\n".format(" ".join(line)))
+            if self.meta['comment']:
+                f.write("# {}\n".format(self.meta['comment']))
+            f.write("# Total Mass {} Msun".format(self.meta['mass']))
+        if missing:
+            print 'Missing keys: {} were set to zero.'.format(' '.join(missing))
+        print 'Wrote: {}'.format(output)
+
+
+def multiIndex(names, keys):
+    """returns the index of a key with multiple probable names in a 
+    list. (assumes such key only happens once)"""
+    exists = False
+    for n in names:
+        try:
+            num = keys.index(n)
+            exists = True
+            break
+        except ValueError:
+            continue
+    if exists:
+        return n, num
+    else:
+        return n, -1
+
+
+def chopFile(filename):
+    """Returns header names and a data matrix from a file.
+    
+    Args:
+        filename(str): file path.
+    
+    Returns:
+        (list): lowercase header names.
+        (np.array): data matrix of shape (coords, properties)
     
     """
     data = np.genfromtxt(filename, skip_header=2, comments='#')
     header = linecache.getline(filename, 1).strip(' #\n').split()
-    varsinFile = cl.OrderedDict(zip(header, range(len(header))))
-    outDict = cl.OrderedDict()
-    for k, v in varsinFile.items():
-        var = data[:, v]
-        outDict[k] = var
-    return outDict
+    return [h.lower() for h in header], data

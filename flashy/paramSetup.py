@@ -1,8 +1,5 @@
 import pandas as pd
-from IOutils import cl, np, fortParse
-_cdxfolder = "/cdx"
-_otpfolder = "/otp"
-_FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
+from IOutils import cl, np, fortParse, os
 _delchar = u'!'
 
 

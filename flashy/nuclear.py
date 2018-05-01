@@ -176,11 +176,42 @@ def getTotalMass(massdict):
 
 def convXmass2Abun(species, xmasses):
     """Returns abundances, abar and zbar from a list of nuclide
-    codes and mass fractions."""
+    codes and mass fractions.
+    
+    Args:
+        species(list of str): nuclide code list.
+        xmasses(list of float): mass fractions of each species.
+    
+    Returns:
+        (list of float): MOLAR abundances for species.
+        (float): inverse of molar sum (abar).
+        (float): average charge (zbar).
+    
+    """
     _, Zs, _, As = splitSpecies(species, trueA=True)
-    abar = 1.0e0/sum([x/a for (x,a) in zip(xmasses, As)])
+    molar = [x/a for (x,a) in zip(xmasses, As)]
+    abar = 1.0e0/sum(molar)
     zbar = abar * sum([x*z/a for (z,x,a) in zip(Zs, xmasses, As)])
-    return [x/a for (x,a) in zip(xmasses, As)], abar, zbar
+    return molar, abar, zbar
+
+
+def getMus(species, xmasses):
+    """Returns abundances, abar and zbar from a list of nuclide
+    codes and mass fractions.
+    
+    Args:
+        species(list of str): nuclide code list.
+        xmasses(list of float): mass fractions of each species.
+
+    Returns:
+        (float): molec weight per free particle (ions + e).
+        (float): molec weight per free electron.
+    
+    """
+    _, Zs, _, As = splitSpecies(species, trueA=True)
+    mue = 1.0e0/sum([x*z/a for (z,x,a) in zip(Zs, xmasses, As)])
+    muion = 1.0/sum([x*(z+1)/a for (z,x,a) in zip(Zs, xmasses, As)])
+    return muion, mue
 
 
 def splitSpecies(Spcodes, trueA=True):
@@ -218,14 +249,13 @@ def elemSplit(s, invert=False):
     he4 -> (He, 4)
     """
     if len(s.strip())==1:
-        if s.lower()=='n':
-            return 'n', 1
-        elif s.lower()=='p':
-            return 'p', 1
-        elif s.lower()=='d':
-            return 'd', 2
-        elif s.lower()=='t':
-            return 't', 3
+        A = {
+        'n':1,
+        'p':1,
+        'd':2,
+        't':3
+        }[s.strip().lower()]
+        sym = s.strip().lower()
     else:
         sym = s.strip('0123456789 ')
         A = s[len(sym):]

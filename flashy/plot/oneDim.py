@@ -1,9 +1,9 @@
-import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter, StrMethodFormatter
 import flashy.datahaul.hdf5yt as reader
 import flashy.utils as ut
 from flashy.plot._globals import *
-from flashy.datahaul.plainText import getProfData
+import matplotlib.pyplot as plt
+from flashy.datahaul.plainText import dataMatrix
+from flashy.nuclear import sortNuclides, elemSplit
 
 def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0], 
                 filetag='prof', show=False, byM=True, 
@@ -28,9 +28,9 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
         plotsp = False
     else:
         plotsp = True
-    ad, species = reader.getLineout(fname, geom=geom, direction=direction)
+    ad, allsp = reader.getLineout(fname, geom=geom, direction=direction)
     time, _, _, _, paths = reader.getMeta(fname)
-    fig = plt.figure(figsize=(12, 8))
+    fig = plt.figure(figsize=(13, 8))
 
     if plotsp:
         layout = (3, 2)
@@ -61,30 +61,32 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
     ax3.yaxis.set_minor_formatter(StrMethodFormatter(''))
     
     if plotsp:
-        spoffset = len(ad)-len(species)-1
-        species = sortNuclides(species)
+        if not species:
+            species = allsp
+        spoffset = len(ad)-len(allsp)
+        allsp = sortNuclides(allsp)
         styleIter = colIter()
-        # don't skip any plot to ensure colors stick to species, and legend doesn't 
-        # shapeshift.
         if byM:
             xs = ut.byMass(ad[0], ad[1])
             ax4.set_xlabel('Mass ($M_{\odot}$)')
         else:
             xs = ad[0]
             ax4.set_xlabel('Radius ($cm$)')
-        for s in range(len(species)):
-            tag = '$^{{{}}}{}$'.format(*elemSplit(species[s], invert=True))
+        for s in range(len(allsp)):
+            if allsp[s] not in species:
+                continue
+            tag = '$^{{{}}}{}$'.format(*elemSplit(allsp[s], invert=True))
             c, ls = styleIter.next()
-            ax4.semilogy(xs, ad[s+spoffset], label=tag, color=c, linestyle=ls, alpha=0.7)
+            ax4.semilogy(xs, ad[s+spoffset], label=tag, color=c, linestyle=ls, alpha=0.9)
         lgd = ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
-          columnspacing=0.5, labelspacing=0.5, markerfirst=False, 
-          numpoints=4)
+          columnspacing=0.0, labelspacing=0.0, markerfirst=True, 
+          numpoints=2)
         if sum(sprange)!=0.0:
             ax4.set_xlim(sprange)
         ax4.axhline(1e0, linewidth=1, linestyle=':', color='black')
         ax4.set_ylim(thresh, 2.0)
-        ax4.set_ylabel('$X_{i}$', rotation=0, labelpad=15)
-    plt.tight_layout(pad=1.0, h_pad=0.0, w_pad=0.5, rect=(0,0,0.67,1))
+        ax4.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
+    plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.65,1.0))
     plt.subplots_adjust(hspace=0.001)
     if show:
         return
@@ -106,21 +108,64 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
         print "Wrote: {}".format(savp)
 
 
-def plotter(ax, filename, key, xkey='Radius', label='', log=1, **kwargs):
-    """plots 'key' values from a data dictionary"""
-    dataDict = getProfData(filename)
-    ax.set_ylabel(key)
-    ax.set_xlabel(xkey)
-    if log:
-        ax.loglog(dataDict[xkey], dataDict[key], label=label, **kwargs)
+def plainTprofile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0], 
+                  filetag='prof', byM=True):
+    """plots main properties of a plain text file.
+    
+    Args:
+        fname (str): filename of checkpoint.
+        species (list of str): list of species names to plot, defaults to all.
+        thresh (float): ymin for species fraction plot.
+        sprange (list of float): if set, change the range of the abundance plot.
+        filetag (str): change prefix of png output files.
+        byM (bool): abundance plot xaxis (by Mass or by Radius).
+    
+    """
+    prof = dataMatrix(fname)
+    fig = plt.figure(figsize=(12, 9))
+    skip = ['radius', 'masses', 'density']
+    plotp = [x for x in prof.bulkprops if x not in skip]
+    layout = (len(plotp)+1, 2)
+    
+    ax1 = plt.subplot2grid(layout, (0, 0), aspect='auto')
+    ax1.loglog(prof.radius, prof.density, color='black')
+    ax1.set_ylabel('$\\frac{g}{cm^3}$', rotation=0, labelpad=15)
+    ax1.set_title('Total M: {} $M_\odot$'.format(prof.meta['mass']))
+    #ax3.yaxis.set_major_formatter(StrMethodFormatter('{x:.2e}'))
+    ax1.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    colorIt = colIter2()
+    for i, p in enumerate(plotp):
+        print i, p, plotp
+        ax2 = plt.subplot2grid(layout, (i+1, 0), aspect="auto", sharex=ax1, adjustable='box-forced')
+        ax2.loglog(prof.radius, getattr(prof, p), color=colorIt.next())
+        ax2.set_ylabel(p.capitalize(), rotation=90, labelpad=15)
+        ax2.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    ax2.set_xlabel('Radius ($cm$)')
+
+    ax4 = plt.subplot2grid(layout, (0, 1), aspect="auto", adjustable='box-forced', rowspan=2)
+    if species:
+        keys = sortNuclides(species)
     else:
-        ax.plot(dataDict[xkey], dataDict[key], label=label, **kwargs)
-
-
-def percentDiff(ax, file1, file2, diffkey, xkey='Radius', label='', **kw):
-    """plots the percentage difference for diffkey for two filenames."""
-    d1 = getProfData(file1)
-    d2 = getProfData(file2)
-    jake = np.interp(d1[xkey], d2[xkey], d2[diffkey])
-    norm = np.max(jake)
-    ax.plot(d1[xkey], 100*(d1[diffkey]-jake)/norm, label=label, **kw)
+        keys = sortNuclides(prof.species)
+    styleIter = colIter()
+    if byM:
+        xs = prof.masses
+        ax4.set_xlabel('Mass ($M_{\odot}$)')
+    else:
+        xs = prof.radius
+        ax4.set_xlabel('Radius ($cm$)')
+    for s in range(len(keys)):
+        tag = '$^{{{}}}{}$'.format(*elemSplit(keys[s], invert=True))
+        c, ls = styleIter.next()
+        ax4.semilogy(xs, getattr(prof, keys[s]), label=tag, color=c, linestyle=ls, alpha=0.9)
+    lgd = ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
+      columnspacing=0.0, labelspacing=0.0, markerfirst=True, 
+      numpoints=2)
+    if sum(sprange)!=0.0:
+        ax4.set_xlim(sprange)
+    ax4.axhline(1e0, linewidth=1, linestyle=':', color='black')
+    ax4.set_ylim(thresh, 2.0)
+    ax4.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
+    plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.8,1.0))
+    plt.subplots_adjust(hspace=0.001)
+    return

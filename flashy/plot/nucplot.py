@@ -1,4 +1,84 @@
 from flashy.nuclear import *
+from _globals import *
+from flashy.yields import getYields, reader, ut
+
+def fileChemistry(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0], 
+                  filetag='chem', show=False, byM=True, 
+                  geom='cartesian', direction=[]):
+    """Plot yield mass and species from a checkpoint via a lineout.
+    
+    """
+    # ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", sharex=ax1, sharey=ax1, adjustable='box-forced')
+    t, sp , mss = getYields(fname)
+    ad, allsp = reader.getLineout(fname, geom=geom, direction=direction)
+    time, _, _, _, paths = reader.getMeta(fname)
+    fig = plt.figure(figsize=(9, 9))
+    
+    layout = (2, 1)
+    ax1 = plt.subplot2grid(layout, (0, 0), aspect='auto')
+    ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", adjustable='box-forced')
+    #ax3 = plt.subplot2grid(layout, (2, 0), aspect="auto", sharex=ax1, adjustable='box-forced')
+    
+    ax1.annotate("Time: {:.5f} s".format(time),
+                 xy=(0.0, 0.0), xytext=(1.1, 0.95), size=12,
+                 textcoords='axes fraction', xycoords='axes fraction')
+    ax1.set_ylabel('Total Mass ($M_\odot$)', rotation=90, labelpad=5)
+    ax1.set_xlabel('Mass Number (A)')
+    ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:.2f}'))
+    ax1.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    ax1.xaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
+    ax1.xaxis.set_minor_formatter(StrMethodFormatter(''))
+    
+    if not species:
+        species = allsp
+    spoffset = len(ad)-len(allsp)
+    allsp = sortNuclides(allsp)
+    styleIter = colIter()
+    if byM:
+        xs = ut.byMass(ad[0], ad[1])
+        ax2.set_xlabel('Mass ($M_{\odot}$)')
+    else:
+        xs = ad[0]
+        ax2.set_xlabel('Radius ($cm$)')
+    spnames = []
+    for s in range(len(allsp)):
+        if allsp[s] not in species:
+            continue
+        A, sym = elemSplit(allsp[s], invert=True)
+        tag = '$^{{{}}}{}$'.format(A, sym)
+        spnames.append(sym)
+        c, ls = styleIter.next()
+        ax1.scatter(A, mss[s], color=c)
+        ax2.semilogy(xs, ad[s+spoffset], label=tag, color=c, linestyle=ls, alpha=0.9)
+    lgd = ax2.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.9), 
+      columnspacing=0.0, labelspacing=0.0, markerfirst=True, 
+      numpoints=2)
+    if sum(sprange)!=0.0:
+        ax2.set_xlim(sprange)
+    ax2.axhline(1e0, linewidth=1, linestyle=':', color='black')
+    ax2.set_ylim(thresh, 2.0)
+    ax2.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
+    if show:
+        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.6,1.0))
+        return
+    else:
+        num = paths[1][-5:]
+        otpf, _ = os.path.split(paths[0])
+        tag = filetag
+        savn = '{}{}.png'.format(tag, num)
+        savf = os.path.join(otpf, "png")
+        savp = os.path.join(otpf, "png", tag, savn)
+        # build filetree and show or save the figure
+        if not os.path.exists(savf):
+            os.mkdir(savf)
+            os.mkdir(os.path.join(savf, tag))
+        elif not os.path.exists(os.path.join(savf, tag)):
+            os.mkdir(os.path.join(savf, tag))
+        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.8,1.0))
+        plt.savefig(savp,  bbox_extra_artists=(lgd,), bbox_inches='tight')
+        plt.close(fig)
+        print "Wrote: {}".format(savp)
+
 
 def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',#  ylims=[1e-9, 1],
              norm='Si', offset=6, reftype='solar'):

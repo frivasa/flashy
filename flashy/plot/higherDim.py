@@ -1,5 +1,4 @@
 from _globals import *
-from flashy.utils import byMass
 import yt  # move this dependency to datahaul
 # avoid yt warnings
 from yt.funcs import mylog
@@ -12,13 +11,17 @@ import palettable  # cmocean colors are included in palettable
 # yt call: (name, type, num): num<=11 type={diverging, qualitative, sequential}
 #_cScheme = ('GnBu', 'sequential', 9)
 # import cmocean fails for ipyparallel. so hack it through palettable
-cmap = palettable.cmocean.sequential.Deep_20.mpl_colormap
+cmap = palettable.cmocean.sequential.Gray_20.mpl_colormap
 # import cmocean fails for ipyparallel. 
 # so hack it through palettable
 #_ytcmap = palettable.cmocean.sequential.Ice_14_r.mpl_colors
-_ytcmap = palettable.matplotlib.Inferno_20_r.mpl_colors
+#_ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
+_ytcmap = palettable.cmocean.sequential.Haline_10.mpl_colors
+#_ytcmap = palettable.cmocean.diverging.Balance_20.mpl_colors
 cols = [tuple([list(x),1]) for x in _ytcmap]
-cols.append(([0.0, 0.0, 0.0], 0))
+#cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
+cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
+
 setcmap = yt.make_colormap(cols, name='custom')
 
 # yt plotting functions
@@ -104,7 +107,7 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
             tag = name
         else:
             tag = 'bifold'
-        savn = '{}{}.png'.format(tag, num)
+        savn = '{}_{}.png'.format(tag, num)
         savf = os.path.join(otpf, "png")
         savp = os.path.join(otpf, "png", tag, savn)
         # build filetree and show or save the figure
@@ -194,8 +197,9 @@ def mainProps(fname, mhead=True, grids=False, show=False,
                     share_all = True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
     p = yt.SlicePlot(ds, 'z', list(fields))
+    #plR = 7e8
     #p.set_width((plR, 2*plR))
-    #p.set_center((plR*0.5, 0.0))
+    #p.set_center((plR*0.5, plR*0.7))
     p.set_origin(("center", "left", "domain"))
     p.set_axes_unit('cm')
     header = '{:17.6f} s'
@@ -261,4 +265,84 @@ def locateShock(ray, vvv=True):
         print 'Inward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockin+offs1]))
         print 'Outward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockout+offs2]))
     return shockin+offs1, shockout+offs2
+
+
+def colortest(fname, name, cmap=palettable.cmocean.diverging.Balance_20.mpl_colors,
+              mhead=True, grids=False, show=False,
+              fields=['density'], linear=False, 
+              mins=[0.1], maxs=[4e7]):
+    """Plots the list of fields specified in yt.
+    
+    Args:
+        fname (str): filename to plot.
+        cmap (list of tuple): specify mpl colorlist(yt interpolates by default).
+        mhead (bool): mark the position of the matchhead.
+        grids (bool): overplot the grid structure.
+        show (bool): return figure (true) or save to file (false)
+        fields (list of str): list of named fields to plot.
+        linear (bool): set linear or log scale(false).
+        mins (list of float): minima of scale for each field.
+        maxs (list of float): maxima of scale for each field.
+    
+    """
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 10))
+    grid = AxesGrid(fig, (0.075,0.075,0.85,0.85),
+                    nrows_ncols = (1, size),
+                    axes_pad = 1.2, label_mode = "L",
+                    share_all = True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    p = yt.SlicePlot(ds, 'z', list(fields))
+    p.set_width((1.2e9, 2*1.2e9))
+    p.set_center((1.2e9*0.5, 0.0))
+    #plr = 6e8
+    #p.set_width((plr, plr))
+    #p.set_center((plr*0.5, plr*4.1))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    header = '{} {:10.3f} s'
+    if mhead:
+        x_match = ds.parameters['x_match']
+        y_match = ds.parameters['y_match']
+        p.annotate_marker((x_match, y_match), coord_system='plot',
+                          plot_args={'color':'black', 's': 30})
+    if grids:
+        p.annotate_grids()
+
+    _ytcmap = cmap
+    cols = [tuple([list(x),1]) for x in _ytcmap]
+    cols.append(([0.0, 0.0, 0.0], 0))
+    setcmap = yt.make_colormap(cols, name='custom')
+    pvars = zip(fields, mins, maxs)
+    for i, (f, mi, mx) in enumerate(pvars):
+        if not i:
+            p.annotate_title(header.format(name, float(ds.current_time)))
+        p.set_cmap(f, 'custom')
+        p.set_zlim(f, mi, mx)
+        if linear:
+            p.set_log(field, False)
+        plot = p.plots[f]
+       # plot.figure = fig
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+    p._setup_plots()
+    if show:
+        return fig
+    else:
+        num = ds.parameter_filename[-5:]
+        otpf, _ = os.path.split(ds.fullpath)
+        tag = 'colors'
+        savn = '{}{}.png'.format(tag, name)
+        savf = os.path.join(otpf, "png")
+        savp = os.path.join(otpf, "png", tag, savn)
+        # build filetree and show or save the figure
+        if not os.path.exists(savf):
+            os.mkdir(savf)
+            os.mkdir(os.path.join(savf, tag))
+        elif not os.path.exists(os.path.join(savf, tag)):
+            os.mkdir(os.path.join(savf, tag))
+        plt.savefig(savp)
+        plt.close(fig)
+        print "Wrote: {}".format(savp)
 

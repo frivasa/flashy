@@ -7,6 +7,9 @@ from flashy.utils import np
 from subprocess import PIPE, Popen
 from PIL import Image
 import imageio
+_cdxfolder = "/cdx"
+_otpfolder = "/otp"
+_FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
 
 
 def turn2cartesian(folder, prefix='all', nowitness=False):
@@ -82,16 +85,13 @@ def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=
             dimstr = "-2d -nxb={} -nyb={}".format(nxb, nyb)
     else:
         dimstr = "-3d -nxb={} -nyb={} -nzb={}".format(nxb, nyb, nzb)
-    portag = ''
-    if portable:
-        portag = '-portable'
-    cstub = 'cd {} && ./setup {} -auto {} '\
+    cstub = 'cd {} && ./setup {} -auto '\
             '-objdir="{}" {} -geometry={} -maxblocks={} '
-    comm = cstub.format(_FLASH_DIR, module, portag, path,
+    comm = cstub.format(_FLASH_DIR, module, path,
                         dimstr, geometry, maxbl)
     kwstr = ''
     for (k, v) in kwargs.items():
-        if '+' in k:
+        if v=='':
             kwstr+=' {}'.format(k)
         else:
             kwstr+=' {}={}'.format(k,v)
@@ -122,8 +122,13 @@ def compileFLASH(runfolder, resultlines=20, slines=[], procs=8):
     return path, exitcode
 
 
-def getFileList(folder, prefix='plt'):
-    return sorted([x for x in os.listdir(folder) if prefix in x])
+def getFileList(folder, prefix='plt', fullpath=False):
+    names = sorted(os.listdir(folder))
+    fnames = [x for x in names if prefix in x]
+    if fullpath:
+        return [os.path.join(os.path.abspath(folder), x) for x in fnames]
+    else:
+        return fnames
 
 
 def cpFLASHrun(runfolder, newrunfol):
@@ -232,13 +237,12 @@ def writeSubmit(subfile, code, pbsins=[],
     """
     subHeader = []
     subHeader.append('#!/bin/bash')
-    subHeader.append('#PBS -V') # pass env vars to nodes
-    #subHeader.append('#PBS -j oe') # join err and otp
+    subHeader.append('#PBS -V')  # pass env vars to nodes
     subHeader.append('#PBS -l gres=atlas1')
     subHeader.append('#PBS -A {}'.format(proj))
     subHeader.append('#PBS -l walltime={},nodes={}'.format(time, nodes))
     subHeader.append('#PBS -N {}'.format(os.path.basename(subfile)[:-4]))
-    subHeader.append('#PBS -j oe')
+    subHeader.append('#PBS -j oe')  # join err and otp
     subScript = []
     subScript.append('date')
     subScript.append('echo Submitted from: $PBS_O_WORKDIR')

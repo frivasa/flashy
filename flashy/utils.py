@@ -10,9 +10,11 @@ G = G*hecto*hecto*hecto/kilo  # Newtonian constant of gravitation cm3/g/s2
 c = c*hecto  # speed of light in vacuum cm/s
 h = Planck/erg  # Planck constant erg/s
 sigma = value('Stefan-Boltzmann constant')/hecto/hecto/erg
-msol = M_sun*kilo
-lsol = L_sun/erg
-rsol = R_sun*hecto
+msol = M_sun.value*kilo
+lsol = L_sun.value/erg
+rsol = R_sun.value*hecto
+m_e = m_e*kilo
+Rg = gas_constant
 
 def byMass(radii, dens):
     """Returns a mass abscissa for plots.
@@ -28,13 +30,13 @@ def byMass(radii, dens):
     xs = len(radii)
     dr = radii[0]
     vol = dr**3 *4.0*np.pi/3.0
-    mass = vol*dens[0]/msol.value
+    mass = vol*dens[0]/msol
     absc = []
     absc.append(mass)
     for i in range(1, xs):
         dr = radii[i] - radii[i-1]
         dvol = dr * ( 3.0*radii[i-1]*radii[i] + dr*dr ) * 4.0*np.pi/3.0
-        mass = mass + dvol*dens[i]/msol.value
+        mass = mass + dvol*dens[i]/msol
         absc.append(mass)
     return absc
 
@@ -154,3 +156,22 @@ def split(x, xsplit, inward=True):
     else:
         filt = np.where(x>xsplit)
         return filt, filt[0][0]
+
+
+def percentDiff(x1, y1, x2, y2):
+    """returns the percentage difference between two abscissas 
+    subject to the x range of the first via interpolation.
+    
+    Args:
+        x1(float list): reference abscissa.
+        y1(float list): comparison ordinate.
+        x2(float list): interpolant ordinate.
+        y2(float list): interpolant abscissa.
+    
+    Returns:
+        (float list): percentage difference (vs y1, i.e., <0 implies y1<y2)
+    
+    """
+    jake = np.interp(x1, x2, y2)
+    diffs = np.array([j/y1-1.0 for (y1, j) in zip(y1, jake)])
+    return 100*diffs
