@@ -22,7 +22,7 @@ def turn2cartesian(folder, prefix='all', nowitness=False):
     for finn in finns:
         jake = os.path.join(folder,'cart_'+finn)
         if os.path.exists(jake):
-            print "{} found. Skipping.".format(jake)
+            print("{} found. Skipping.".format(jake))
             continue
         switchGeometry(os.path.join(folder,finn), jake, verbose=True)
         if nowitness:
@@ -30,19 +30,23 @@ def turn2cartesian(folder, prefix='all', nowitness=False):
 
 
 def switchGeometry(file, output, verbose=True):
+    """copies hdf5 file, changing the coordinate system name to 
+    cylindrical for yt input."""
     finn = h5py.File(file, "r")
     jake = h5py.File(output, "w")
-    for k in finn.iterkeys():
+    # p2 > p3: obj.iterkeys() > obj.keys()
+    # p2 > p3: hdf5 works with bytes, not str: u"" > b""
+    for k in finn.keys():
         finn.copy(k, jake)
     ds = jake[u'string scalars']
     newt = np.copy(ds[...])
-    newt[0][0] = ds[0][0].replace("cylindrical", "cartesian  ")
+    newt[0][0] = ds[0][0].replace(b"cylindrical", b"cartesian  ")
     ds[...] = newt
     ds2 = jake[u'string runtime parameters']
     newt2 = np.copy(ds2[...])
     for i, v in enumerate(ds2):
-        if "cylindrical" in v[0]:
-            newt2[i][0] = v[0].replace("cylindrical", "cartesian  ")
+        if b"cylindrical" in v[0]:
+            newt2[i][0] = v[0].replace(b"cylindrical", b"cartesian  ")
     ds2[...] = newt2
     finn.close()
     jake.close()
@@ -71,7 +75,7 @@ def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=
     if not os.path.exists(destination):
         os.makedirs(destination)
     else:
-        print 'Emptying {}'.format(destination)
+        print('Emptying {}'.format(destination))
         shutil.rmtree(destination)
         os.makedirs(destination)
     try:
@@ -97,13 +101,13 @@ def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=
             kwstr+=' {}={}'.format(k,v)
     #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
-    print comm
+    print(comm)
     p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
     out, err = p.communicate(input=comm.encode())
     exitcode = p.returncode
     if debug:
-        print out
-        print err
+        print(out)
+        print(err)
     return comm, exitcode
 
 
@@ -116,8 +120,8 @@ def compileFLASH(runfolder, resultlines=20, slines=[], procs=8):
     path = os.path.abspath(runfolder)
     p = Popen(['/bin/bash'], cwd=path, stdin=PIPE, stdout=PIPE)
     out, err = p.communicate(input=comm.encode())
-    print err
-    print out
+    print(err)
+    print(out)
     exitcode = p.returncode
     return path, exitcode
 
@@ -175,7 +179,7 @@ def makeGIF(runfolder, prefix='', subf='', speed=0.2):
     else:
         expname = "{}/joined.gif".format(runfolder, prefix)
     imageio.mimsave(expname, jakes, format='gif', duration=speed)
-    print "\n\tSaved: {}".format(expname)
+    print("\n\tSaved: {}".format(expname))
 
 
 def fortParse(arg):
@@ -262,7 +266,7 @@ def writeSubmit(subfile, code, pbsins=[],
         o.write("\n")
 
 
-def probeFile(file, showrows=3):
+def probeFile(file, showrows=3, onlyhead=True):
     """Shows 'showrows' lines from the start, midfile and
     ending of a plaintext file
     """
@@ -273,9 +277,16 @@ def probeFile(file, showrows=3):
         print("".join(lines))
     else:
         l2 = int(l/2.)
-        print("".join(lines[0:showrows]))
-        print("".join(lines[l2:l2+showrows]))
-        print("".join(lines[-showrows:]))
+        print('hello')
+        pNumbered(lines[0:showrows], 0)
+        if not onlyhead:
+            pNumbered(lines[l2:l2+showrows], l2)
+            pNumbered(lines[-showrows:], l-showrows)
+
+
+def pNumbered(rlist, offset):
+    for i, l in enumerate(rlist):
+        print('{}: {}'.format(i+offset, l.strip('\n')))
 
 
 def emptyFileTree(root):

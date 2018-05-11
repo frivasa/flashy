@@ -1,6 +1,6 @@
 import flashy.datahaul.hdf5yt as reader
 import flashy.utils as ut
-from flashy.plot._globals import *
+from .globals import *
 import matplotlib.pyplot as plt
 from flashy.datahaul.plainText import dataMatrix
 from flashy.nuclear import sortNuclides, elemSplit
@@ -24,7 +24,7 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
     
     """
     if 'chk' not in fname:
-        print "Not a checkpoint, skipping abundance plots"
+        print("Not a checkpoint, skipping abundance plots")
         plotsp = False
     else:
         plotsp = True
@@ -76,7 +76,8 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
             if allsp[s] not in species:
                 continue
             tag = '$^{{{}}}{}$'.format(*elemSplit(allsp[s], invert=True))
-            c, ls = styleIter.next()
+            # p2 to p3: obj.next() > next(obj)
+            c, ls = next(styleIter)
             ax4.semilogy(xs, ad[s+spoffset], label=tag, color=c, linestyle=ls, alpha=0.9)
         lgd = ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
           columnspacing=0.0, labelspacing=0.0, markerfirst=True, 
@@ -86,8 +87,12 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
         ax4.axhline(1e0, linewidth=1, linestyle=':', color='black')
         ax4.set_ylim(thresh, 2.0)
         ax4.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
-    plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.65,1.0))
+    if plotsp and len(species)<30:
+        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.9,1.0))
+    else:
+        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.65,1.0))
     plt.subplots_adjust(hspace=0.001)
+    
     if show:
         return
     else:
@@ -105,7 +110,7 @@ def fileProfile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
             os.mkdir(os.path.join(savf, tag))
         plt.savefig(savp,  bbox_extra_artists=(lgd,), bbox_inches='tight')
         plt.close(fig)
-        print "Wrote: {}".format(savp)
+        print("Wrote: {}".format(savp))
 
 
 def plainTprofile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0], 
@@ -135,9 +140,10 @@ def plainTprofile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
     ax1.yaxis.set_minor_formatter(StrMethodFormatter(''))
     colorIt = colIter2()
     for i, p in enumerate(plotp):
-        print i, p, plotp
+        print(i, p, plotp)
         ax2 = plt.subplot2grid(layout, (i+1, 0), aspect="auto", sharex=ax1, adjustable='box-forced')
-        ax2.loglog(prof.radius, getattr(prof, p), color=colorIt.next())
+        # p2 to p3: obj.next() > next(obj)
+        ax2.loglog(prof.radius, getattr(prof, p), color=next(colorIt))
         ax2.set_ylabel(p.capitalize(), rotation=90, labelpad=15)
         ax2.yaxis.set_minor_formatter(StrMethodFormatter(''))
     ax2.set_xlabel('Radius ($cm$)')
@@ -156,7 +162,8 @@ def plainTprofile(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
         ax4.set_xlabel('Radius ($cm$)')
     for s in range(len(keys)):
         tag = '$^{{{}}}{}$'.format(*elemSplit(keys[s], invert=True))
-        c, ls = styleIter.next()
+        # p2 to p3: obj.next() > next(obj)
+        c, ls = next(styleIter)
         ax4.semilogy(xs, getattr(prof, keys[s]), label=tag, color=c, linestyle=ls, alpha=0.9)
     lgd = ax4.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.0), 
       columnspacing=0.0, labelspacing=0.0, markerfirst=True, 

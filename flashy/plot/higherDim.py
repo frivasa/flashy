@@ -1,4 +1,4 @@
-from _globals import *
+from .globals import *
 import yt  # move this dependency to datahaul
 # avoid yt warnings
 from yt.funcs import mylog
@@ -62,7 +62,7 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
             os.mkdir(os.path.join(savf, tag))
         plt.savefig(savp)
         plt.close(fig)
-        print "Wrote: {}".format(savp)
+        print("Wrote: {}".format(savp))
 
 
 def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9,
@@ -118,7 +118,7 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
             os.mkdir(os.path.join(savf, tag))
         plt.savefig(savp)
         plt.close(fig)
-        print "Wrote: {}".format(savp)
+        print("Wrote: {}".format(savp))
 
 
 def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
@@ -240,7 +240,7 @@ def mainProps(fname, mhead=True, grids=False, show=False,
             os.mkdir(os.path.join(savf, tag))
         plt.savefig(savp)
         plt.close(fig)
-        print "Wrote: {}".format(savp)
+        print("Wrote: {}".format(savp))
 
 
 def locateShock(ray, vvv=True):
@@ -259,11 +259,11 @@ def locateShock(ray, vvv=True):
     filt, offs2 = split(ray['radius'][ray_sort], spx, False)
     shockout = shock1D(ray['radius'][ray_sort][filt], ray['sound_speed'][ray_sort][filt][:-1], False)
     if vvv:
-        print 'Ray: ', r
-        print 'Ignition Center: ', igr
-        print 'Angle: ', angle
-        print 'Inward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockin+offs1]))
-        print 'Outward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockout+offs2]))
+        print('Ray: ', r)
+        print('Ignition Center: ', igr)
+        print('Angle: ', angle)
+        print('Inward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockin+offs1])))
+        print('Outward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockout+offs2])))
     return shockin+offs1, shockout+offs2
 
 
@@ -344,5 +344,5 @@ def colortest(fname, name, cmap=palettable.cmocean.diverging.Balance_20.mpl_colo
             os.mkdir(os.path.join(savf, tag))
         plt.savefig(savp)
         plt.close(fig)
-        print "Wrote: {}".format(savp)
+        print("Wrote: {}".format(savp))
 

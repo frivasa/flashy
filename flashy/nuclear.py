@@ -2,7 +2,7 @@
 mass fractions and Isotope weighing.
 
 """
-from flashy.utils import np, msol, Avogadro
+from flashy.utils import np, msol, Avogadro, m_e, m_p, amu
 import pkg_resources
 
 AMDC = pkg_resources.resource_filename('flashy', '../data/nuclides/ame2017.masses')
@@ -35,11 +35,11 @@ def readNuclideMasses():
     massdict = {}
     with open(AMDC, 'r') as f:
         # skip header
-        for _ in xrange(39):
+        for _ in range(39):
             next(f)
         for line in f:
             l = line.replace('#', '.')
-            n, z, name = int(l[6:10]), int(l[12:15]), l[20:23]
+            n, z, name = int(l[6:10]), int(l[11:15]), l[20:23]
             excess, exunc = float(l[30:42]), float(l[43:54])  # [M(in u) - A] keV
             bind, biunc = float(l[55:64]), float(l[66:73])  # B/A in keV
             try:
@@ -60,6 +60,15 @@ def readNuclideMasses():
                 massdict[name]['n'] = {}
                 massdict[name]['n'][n] = mass*1e-6  # source mass is in micro u
                 massdict[name]['z'] = z
+    # AMDC doesn't list m_e or m_p so add them by hand from scipy constants
+    massdict['p'] = {}
+    massdict['p']['n'] = {}
+    massdict['p']['n'][0] = m_p/amu
+    massdict['p']['z'] = 1
+    massdict['e'] = {}
+    massdict['e']['n'] = {}
+    massdict['e']['n'][0] = m_e/amu
+    massdict['e']['z'] = -1
     return massdict
 
 
@@ -71,7 +80,7 @@ def readYield(filename):
     else:
         comp = np.genfromtxt(filename, comments='#', dtype='|S4,f8')
         codes, values = zip(*comp)
-    sp, z, n, a = splitSpecies(codes)
+    sp, z, n, a = splitSpecies(codes, standardize=True)
     mdict = {}
     for i, s in enumerate(sp):
         if s in mdict:
@@ -93,9 +102,9 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
         zz = mdict[k]['z']
         particles = 0
         for n in mdict[k]['n']:
-            particles += mdict[k]['n'][n]*msol.value/nucmass[k]['n'][n]*Avogadro
+            particles += mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
         partdict[k] = particles
-    print partdict
+    #print partdict
     nrm = partdict[norm]
     otp = []
     for k, v in partdict.items():
@@ -129,7 +138,7 @@ def getAbundances(names, massfrac, scale='H', offset=12):
     scaled by a set species.
     """
     if scale not in names:
-        print 'Scaling species not in the specified species group.'
+        print('Scaling species not in the specified species group.')
         return [np.nan]
     else:
         totmass = np.sum(massfrac)
@@ -171,7 +180,7 @@ def getTotalMass(massdict):
     for k in massdict.keys():
         for n in massdict[k]['n']:
             mass += massdict[k]['n'][n]
-    print sum(mass)
+    print(sum(mass))
 
 
 def convXmass2Abun(species, xmasses):
@@ -214,13 +223,25 @@ def getMus(species, xmasses):
     return muion, mue
 
 
-def splitSpecies(Spcodes, trueA=True):
+def splitSpecies(Spcodes, trueA=True, standardize=False):
     """returns list of symbols, Z, N, A from a list of
     nuclide codes.(Ni56, He4, U238, ...)
+    
+    Args:
+        Spcodes(str list): nuclide code list (Ni56, He4, U238, ...).
+        trueA(bool): return real weight instead of N+Z.
+        standardize(bool): return element for special names (deuteron, proton, tritium).
+    
     """
     Sp, As = zip(*[elemSplit(s) for s in Spcodes])
     As = np.array(As)
     mdict = readNuclideMasses()
+    if standardize:
+        stdnames = [('p', 'H'), ('d', 'H'), ('t', 'H')]
+        Sp = list(Sp)
+        for (k,v) in stdnames:
+            if k in Sp:
+                Sp[Sp.index(k)] = v
     Zs = np.array([mdict[n]['z'] for n in Sp])
     Ns = As - Zs
     if trueA:
@@ -259,7 +280,8 @@ def elemSplit(s, invert=False):
     else:
         sym = s.strip('0123456789 ')
         A = s[len(sym):]
+        sym = sym.capitalize()
     if invert:
-        return int(A), sym.capitalize()
+        return int(A), sym
     else:
-        return sym.capitalize(), int(A)
+        return sym, int(A)

@@ -12,7 +12,7 @@ for nongui in nonguis:
         break
     except:
         continue
-print "[flash.plot]: Using",mpl.get_backend()
+print("[flash.plot]: Using",mpl.get_backend())
 from mpl_toolkits.axes_grid1 import AxesGrid
 from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
 from matplotlib.ticker import FuncFormatter, StrMethodFormatter

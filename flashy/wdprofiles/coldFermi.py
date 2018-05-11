@@ -1,10 +1,12 @@
 """Fermi eos wd profiles, adapted from Timmes public cowd code.
-20180430: Helmholtz Eos added for temperature. Composition can also change 
+20180430: Helmholtz Eos added for temperature. Composition can also change
+
+TDL: apply min dens criteria.
 """
 from flashy.utils import msol, rsol, G, c, h, m_e, Avogadro, np
 from flashy.nuclear import convXmass2Abun
 from flashy.datahaul.plainText import dataMatrix
-from flashy.cjvelocities import getTemps
+from flashy.datahaul.helmholtz import getTemps
 # Giant Hammer
 from scipy.integrate import solve_ivp
 # Tools for micromanagement
@@ -16,16 +18,16 @@ def buildFermiHelmhotz(denc, xmass, species, pdens=0):
     """Solves an IVP for a completely degenerate Fermi gas under hydrostatic equilibrium,
     then uses a Helmholtz EoS to assign a temperature value to the profile (this is somewhat
     wrong but better than guessing or putting an average).
-    
+
     Args:
         denc(float): initial central density.
         xmass(float list): mass fractions for the used species.
         species(str list): nuclide code for each species.
         pdens(int): force a set number of points in the output (WARNING: runs ivp twice).
-    
+
     Returns:
-        (dataMatrix): tabbable profile object. 
-    
+        (dataMatrix): tabbable profile object.
+
     """
     ymass, abar, zbar = convXmass2Abun(species, xmass)
     ye = zbar/abar
@@ -40,31 +42,36 @@ def buildFermiHelmhotz(denc, xmass, species, pdens=0):
     return dataMatrix([keys, datablock])
 
 
-def buildFermiProfile(denc, ye=0.5, start=1e4, stop=1e10, pdens=0):
+def buildFermiProfile(denc, ye=0.5, start=1e4, stop=1e10, pdens=400):
     """Solves an IVP for a completely degenerate Fermi gas under hydrostatic equilibrium.
-    
+
     Args:
         denc(float): initial central density.
         ye(float): electron fraction.
         start(float): initial radius (minimum radius).
         stop(float): ivp solver stopping radius.
-        pdens(int): force a set number of points in the output. (WARNING: runs ivp twice).
-    
+        pdens(int): points/2 to evaulate. (uses other half for edge)
+
     Returns:
         (float list): radii
         (float list): masses
         (float list): densities
         (float list): pressures
-    
+
     """
     y0 = setBC(denc, ye=ye, start=start)
+    # run to find the edge
     pheidippides = solve_ivp(fun=lambda t, y: derv(t, y, ye=ye), method='BDF', jac=jac,
-                             t_span=(start, stop), y0=y0, events=athens)
-    if pdens:
-        # run again to get the desired number of points
-        rads = np.logspace(np.log10(start), np.log10(pheidippides.t[-1]), pdens)
-        pheidippides = solve_ivp(fun=lambda t, y: derv(t, y, ye=ye), method='BDF', jac=jac,
-                                 t_span=(start, stop), y0=y0, events=athens, t_eval=rads)
+                             t_span=(start, stop), y0=y0)# events=athens)
+    # run again to get the desired number of points and focus on the edge
+    core = np.logspace(np.log10(start), np.log10(0.9*pheidippides.t[-1]), pdens)
+    # near the outermost 10%, use pdens points
+    edge = np.linspace(0.91*pheidippides.t[-1], 1.01*pheidippides.t[-1], pdens)
+    rads = np.append(core, edge)
+    pheidippides = solve_ivp(fun=lambda t, y: derv(t, y, ye=ye), jac=jac,
+                             method='BDF',
+                             t_span=(start, stop), y0=y0,
+                             t_eval=rads)
     rs, ms, ps = pheidippides.t, pheidippides.y[0], pheidippides.y[1]
     ds = [invert_fergas(denc, p, ye)[0] for p in ps]
     return rs, ms, ds, ps
@@ -79,12 +86,12 @@ def setBC(dens, ye=0.5, start=1e4):
     return [ms0, ps0]
 
 
-def athens(t, y):
-    athens.terminal = True
-    if y[1]<=0.0:
-        return 0.0
-    else:
-        return 1.0
+# def athens(t, y):
+#     athens.terminal = True
+#     if y[1]<=-1e6:
+#         return 0.0
+#     else:
+#         return 1.0
 
 
 def jac(x, y, denc=1e9):
@@ -98,19 +105,19 @@ def jac(x, y, denc=1e9):
 
 
 def derv(x, y, denc=1e9, ye=0.5, genrel=True):
-    # this routine sets up the continuity and hydrostatic equilibrium ode's. 
-    # x is the radial coordinate, y(1) is the gravitational mass, 
+    # this routine sets up the continuity and hydrostatic equilibrium ode's.
+    # x is the radial coordinate, y(1) is the gravitational mass,
     # y(2) is the pressure
     con1   = 4.0e0 * np.pi
     c2     = c*c
     # map the input vector
     massg = y[0]
     pres  = y[1]
-    
+
     # cold ideal fermi gas
     # guess through mean density
     vol = 4*np.pi*np.power(x, 3.0)/3.0
-    den, dpdd = invert_fergas(y[0]/vol, pres, ye) 
+    den, dpdd = invert_fergas(y[0]/vol, pres, ye)
     # here is d(massg)/dr
     dydx = [con1 * x*x * den]
     # here is d(press)/dr
@@ -125,12 +132,12 @@ def derv(x, y, denc=1e9, ye=0.5, genrel=True):
 
 
 def fergas(den, ye):
-    """the eos for a cold fermi gas 
-    see, for example, cox & guili equation 24.157 or chandra chapter 10, eq. 19-20 
+    """the eos for a cold fermi gas
+    see, for example, cox & guili equation 24.157 or chandra chapter 10, eq. 19-20
 
     input is the density den and the mean charge to mean weight ratio ye.
     output is the pressure (in erg/cm**3), the pressure derivative with density,
-    the energy (in erg/g), and the energy derivative with density. 
+    the energy (in erg/g), and the energy derivative with density.
     """
     hbar = 0.5* h/np.pi
     lamb = hbar/(m_e*c)
@@ -138,7 +145,7 @@ def fergas(den, ye):
     xcon = 3.0e0 * np.pi*np.pi * lam3 * Avogadro
     pcon = m_e*c*c/(lam3*8.0e0* np.pi*np.pi)
 
-    if (den < 0.0): 
+    if (den < 0.0):
         # print 'bad pass in routine fergas'
         return 0.0, 0.0, 0.0, 0.0
     deni = 1.0e0/den
@@ -150,7 +157,7 @@ def fergas(den, ye):
     # note: fac3 is a way of writing arc-sinh(x)
     fac1 = np.sqrt(1.0e0 + x2)
     fac2 = 2.0 * x2/3.0  - 1.0
-    fac3 = np.log(x + fac1) 
+    fac3 = np.log(x + fac1)
     pres = pcon * (x*fac1*fac2 + fac3)
     # pressure derivative with density
     dfac1 = x/fac1

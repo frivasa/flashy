@@ -10,10 +10,13 @@ G = G*hecto*hecto*hecto/kilo  # Newtonian constant of gravitation cm3/g/s2
 c = c*hecto  # speed of light in vacuum cm/s
 h = Planck/erg  # Planck constant erg/s
 sigma = value('Stefan-Boltzmann constant')/hecto/hecto/erg
+kb = value('Boltzmann constant')/erg
+amu = value('unified atomic mass unit')*kilo
 msol = M_sun.value*kilo
 lsol = L_sun.value/erg
 rsol = R_sun.value*hecto
 m_e = m_e*kilo
+m_p = m_p*kilo
 Rg = gas_constant
 
 def byMass(radii, dens):
@@ -59,7 +62,7 @@ def getBearing(angles, geom):
         z = np.sqrt(1.0-y**2-x**2)
         return 'radius', np.array([x, y, z])
     else:
-        print 'utils.getBearing: too many angles.'
+        print('utils.getBearing: too many angles.')
         return -1   
     # spherical (r, theta, phi)
     # cartesian (x, y, z)
@@ -105,9 +108,9 @@ def locateShock(radii, soundcs, xguess, vvv=True):
     filt, offs2 = split(radii, xguess, False)
     shockout = shock1D(radii[filt], soundcs[filt][:-1], False)
     if vvv:
-        print 'Ignition Center: ', xguess
-        print 'Inward Shock at: {:E}'.format(float(radii[shockin+offs1]))
-        print 'Outward Shock at: {:E}'.format(float(radii[shockout+offs2]))
+        print('Ignition Center: ', xguess)
+        print('Inward Shock at: {:E}'.format(float(radii[shockin+offs1])))
+        print('Outward Shock at: {:E}'.format(float(radii[shockout+offs2])))
     return shockin+offs1, shockout+offs2
 
 
@@ -175,3 +178,13 @@ def percentDiff(x1, y1, x2, y2):
     jake = np.interp(x1, x2, y2)
     diffs = np.array([j/y1-1.0 for (y1, j) in zip(y1, jake)])
     return 100*diffs
+
+
+def x2clog(x, cmin=1e-5, cmax=1.0):
+	y = (np.log10(x)-np.log10(cmin))/(np.log10(cmax)-np.log10(cmin)) 
+	if y > 1.0:
+		return 1.0
+	elif y < 0:
+		return 0.0
+	else:
+		return y
