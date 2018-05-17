@@ -3,6 +3,7 @@ import flashy.datahaul.hdf5yt as reader
 from scipy.integrate import trapz
 import flashy.utils as ut
 from flashy.utils import h, m_e, np, c, kb, Avogadro
+from scipy.optimize import newton, minimize
 
 
 def getYields(fname, geom='spherical', direction=[]):
@@ -42,10 +43,59 @@ def getVelocities(fname, geom='spherical'):
     time, params, _, _, _ = reader.getMeta(fname)
     rad, cs, dens, pres = data[0], data[1], data[2], data[3]
     shockin, shockout = ut.locateShock(rad, cs, params['x_match'], vvv=False)
+    
     xin, xout = rad[shockin], rad[shockout]
     cjin = ut.roughCJ(dens, pres, shockin)
     cjout = ut.roughCJ(dens, pres, shockout)
     return xin, xout, cjin, cjout, time, params['x_match']
+
+
+def getNewtonCJ(fname, geom='spherical', inward=False):
+    pos, dens, pres, gamc = getCJconditions(fname, addvar='gamc', inward=inward)
+    xin, xout, cjin, cjout, time, xmatch = getVelocities(fname)
+    if inward:
+        fuelindex, ashindex = 0, 2
+    else:
+        fuelindex, ashindex = 2, 0
+    # set bulk properties
+    fv, fp, fg = 1.0/dens[fuelindex], pres[fuelindex], gamc[fuelindex]
+    av, ap, ag = 1.0/dens[ashindex], pres[ashindex], gamc[ashindex]
+    return newtonCJ(cjout, fv, fp, fg, av, ap, ag, width=0.8)
+
+
+def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam, width=0.8):
+    miniu = minimize(fun=lambda x: diffHRupper(x, ph=fuelp, vh=fuelv, gh1=fgam, gh2=agam, 
+                     pr=ashp, vr=ashv, env=[ashv*(1.0-width), ashv*(1.0+width)]), 
+                     x0=cjest/2, tol=1e-14)
+    minil = minimize(fun=lambda x: diffHRlower(x, ph=fuelp, vh=fuelv, gh1=fgam, gh2=agam, 
+                     pr=ashp, vr=ashv, env=[ashv*(1.0-width), ashv*(1.0+width)]), 
+                     x0=cjest/2, tol=1e-14)
+    cjposu, cjspdu = miniu.fun[0], miniu.x[0]
+    cjposl, cjspdl = minil.fun[0], minil.x[0]
+    cjpos = 0.5*(cjposu+cjposl)
+    cjpres = shockhugoniot(cjpos, p1=fuelp, v1=fuelv, g1=fgam, g2=agam)
+    cjspd = rayleighSpeed(ashp, ashv, cjpres, cjpos)
+    return cjpos, cjpres, cjspd
+
+
+def getCJconditions(fname, geom='spherical', inward=False, addvar='gamc', offset=1):
+    """Returns bulk conditions at both sides of found shock.
+    
+    """
+    fields = ['sound_speed', 'density', 'pressure', addvar]
+    data, _ = reader.getLineout(fname, fields=fields, species=False, geom=geom)
+    time, params, _, _, _ = reader.getMeta(fname)
+    rad, cs, dens, pres, var = data[0], data[1], data[2], data[3], data[4]
+    shockin, shockout = ut.locateShock(rad, cs, params['x_match'], vvv=False)
+    if inward:
+        ind = shockin
+    else:
+        ind = shockout
+    pos = [rad[ind-offset], rad[ind], rad[ind+offset]]
+    condd = [dens[ind-offset], dens[ind], dens[ind+offset]]
+    condp = [pres[ind-offset], pres[ind], pres[ind+offset]]
+    xvar =  [var[ind-offset], var[ind], var[ind+offset]]
+    return pos, condd, condp, xvar
 
 
 def nonRelFermi(dens, ye=0.5):
@@ -56,3 +106,71 @@ def nonRelFermi(dens, ye=0.5):
     par2 = np.power(3.0*np.pi*np.pi,2.0/3)
     par3 = np.power(Avogadro*dens*ye, 2.0/3)
     return par1*par2*par3
+
+
+def isotherm(v, p0=1e23, v0=0.02):
+    return v0*p0/v
+
+
+def adiabat(v, p0=1e23, v0=0.02, gamma=1.666):
+    num = p0*np.power(v0, gamma)
+    denom = np.power(v, gamma)
+    return num/denom
+
+
+def rayleighSpeed(p1, v1, p2, v2, left=True):
+    """returns Rayleigh line speed for a pair of points"""
+    nom = p2-p1
+    denom = v1-v2
+    if left:
+        return v1*np.sqrt(nom/denom)
+    else:
+        return v2*np.sqrt(nom/denom)
+
+
+def shockhugoniot(v2, p1=1e23, v1=0.02, g1=1.6666, g2=1.6666):
+    """returns the huigoniot adiabat pressure corresponding to a 
+    given specific volume while passing through a set point (v1,p1)."""
+    g1fac = g1*v1/(g1-1)
+    g2fac = g2*v2/(g2-1)
+    var = 0.5*(v1+v2)
+    return p1*(g1fac-var)/(g2fac-var)
+
+
+def rayleigh(v2, p1=1e23, v1=0.02, speed=1e5):
+    """returns the Rayleigh line pressure for a line crossing (v1,p1)."""
+    sq = np.power(speed/v1, 2)
+    fac = sq*(v1-v2)
+    return p1+ fac
+
+
+def diff(v, ph=1e23, vh=0.02, gh1=1.6666, gh2=1.6666, pr=1e22, vr=0.02,speed=2.4e10):
+    """yields the difference between the hugoniot adiabat and a rayleigh line,
+    both passing through (v1,p1)"""
+    hug = shockhugoniot(v, p1=ph, v1=vh, g1=gh1, g2=gh2)
+    ray = rayleigh(v, p1=pr, v1=vr, speed=speed)
+#     print(hug, ray)
+    return abs(ray)- abs(hug)
+
+
+def customFormatter(factor, prec=1, width=2):
+    """create a mpl formatter which factors labels by 10^factor 
+    for clearer axes labels.
+    """
+    fstr = '{:{width}.{prec}f}'
+    exp = 10.0**factor
+    return FuncFormatter(lambda x, pos:fstr.format(x/exp, width=width, prec=prec))
+
+
+def diffHRupper(sp, ph=1e23, vh=0.02, gh1=1.6666, gh2=1.6666, pr=1e22, vr=0.02, env=[0.04, 0.08]):
+    """minimizes hugoniot adiabat - rayleigh line difference, starting near a strong detonation.
+    (starting from the "top")."""
+    w = newton(func=lambda x: diff(x, ph=ph, vh=vh, gh1=gh1, gh2=gh2, pr=pr, vr=vr, speed=sp), x0=env[0], tol=1e-14)
+    return w
+
+
+def diffHRlower(sp, ph=1e23, vh=0.02, gh1=1.6666, gh2=1.6666, pr=1e22, vr=0.02, env=[0.04, 0.08]):
+    """minimizes hugoniot adiabat - rayleigh line difference, starting near a weak detonation.
+    (starting from the "bottom")."""
+    s = newton(func=lambda x: diff(x, ph=ph, vh=vh, gh1=gh1, gh2=gh2, pr=pr, vr=vr, speed=sp), x0=env[1], tol=1e-10)
+    return s

@@ -1,6 +1,6 @@
 from flashy.nuclear import *
 from .globals import *
-from flashy.yields import getYields, reader, ut
+from flashy.post import getYields, reader, ut
 from flashy.utils import x2clog
 from matplotlib.patches import Rectangle
 
@@ -23,16 +23,14 @@ def fileChemistry(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
     
     """
     # ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", sharex=ax1, sharey=ax1, adjustable='box-forced')
-    print(geom, direction)
     t, sp , mss = getYields(fname, geom=geom, direction=direction)
     ad, allsp = reader.getLineout(fname, geom=geom, direction=direction)
     time, _, _, _, paths = reader.getMeta(fname)
-    fig = plt.figure(figsize=(9, 9))
+    fig = plt.figure(figsize=(8, 8))
     
     layout = (2, 1)
     ax1 = plt.subplot2grid(layout, (0, 0), aspect='auto')
     ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", adjustable='box-forced')
-    #ax3 = plt.subplot2grid(layout, (2, 0), aspect="auto", sharex=ax1, adjustable='box-forced')
     
     ax1.annotate("Time: {:.5f} s".format(time),
                  xy=(0.0, 0.0), xytext=(1.1, 0.95), size=12,
@@ -48,7 +46,6 @@ def fileChemistry(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
         species = allsp
     spoffset = len(ad)-len(allsp)
     allsp = sortNuclides(allsp)
-    styleIter = colIter()
     if byM:
         xs = ut.byMass(ad[0], ad[1])
         ax2.set_xlabel('Mass ($M_{\odot}$)')
@@ -62,20 +59,18 @@ def fileChemistry(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0],
         A, sym = elemSplit(allsp[s], invert=True)
         tag = '$^{{{}}}{}$'.format(A, sym)
         spnames.append(sym)
-        # p2 to p3: obj.next() > next(obj)
-        c, ls = next(styleIter)
-        ax1.scatter(A, mss[s], color=c)
-        ax2.semilogy(xs, ad[s+spoffset], label=tag, color=c, linestyle=ls, alpha=0.9)
-    lgd = ax2.legend(ncol=5, loc='upper left', bbox_to_anchor=(1.0, 1.9), 
-      columnspacing=0.0, labelspacing=0.0, markerfirst=True, 
-      numpoints=2)
+        ax1.scatter(A, mss[s])
+        ax2.semilogy(xs, ad[s+spoffset], label=tag, alpha=0.9)
+    lgd = ax2.legend(ncol=5, loc='center left', bbox_to_anchor=(1.0, 1.0), 
+                     columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
+                     numpoints=3, handletextpad=0.0)
     if sum(sprange)!=0.0:
         ax2.set_xlim(sprange)
     ax2.axhline(1e0, linewidth=1, linestyle=':', color='black')
     ax2.set_ylim(thresh, 2.0)
     ax2.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
     if show:
-        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.6,1.0))
+        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 1.0, 1.0))
         return
     else:
         num = paths[1][-5:]
@@ -151,6 +146,7 @@ def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38],
 
 def plotReaclist(ax, species, rates=[], boxsize=1.0, 
                  cmmin=1.0e-5, cmmax=1.0, cmap='Blues'):
+    """external lib."""
     return 0
 
 
@@ -240,10 +236,8 @@ def plotAbun(ax, mdict, norm='H', offset=12.0, label='W7', color='black'):
 def speciesGrid(ax, spcodes, yoffset=5.0):
     """draws a grid of the specified species on target ax."""
     Sp, Zs, Ns, As = splitSpecies(spcodes)
-    clrs = colIter()
+    ax.set_prop_cycle(cc)
     for i, sp in enumerate(Sp):
-        # p2 to p3: obj.next() > next(obj)
-        col = next(clrs)[0]
         ax.axvline(Zs[i], alpha=1.0, lw=1, ls='--', c=col)
         ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset, '${}$'.format(sp), color=col, size=10,
                 horizontalalignment='left', verticalalignment='bottom')

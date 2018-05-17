@@ -13,6 +13,16 @@ _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
 
 
 def turn2cartesian(folder, prefix='all', nowitness=False):
+    """Iterates over files within a folder, switching the geometry of 
+    hdf5 files found to cartesian.
+    
+    Args:
+        folder(str): folder path.
+        prefix(str): filter string (defaults to all files in the folder).
+        nowitness(bool): remove non-modified files.
+    
+    """
+    
     if prefix=='all':
         finns = getFileList(folder)
         finns += getFileList(folder, prefix='chk')
@@ -31,7 +41,14 @@ def turn2cartesian(folder, prefix='all', nowitness=False):
 
 def switchGeometry(file, output, verbose=True):
     """copies hdf5 file, changing the coordinate system name to 
-    cylindrical for yt input."""
+    cartesian for yt input.
+    
+    Args:
+        file(str): input filename.
+        output(str): output filename.
+        verbose(bool): Report file creation.
+    
+    """
     finn = h5py.File(file, "r")
     jake = h5py.File(output, "w")
     # p2 > p3: obj.iterkeys() > obj.keys()
@@ -54,22 +71,32 @@ def switchGeometry(file, output, verbose=True):
         print("Wrote {} from {}".format(output, file))
 
 
-def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=8, nzb=0,
-               geometry='cylindrical', maxbl=500, debug=False, portable=True):
+def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
+               geometry='cylindrical', maxbl=500, debug=False):
     """calls ./setup at _FLASH_DIR with given parameters,
-    writing the code to destination for compiling afterwards.
-    (must be run on a Py2.X kernel)
+    writing the code to runfolder. (FLASH setup script runs only on py 2.X).
 
     Arguments:
         module(str): name of Simulation folder to setup.
         runfolder(str): run folder (creates _cdx, and _otp within it).
         kwargs(dict): keyword arguments to setup
-        n[xyz]b(int): cells per block for setup.
+        nbs(int tuple): cells per block for setup per dimension.
         geometry(str): cartesian, spherical, cylindrical(default).
         maxbl(int): maximum blocks per proc. elem.
         debug(bool): show terminal output.
 
     """
+    if not runfolder:
+        if 'xnetData' in kwargs:
+            net = kwargs['xnetData'].split('_')[-1]
+        else:
+            net = 'ap13'
+        dnum = {1:'one', 2:'two', 3:'three'}[len(nbs)]
+        cells = 'x'.join([str(x) for x in nbs])
+        name = '{}.{}.{}cells.{}maxb'.format(net, geometry, cells, maxbl)
+        runfolder = '../fruns.{}/{}/{}'.format(dnum, module, name)
+    else:
+        name = runfolder
     destination = runfolder + _cdxfolder
     path = os.path.abspath(destination)
     if not os.path.exists(destination):
@@ -82,14 +109,15 @@ def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=
         os.makedirs(runfolder + _otpfolder)
     except:
         pass
-    if not nzb:
-        if not nyb:
-            dimstr = "-1d -nxb={}".format(nxb)
-        else:
-            dimstr = "-2d -nxb={} -nyb={}".format(nxb, nyb)
+    
+    if len(nbs)==1:
+        dimstr = "-1d -nxb={}".format(*nbs)
+    elif len(nbs)==2:
+        dimstr = "-2d -nxb={} -nyb={}".format(*nbs)
     else:
-        dimstr = "-3d -nxb={} -nyb={} -nzb={}".format(nxb, nyb, nzb)
-    cstub = 'cd {} && ./setup {} -auto '\
+        dimstr = "-3d -nxb={} -nyb={} -nzb={}".format(*nbs)
+    
+    cstub = 'python2 {}/bin/setup.py {} -auto '\
             '-objdir="{}" {} -geometry={} -maxblocks={} '
     comm = cstub.format(_FLASH_DIR, module, path,
                         dimstr, geometry, maxbl)
@@ -106,27 +134,25 @@ def setupFLASH(module, runfolder, kwargs={'threadBlockList':'true'}, nxb=4, nyb=
     out, err = p.communicate(input=comm.encode())
     exitcode = p.returncode
     if debug:
-        print(out)
+        print(out.decode())
         print(err)
+    print('generated run name {}'.format(name))
     return comm, exitcode
 
 
-def compileFLASH(runfolder, resultlines=20, slines=[], procs=8):
-    """calls 'make -j procs' at outpath, compiling the run
-    """
-    comm = 'make -j {}'.format(procs)
-    if slines:
-        comm = '{} && {}'.format(" && ".join(slines), comm)
-    path = os.path.abspath(runfolder)
-    p = Popen(['/bin/bash'], cwd=path, stdin=PIPE, stdout=PIPE)
-    out, err = p.communicate(input=comm.encode())
-    print(err)
-    print(out)
-    exitcode = p.returncode
-    return path, exitcode
-
-
 def getFileList(folder, prefix='plt', fullpath=False):
+    """Returns a filename list subject to a prefix 'glob'.
+    
+    Args:
+        folder(str): look-in path.
+        prefix(str): filter string for files
+        fullpath(bool): return absolute path for each file.
+        
+    Returns:
+        (str list)
+    
+    
+    """
     names = sorted(os.listdir(folder))
     fnames = [x for x in names if prefix in x]
     if fullpath:
@@ -155,6 +181,7 @@ def makeGIF(runfolder, prefix='', subf='', speed=0.2):
         prefix (str): prefix for files
         subf (str): subfolder for files
         speed (float): seconds between frames
+    
     """
     if not subf:
         prepath = runfolder
@@ -182,12 +209,13 @@ def makeGIF(runfolder, prefix='', subf='', speed=0.2):
     print("\n\tSaved: {}".format(expname))
 
 
-def fortParse(arg):
+def fortParse(arg, dec=True):
     """returns a parsed variable from a parameter (bool,
     str, or number)
 
     Args:
-        arg (str): parameter value
+        arg(str): parameter value.
+        dec(bool): add "" to strings for printing.
 
     Returns:
         str: decorated argument for fortran parsing.
@@ -202,7 +230,10 @@ def fortParse(arg):
         elif '.false.' in arg.lower():
             return arg.strip()
         else:
-            return '"{}"'.format(arg.strip('"\' '))
+            if dec:
+                return '"{}"'.format(arg.strip('"\' '))
+            else:
+                return arg.strip('"\' ')
 
 
 def execute(outpath):
@@ -224,13 +255,22 @@ def execute(outpath):
 
 
 def cpList(files, src, dst):
+    """Copies a file list between folders.
+    
+    Args:
+        files(str list): list of filenames.
+        src(str): source folder.
+        dst(str): destination folder.
+    
+    """
     for f in files:
         shutil.copy('/'.join([src,f]), '/'.join([dst,f]))
 
 
 def writeSubmit(subfile, code, pbsins=[],
                 time='12:00:00', nodes=1252, ompth=16, proj='', mail=''):
-    """builds a submit.pbs with a typical header, specifying walltime and nodes,
+    """PBS submit system file cooker.
+    builds a submit.pbs with a typical header, specifying walltime and nodes,
     then adding slines of code below. Exports OMP_NUM_THREADS=ompth
     titan: aprun (-j1) -n 1 -d 16
     debug: -D (int)
@@ -238,6 +278,17 @@ def writeSubmit(subfile, code, pbsins=[],
     debug: --display-map / --report-bindings
     Rhea max: 48 hours on 16 nodes (2x8 core p/node: -np 256)
     Titan: <125 nodes 2h, <312 nodes 6h...
+    
+    Args:
+        subfile(str): submit filename (also set as jobname)
+        code(str list): commands to insert in the file
+        pbsins(str list): extra PBS directives.
+        time(str): walltime request.
+        nodes(int): nodes to request.
+        ompth(int): omp thread number.
+        proj(str): project code.
+        mail(str): notification e-mail.
+    
     """
     subHeader = []
     subHeader.append('#!/bin/bash')
@@ -269,6 +320,13 @@ def writeSubmit(subfile, code, pbsins=[],
 def probeFile(file, showrows=3, onlyhead=True):
     """Shows 'showrows' lines from the start, midfile and
     ending of a plaintext file
+    
+    Args:
+        file(str): file path.
+        showrows(int): rows to show from each section.
+        onlyhead(bool): only print the top of the file (equivalent to 
+            head -n showrows file).
+    
     """
     with open(file, 'r') as f:
         lines = f.readlines()
@@ -277,7 +335,6 @@ def probeFile(file, showrows=3, onlyhead=True):
         print("".join(lines))
     else:
         l2 = int(l/2.)
-        print('hello')
         pNumbered(lines[0:showrows], 0)
         if not onlyhead:
             pNumbered(lines[l2:l2+showrows], l2)
@@ -285,12 +342,19 @@ def probeFile(file, showrows=3, onlyhead=True):
 
 
 def pNumbered(rlist, offset):
+    """prints numbered lines from a list.
+    
+    Args:
+        rlist(str list): lines to print
+        offset(int): first line number.
+    
+    """
     for i, l in enumerate(rlist):
         print('{}: {}'.format(i+offset, l.strip('\n')))
 
 
-def emptyFileTree(root):
-    """Empties 'root' folder."""
+def emptyFileTree(stemfolder):
+    """Empties stemfolder."""
     path = os.path.abspath(root)
     shutil.rmtree(path)
     os.makedirs(path)

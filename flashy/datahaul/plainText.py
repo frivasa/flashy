@@ -62,6 +62,16 @@ class dataMatrix(object):
         self.meta['points'] = len(self.radius)
         self.meta['comment'] = comment
 
+    def __getattr__(self, name):
+        # run name through the 'dictionary' of names
+        if name in self.dnames:
+            return self.__getattribute__('density')
+        elif name in self.rnames:
+            return self.__getattribute__('radius')
+        else:
+            # default call
+            return self.__getattribute__(name)
+    
     def printMeta(self):
         for k, v in self.meta.items():
             print('{}: {:E}'.format(k.capitalize(), v))

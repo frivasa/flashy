@@ -1,17 +1,26 @@
 import helmholtz
+import flashy.datahaul.hdf5yt as reader
+from flashy.utils import np
+from flashy.post import getVelocities
 from flashy.nuclear import convXmass2Abun
 
 # external starkiller/Helmholtz package wrappers
-def getTemps(rhos, pres, xmasses, species):
+def getTemps(rhos, pres, xmasses, species, returnObj=False):
     trojan = wrapVector(rhos, pres, xmasses, species)
     sol = helmholtz.helmeos_DP(*trojan)
-    return sol.temp
+    if returnObj:
+        return sol
+    else:
+        return sol.temp
 
 
-def getPres(rhos, temps, xmasses, species):
+def getPres(rhos, temps, xmasses, species, returnObj=False):
     trojan = wrapVector(rhos, temps, xmasses, species)
     sol = helmholtz.helmeos(*trojan)
-    return sol.ptot
+    if returnObj:
+        return sol
+    else:
+        return sol.ptot
 
 
 def getExtHelmCJ(fname, geom='spherical'):
