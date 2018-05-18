@@ -77,6 +77,7 @@ def wrapVector(rho, var, xmass, species):
 
 def cj_cond(fuel, ash):
     """Calculate Cj velocity from Helmholtz Eos calculation
+    fits density for a set temperature
     
     Args:
         fuel (trojan): [[pressure, eint], [rho], [temp], [abar], [zbar]]
@@ -106,6 +107,8 @@ def cj_cond(fuel, ash):
 def adiabat(fuel, ash, q):
     """Hack-feeding data to helmholtz:
     fuel/ash = [[pressure, eint], [rho], [temp], [abar], [zbar]]
+    
+    fits a temperature to a hugoniot curve
     """
     # q value -- we need the change in molar fractions
     # call ener_gener_rate(eos_state_ash % xn(:)/aion(:) - eos_state_fuel % xn(:)/aion(:), q_burn)

@@ -39,10 +39,12 @@ class parameterGroup(object):
             dc = readSetupParams(parfile)
             self.defaults = parGroup(dc)
             self.fillcode = 1
+            self.meta = getMeta(parfile)
         else:
             dc = makeParDict(parfile)
             self.params = parGroup(dc)
             self.fillcode = 0
+            self.meta = {}
 
     def setPars(self, parfile, defaults=False):
         """sets the parameters from a file in the
@@ -50,11 +52,13 @@ class parameterGroup(object):
         """
         if defaults:
             if self.fillcode==0:
-                self.defaults =  parGroup(readSetupParams(parfile))
-                self.fillcode==2
+                self.defaults = readSetupParams(parfile)
+                self.fillcode = 2
+                self.meta = getMeta(parfile)
             else:
                 self.defaults.update(readSetupParams(parfile))
-                self.fillcode==1
+                self.fillcode = 1
+                self.meta = getMeta(parfile)
         else:
             if self.fillcode==1:
                 self.params = parGroup(makeParDict(parfile))
@@ -88,6 +92,8 @@ class parameterGroup(object):
 
     def writeParfile(self, outfile, terse=False):
         outpath = os.path.abspath(outfile)
+        if self.meta:
+            self.vuvuzela()
         if self.fillcode>1:
             docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
             writeDictionary(dict(docked), outfile, meta=True, terse=terse)
@@ -106,6 +112,33 @@ class parameterGroup(object):
         self.params.update(dict(zip(newpdict.keys(), parsedv)))
         # refresh docked values and remove empty value parameters for when retabulating.
         self.mergeValues()
+        
+    def vuvuzela(self):
+        """Sound the horn of ERROR."""
+        dkeys = [z[0] for z in self.defaults.items() if len(str(z[1]['value']))>0]
+        geom = getattr(self.defaults, 'geometry')['value']
+        if self.meta['geometry']!=geom:
+            print("BZZZZZZZZZZZZ: GEOMETRY DOESN'T MATCH: "\
+                  "setup:{} parfile:{}".format(self.meta['geometry'], geom))
+        for k in getEssential(self.meta['dimension']):
+            if k not in dkeys:
+                print("BZZZZZZZZZZZZ: {} NOT SET!".format(k))
+
+                
+def getMeta(filepath):
+    """Infer required properties of the run from runfolder name 
+    created by flashy.setupFLASH.
+    """
+    path, file = os.path.split(filepath)
+    runname = path.split('/')[-2]
+    meta = {}
+    try:
+        net, geom, cells, maxblocks = runname.split('.')
+    except Exception as e:
+        return meta
+    dimension = len(cells.split('x'))
+    keys = ['network', 'geometry', 'cells', 'maxblocks', 'dimension']
+    return dict(zip(keys, [net, geom, cells, maxblocks, dimension]))
 
 
 def readSetupParams(filename):
@@ -151,6 +184,22 @@ def makeParDict(parfile):
                 v = lsplit[-1].split('#')[0].strip()
                 pars.append((p,v))
     return dict(pars)
+
+
+def yell(k, sv, pv):
+    print("#"*100)
+    print("BZZZZZZZZZZZZ: {} DOESN'T MATCH:".format(k))
+    print("setup:{} parfile:{}".format(sv, pv))
+
+
+def getEssential(dim):
+    dnames = {1:['x'], 2:['x', 'y'], 3:['x', 'y', 'z']}[dim]
+    keys = []
+    for dn in dnames:        
+        line = 'nblock{0},{0}max,{0}min,'\
+               '{0}l_boundary_type,{0}r_boundary_type'.format(dn)
+        keys += line.split(',')
+    return keys
 
 
 def getListedDefs(supradict):
