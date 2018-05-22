@@ -7,9 +7,10 @@ from flashy.utils import np
 from subprocess import PIPE, Popen
 from PIL import Image
 import imageio
-_cdxfolder = "/cdx"
-_otpfolder = "/otp"
+_cdxfolder = "cdx"
+_otpfolder = "otp"
 _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
+_AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
 
 
 def turn2cartesian(folder, prefix='all', nowitness=False):
@@ -94,10 +95,12 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         dnum = {1:'one', 2:'two', 3:'three'}[len(nbs)]
         cells = 'x'.join([str(x) for x in nbs])
         name = '{}.{}.{}cells.{}maxb'.format(net, geometry, cells, maxbl)
-        runfolder = '../fruns.{}/{}/{}'.format(dnum, module, name)
+        # TODO: remove/patch relative paths
+        relpath = 'fruns.{}/{}/{}'.format(dnum, module, name)
+        runfolder = os.path.join(_AUX_DIR, relpath)
     else:
         name = runfolder
-    destination = runfolder + _cdxfolder
+    destination = os.path.join(runfolder, _cdxfolder)
     path = os.path.abspath(destination)
     if not os.path.exists(destination):
         os.makedirs(destination)
@@ -106,7 +109,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         shutil.rmtree(destination)
         os.makedirs(destination)
     try:
-        os.makedirs(runfolder + _otpfolder)
+        os.makedirs(os.path.join(runfolder, _otpfolder))
     except:
         pass
     
@@ -137,6 +140,15 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         print(out.decode())
         print(err)
     print('generated run name {}'.format(name))
+    
+    # copy parameter varying script
+    try:
+        iterpath = os.path.join(_AUX_DIR, '07.miscellaneous/bash/iterator')
+        shutil.copy2(iterpath, destination)
+        print('copied iterator')
+    except:
+        print('bash iterator not found, skipping.')
+
     return comm, exitcode
 
 
@@ -163,14 +175,14 @@ def getFileList(folder, prefix='plt', fullpath=False):
 
 def cpFLASHrun(runfolder, newrunfol):
     """copy the cdx folder to a new runfolder"""
-    src = os.path.abspath(runfolder) + _cdxfolder
-    dst = os.path.abspath(newrunfol) + _cdxfolder
+    src = os.path.join(os.path.abspath(runfolder), _cdxfolder)
+    dst = os.path.join(os.path.abspath(newrunfol), _cdxfolder)
     if os.path.exists(dst):
         shutil.rmtree(dst)
         shutil.copytree(src, dst)
     else:
         shutil.copytree(src, dst)
-    os.makedirs(newrunfol + _otpfolder)
+    os.makedirs(os.path.join(newrunfol, _otpfolder))
 
 
 def makeGIF(runfolder, prefix='', subf='', speed=0.2):
@@ -267,8 +279,8 @@ def cpList(files, src, dst):
         shutil.copy('/'.join([src,f]), '/'.join([dst,f]))
 
 
-def writeSubmit(subfile, code, pbsins=[],
-                time='12:00:00', nodes=1252, ompth=16, proj='', mail=''):
+def writePBSscript(subfile, code, pbsins=[],
+                   time='12:00:00', nodes=1252, ompth=16, proj='', mail='', abe='abe'):
     """PBS submit system file cooker.
     builds a submit.pbs with a typical header, specifying walltime and nodes,
     then adding slines of code below. Exports OMP_NUM_THREADS=ompth
@@ -299,14 +311,13 @@ def writeSubmit(subfile, code, pbsins=[],
     subHeader.append('#PBS -N {}'.format(os.path.basename(subfile)[:-4]))
     subHeader.append('#PBS -j oe')  # join err and otp
     subScript = []
-    subScript.append('date')
     subScript.append('echo Submitted from: $PBS_O_WORKDIR')
-    subScript.append('echo #####################')
+    subScript.append('date')
     subScript.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     subScript.append('export CRAY_CUDA_MPS=1')
     if mail:
         subHeader.append('#PBS -M {}'.format(mail))
-        subHeader.append('#PBS -m abe')
+        subHeader.append('#PBS -m {}'.format(abe))
     if pbsins:
         subHeader = subHeader + pbsins
     subScript = subScript + code
@@ -315,6 +326,17 @@ def writeSubmit(subfile, code, pbsins=[],
         o.write("\n")
         o.write("\n".join(subScript))
         o.write("\n")
+
+
+def getTITANtime(nodes):
+    if nodes<125:
+        return '02:00:00'
+    elif nodes<312:
+        return '06:00:00'
+    elif nodes<3749:
+        return '12:00:00'
+    else:
+        return '24:00:00'
 
 
 def probeFile(file, showrows=3, onlyhead=True):

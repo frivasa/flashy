@@ -25,6 +25,7 @@ class dataMatrix(object):
     """
     rnames = ['radius', 'r', 'rad']
     dnames = ['rho', 'dens', 'density']
+    mnames = ['mass', 'm', 'masses']
     
     def __init__(self, filename, comment=''):
         if isinstance(filename, list):
@@ -68,6 +69,8 @@ class dataMatrix(object):
             return self.__getattribute__('density')
         elif name in self.rnames:
             return self.__getattribute__('radius')
+        elif name in self.mnames:
+            return self.__getattribute__('masses')
         else:
             # default call
             return self.__getattribute__(name)

@@ -1,6 +1,6 @@
 import pandas as pd
-from .IOutils import cl, np, fortParse, os
-_delchar = u'!'
+from .IOutils import cl, np, fortParse, os, _cdxfolder, getTITANtime, writePBSscript
+_FLASHdefaults = 'setup_params'
 
 
 class parGroup(object):
@@ -35,37 +35,33 @@ class parGroup(object):
 class parameterGroup(object):
     def __init__(self, parfile):
         """fillcode is a workaround to avoid creating empty parGroups."""
-        if "setup_params" in parfile:
+        self.meta = getMeta(parfile)
+        if not self.meta['code']:
+            dc = makeParDict(parfile)
+            self.params = parGroup(dc)
+        elif self.meta['code']==1:
             dc = readSetupParams(parfile)
             self.defaults = parGroup(dc)
-            self.fillcode = 1
-            self.meta = getMeta(parfile)
         else:
             dc = makeParDict(parfile)
             self.params = parGroup(dc)
-            self.fillcode = 0
-            self.meta = {}
+            dc = readSetupParams(os.path.join(self.meta['cdxpath'], _FLASHdefaults))
+            self.defaults = parGroup(dc)
+            self.mergeValues()
 
-    def setPars(self, parfile, defaults=False):
-        """sets the parameters from a file in the
-        object
-        """
-        if defaults:
-            if self.fillcode==0:
+    def setPars(self, parfile):
+        """sets the parameters from a file in the object."""
+        newmeta = getMeta(parfile)
+        if newmeta['default']:  # add or update defaults
+            if not self.meta['code']:
                 self.defaults = readSetupParams(parfile)
-                self.fillcode = 2
-                self.meta = getMeta(parfile)
+                self.meta = newmeta
             else:
                 self.defaults.update(readSetupParams(parfile))
-                self.fillcode = 1
-                self.meta = getMeta(parfile)
-        else:
-            if self.fillcode==1:
-                self.params = parGroup(makeParDict(parfile))
+        else:  # overwrite params (safer)
+            self.params = parGroup(makeParDict(parfile))
+            if self.meta['code']:
                 self.mergeValues()
-            else:
-                self.params.update(makeParDict(parfile))
-                self.fillcode = 0
     
     def mergeValues(self):
         """adds parameter values to the defaults dictionary."""
@@ -75,13 +71,13 @@ class parameterGroup(object):
         else:
             for k, v in self.params.items():
                 setattr(self.defaults, k, v)
-            self.fillcode = 2
+            self.meta['code'] = 2
     
     def tabulate(self):
-        if self.fillcode==0:  # return params
+        if not self.meta['code']:  # return params
             A = pd.DataFrame(list(self.params.items()), columns=['Parameter', 'Value'])
             return A.set_index('Parameter')
-        elif self.fillcode==1:  # return defaults
+        elif self.meta['code']==1:  # return defaults
             A = pd.DataFrame(dict(self.defaults.items()))
         else:  # return 'docked' params
             docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
@@ -90,15 +86,31 @@ class parameterGroup(object):
         A.index.name = 'Parameter'
         return A
 
-    def writeParfile(self, outfile, terse=False):
-        outpath = os.path.abspath(outfile)
-        if self.meta:
+    def writeParfile(self, outfile='', terse=False):
+        if outfile:
+            outpath = os.path.abspath(outfile)
+            print(outpath)
+            try:
+                docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
+                writeDictionary(dict(docked), outpath, meta=True, terse=terse)
+            except Exception as e:
+                print('Failed to write documentation, writing params only.')
+                writeDictionary(dict(self.params.items()), outpath, meta=False)
+            print('Wrote: {}'.format(outpath))
+        else:  # default is to assume 'docked' params and write to runfolder/otp
             self.vuvuzela()
-        if self.fillcode>1:
             docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
-            writeDictionary(dict(docked), outfile, meta=True, terse=terse)
-        else:
-            writeDictionary(dict(self.params.items()), outfile, meta=False)
+            cdx = self.meta['cdxpath']
+            cpname = os.path.join(cdx, 'flash.par')
+            writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
+            print('Wrote: {}'.format(cpname))
+            otpf = self.defaults.output_directory['value']
+            outpath = os.path.join(cdx, otpf)
+            if not os.path.exists(outpath):
+                os.makedirs(outpath)
+            cpname = os.path.join(outpath, 'flash.par')
+            writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
+            print('Wrote: {}'.format(cpname))
 
     def readChanges(self, df):
         # turn df to a simple dictionary
@@ -116,29 +128,114 @@ class parameterGroup(object):
     def vuvuzela(self):
         """Sound the horn of ERROR."""
         dkeys = [z[0] for z in self.defaults.items() if len(str(z[1]['value']))>0]
-        geom = getattr(self.defaults, 'geometry')['value']
-        if self.meta['geometry']!=geom:
+        geom = self.defaults.geometry
+        if self.meta['geometry']!=geom['value']:
             print("BZZZZZZZZZZZZ: GEOMETRY DOESN'T MATCH: "\
-                  "setup:{} parfile:{}".format(self.meta['geometry'], geom))
+                  "setup:{} parfile:{}".format(self.meta['geometry'], geom['value']))
         for k in getEssential(self.meta['dimension']):
             if k not in dkeys:
                 print("BZZZZZZZZZZZZ: {} NOT SET!".format(k))
+    
+    def readMeta(self):
+        """returns dimension, cells per block, and maxblocks from a 'docked' parfile"""
+        dim = int(self.meta['dimension'])
+        cells = self.meta['cells'].split('x')
+        cells[-1] = cells[-1].replace('cells', '')
+        cells = list(map(int, cells))
+        maxblocks = float(self.meta['maxblocks'].replace('maxb',''))
+        return dim, cells, maxblocks
 
+    def readEssential(self):
+        """returns nblocks, minima, and maxima from a 'docked' parfile"""
+        dim = int(self.meta['dimension'])
+        keys = getEssential(dim)
+        step = int(len(keys)/dim)
+        nblocks = [getattr(self.defaults, k)['value'] for k in keys[0::step]]
+        mins = [getattr(self.defaults, k)['value'] for k in keys[1::step]]
+        maxs = [getattr(self.defaults, k)['value'] for k in keys[2::step]]
+        return [float(n) for n in nblocks], [float(m) for m in mins], [float(m) for m in maxs]
+    
+    def probeSimulation(self, frac=0.6):
+        dim, cells, maxbl = self.readMeta()
+        nblocks, mins, maxs = self.readEssential()
+        tblcks, tcells = 1.0, 1.0
+        rmax = float(self.defaults.lrefine_max['value'])
+        sotp = []
+        for i in range(dim):
+            dname = {0:'x', 1:'y', 2:'z'}[i]
+            span = maxs[i]-mins[i]
+            limblcks = np.power(2, (rmax-1))*float(nblocks[i])
+            limcells = limblcks*cells[i]
+            minspan = span/limcells
+            sotp.append('{} span: {:E}'.format(dname, span))
+            tblcks*=limblcks
+            tcells*=limcells
+            # print(limblcks, limcells)
+        maxPEs = tblcks/maxbl
+        sotp.append('Max Refinement: {:0.0f}'.format(rmax))
+        sotp.append('Resolution: {:E}'.format(minspan))
+        sotp.append('Maximum cells: {:E}'.format(tcells))
+        sotp.append('Maximum Blocks: {:E}'.format(tblcks))
+        sotp.append('Max Blocks per PE: {:0.0f}'.format(maxbl))
+        sotp.append('Maximum PEs: {:0.0f}'.format(maxPEs))
+        sotp.append('Optimistic alloc (60%): {:0.0f}'.format(maxPEs*frac))
+        print('\n'.join(sotp))
+        return int(maxPEs*frac+1)
+    
+    def writeSubmit(self, recommended=True, frac=0.6, j1=False,
+                    time='02:00:00', nodes=16, ompth=16):
+        qsubfold, qsubname = os.path.split(submitpath)
+        runf = os.path.abspath(self.meta['cdxpath'])
+        code = []
+        code.append('export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
+        code.append('export QSUBNAME={}'.format(qsubname))
+        code.append('cd {}'.format(runf))
+        code.append('bash iterator {} flash.par'.format(self.defaults.output_directory['value']))
+        code.append('wait')
+        if recommended:
+            nodes = self.probeSimulation()
+            time = getTITANtime(nodes)
+        if j1:
+            nodes*=2
+            ompth = 8
+            code.append('aprun -n{} -d{} -j1 ./flash4 &'.format(nodes, ompth))
+        else:
+            code.append('aprun -n{} -d{} ./flash4 &'.format(nodes, ompth))
+        code.append('wait')
+        code.append('cd $QSUBFOLD')
+        code.append('qsub $QSUBNAME')
+        writePBSscript(submitpath, code, time=time, nodes=nodes, ompth=ompth,
+                       proj='csc198', mail='rivas.aguilera@gmail.com',abe='a')
                 
 def getMeta(filepath):
     """Infer required properties of the run from runfolder name 
     created by flashy.setupFLASH.
     """
     path, file = os.path.split(filepath)
-    runname = path.split('/')[-2]
+    # path is either ../runcode/cdx or ../runcode/otp_***
+    runpath, fldr = os.path.split(path)
+    _, runname = os.path.split(runpath)
     meta = {}
+    meta['cdxpath'] = os.path.join(runpath, _cdxfolder)
+    deffile = os.path.join(meta['cdxpath'], _FLASHdefaults)
+    if file==_FLASHdefaults:
+        meta['default'] = 1
+        meta['code'] = 1  # read only defaults
+    elif os.path.isfile(deffile):
+        meta['default'] = 0
+        meta['code'] = 2  # read both params and defaults
+    else:
+        meta['default'] = 0
+        meta['code'] = 0  # read only params
     try:
         net, geom, cells, maxblocks = runname.split('.')
     except Exception as e:
         return meta
     dimension = len(cells.split('x'))
     keys = ['network', 'geometry', 'cells', 'maxblocks', 'dimension']
-    return dict(zip(keys, [net, geom, cells, maxblocks, dimension]))
+    newkeys = dict(zip(keys, [net, geom, cells, maxblocks, dimension]))
+    meta.update(newkeys)
+    return meta
 
 
 def readSetupParams(filename):
@@ -164,6 +261,7 @@ def readSetupParams(filename):
                 pardict[par]['comment'] = " ".join(reversed(comment))
                 comment = []
     except FileNotFoundError:
+        print('paramSetup.readSetupParams: Defaults file not found, returning empty dict.')
         pass  # return an empty dictionary
     return setp
 
@@ -181,22 +279,21 @@ def makeParDict(parfile):
                 # get name of parameter (left of '=')
                 p = lsplit[0].strip()
                 # remove comment from value (right of '=')
-                v = lsplit[-1].split('#')[0].strip()
+                v = lsplit[1].split('#')[0].strip()
                 pars.append((p,v))
     return dict(pars)
 
 
-def yell(k, sv, pv):
-    print("#"*100)
-    print("BZZZZZZZZZZZZ: {} DOESN'T MATCH:".format(k))
-    print("setup:{} parfile:{}".format(sv, pv))
-
-
 def getEssential(dim):
+    """Returns parsed names for essential parameters in a simulation.
+    Bleeding edge of inference here, careful with changing order of 
+    variables...
+    
+    """
     dnames = {1:['x'], 2:['x', 'y'], 3:['x', 'y', 'z']}[dim]
     keys = []
     for dn in dnames:        
-        line = 'nblock{0},{0}max,{0}min,'\
+        line = 'nblock{0},{0}min,{0}max,'\
                '{0}l_boundary_type,{0}r_boundary_type'.format(dn)
         keys += line.split(',')
     return keys
@@ -234,3 +331,6 @@ def writeDictionary(indict, outfile, meta=False, terse=False):
         with open(outfile, 'w') as o:
             for key, val in sorted(indict.items()):
                 o.write("{:{pal}} = {:}\n".format(key, fortParse(str(val)), pal=maxlen))
+
+
+# def 

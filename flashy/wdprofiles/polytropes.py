@@ -12,6 +12,24 @@ lown = 1.0e-10
 
 def buildPolytropicHelmholtz(rstart, pc, rhoc, species=['he4'], xmass=[1.0],
                              gamma=1.333, rmax=rsol, mind=1e-5):
+    """Generates a polytropic profile satisfying a given central pressure, density, 
+    and heat capacity ratio (index).
+    Adds Temperatures based on composition through a Helmholtz free energy EoS.
+    
+    Args:
+        rstart(float): starting radius for the solution.
+        pc(float): starting pressure.
+        rhoc(float): starting density.
+        species(float): nuclides to include in composition (Helmholtz).
+        xmass(float): mass fractions for each species (Helmholtz).
+        gamma(float): polytrope index (1+1/n = gamma).
+        rmax(float): furthest radius to solve the system.
+        mind(float): curoff density for generated profile.
+    
+    Returns:
+        dataMatrix: profile object with properties as attributes.
+    
+    """
     y0 = [rhoc*4.0*np.pi*np.power(rstart, 3.0)/3.0, pc]
     pcons = [pc/np.power(rhoc, gamma), gamma]
     pheidippides = solve_ivp(fun=lambda t, y: polyHydro(t, y, pcons), method='LSODA',
