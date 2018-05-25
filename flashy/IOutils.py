@@ -88,10 +88,10 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
 
     """
     if not runfolder:
-        if 'xnetData' in kwargs:
-            net = kwargs['xnetData'].split('_')[-1]
-        else:
-            net = 'ap13'
+        net = 'ap13'
+        if 'xnet' in kwargs:
+            if kwargs['xnet']==True:
+                net = kwargs['xnetData'].split('_')[-1]
         dnum = {1:'one', 2:'two', 3:'three'}[len(nbs)]
         cells = 'x'.join([str(x) for x in nbs])
         name = '{}.{}.{}cells.{}maxb'.format(net, geometry, cells, maxbl)

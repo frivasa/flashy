@@ -161,6 +161,23 @@ def split(x, xsplit, inward=True):
         return filt, filt[0][0]
 
 
+def estimateMatch(direction, paramd, vvv=True):
+    """returns index within ray of detected shock. """
+    igr = np.array((paramd['x_match'], paramd['y_match'], paramd['z_match']))
+    if np.linalg.norm(igr)==0:  # match is a ring so return the middle of the ring
+        spx = paramd['r_match_inner'] + 0.5*(paramd['r_match_outer']-paramd['r_match_inner'])
+    else:
+        name, r = getBearing(direction, paramd['geometry'])
+        cross = np.linalg.norm(np.cross(igr,r))
+        dot = np.linalg.norm(np.dot(igr, r))
+        angle = np.arctan(cross/dot)
+        spx = np.cos(angle)*np.linalg.norm(igr)
+    if vvv:
+        print('Ignition Center: ', igr)
+        print('Estimated position', spx)
+    return spx
+
+
 def percentDiff(x1, y1, x2, y2):
     """returns the percentage difference between two abscissas 
     subject to the x range of the first via interpolation.
@@ -181,10 +198,11 @@ def percentDiff(x1, y1, x2, y2):
 
 
 def x2clog(x, cmin=1e-5, cmax=1.0):
-	y = (np.log10(x)-np.log10(cmin))/(np.log10(cmax)-np.log10(cmin)) 
-	if y > 1.0:
-		return 1.0
-	elif y < 0:
-		return 0.0
-	else:
-		return y
+    """normalizes log10(input) to (cmin, cmax) range."""
+    y = (np.log10(x)-np.log10(cmin))/(np.log10(cmax)-np.log10(cmin)) 
+    if y > 1.0:
+        return 1.0
+    elif y < 0:
+        return 0.0
+    else:
+        return y

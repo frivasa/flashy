@@ -80,7 +80,12 @@ class parameterGroup(object):
         elif self.meta['code']==1:  # return defaults
             A = pd.DataFrame(dict(self.defaults.items()))
         else:  # return 'docked' params
-            docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
+            try:
+                docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
+            except TypeError:
+                print('parGroup.tabulate.error: string index error in docked.'\
+                      ' flash.par includes unknown params to simulation.')
+                return pd.DataFrame()
             A = pd.DataFrame(dict(docked))
         A = A.transpose()
         A.index.name = 'Parameter'
@@ -155,10 +160,10 @@ class parameterGroup(object):
         maxs = [getattr(self.defaults, k)['value'] for k in keys[2::step]]
         return [float(n) for n in nblocks], [float(m) for m in mins], [float(m) for m in maxs]
     
-    def probeSimulation(self, frac=0.6):
+    def probeSimulation(self, frac=0.4):
         dim, cells, maxbl = self.readMeta()
         nblocks, mins, maxs = self.readEssential()
-        tblcks, tcells = 1.0, 1.0
+        area, tblcks, tcells = 1.0, 1.0, 1.0
         rmax = float(self.defaults.lrefine_max['value'])
         sotp = []
         for i in range(dim):
@@ -166,23 +171,27 @@ class parameterGroup(object):
             span = maxs[i]-mins[i]
             limblcks = np.power(2, (rmax-1))*float(nblocks[i])
             limcells = limblcks*cells[i]
-            minspan = span/limcells
-            sotp.append('{} span: {:E}'.format(dname, span))
+            #minspan = span/limcells
+            sotp.append('{} span: {:2.4E}, resolution: {:2.4E}'.format(dname, span, span/limcells))
+            area*=span
             tblcks*=limblcks
             tcells*=limcells
             # print(limblcks, limcells)
+        
+        # mult(spans)/mult(nblocks)/mult(cells)/2^(ref-1)/2^(ref-1) = area of cell
+        # ref 1 is nblocks, therefore ref-1
         maxPEs = tblcks/maxbl
         sotp.append('Max Refinement: {:0.0f}'.format(rmax))
-        sotp.append('Resolution: {:E}'.format(minspan))
+        sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))
         sotp.append('Maximum cells: {:E}'.format(tcells))
         sotp.append('Maximum Blocks: {:E}'.format(tblcks))
         sotp.append('Max Blocks per PE: {:0.0f}'.format(maxbl))
         sotp.append('Maximum PEs: {:0.0f}'.format(maxPEs))
-        sotp.append('Optimistic alloc (60%): {:0.0f}'.format(maxPEs*frac))
+        sotp.append('Optimistic alloc ({:.0%}): {:0.2f}'.format(frac, maxPEs*frac))
         print('\n'.join(sotp))
-        return int(maxPEs*frac+1)
+        return int(maxPEs*frac)+1
     
-    def writeSubmit(self, recommended=True, frac=0.6, j1=False,
+    def writeSubmit(self, submitpath, recommended=True, frac=0.4, j1=False,
                     time='02:00:00', nodes=16, ompth=16):
         qsubfold, qsubname = os.path.split(submitpath)
         runf = os.path.abspath(self.meta['cdxpath'])
@@ -193,7 +202,7 @@ class parameterGroup(object):
         code.append('bash iterator {} flash.par'.format(self.defaults.output_directory['value']))
         code.append('wait')
         if recommended:
-            nodes = self.probeSimulation()
+            nodes = self.probeSimulation(frac)
             time = getTITANtime(nodes)
         if j1:
             nodes*=2

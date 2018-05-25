@@ -11,7 +11,7 @@ import palettable  # cmocean colors are included in palettable
 # yt call: (name, type, num): num<=11 type={diverging, qualitative, sequential}
 #_cScheme = ('GnBu', 'sequential', 9)
 # import cmocean fails for ipyparallel. so hack it through palettable
-cmap = palettable.cmocean.sequential.Gray_20.mpl_colormap
+cmap = palettable.cmocean.sequential.Tempo_20.mpl_colormap
 # import cmocean fails for ipyparallel. 
 # so hack it through palettable
 #_ytcmap = palettable.cmocean.sequential.Ice_14_r.mpl_colors
@@ -40,11 +40,13 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
     im, cax = plotFRB(grid[0], grid.cbar_axes[0], 
                       np.transpose(p.frb[field]), 
                       lims, top=False)
-    im.axes.tick_params(axis='x', top='on')
+    im.axes.tick_params(axis='x', top=True)
     im.axes.annotate("Time: {:.5f} s".format(float(ds.current_time)),
-                     xy=(0.75, 0.05), textcoords='figure fraction')
+                     xy=(0.75, 0.05), xycoords='axes fraction', 
+                     textcoords='axes fraction')
     im.axes.annotate("Z: {:.4e} cm".format(zcut),
-                     xy=(0.10, 0.05), textcoords='figure fraction')
+                     xy=(0.10, 0.05), xycoords='axes fraction', 
+                     textcoords='axes fraction')
     if show:
         return fig
     else:
@@ -96,8 +98,9 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
         grid[0].axes.plot(x_match, y_match, 'o', color='black')
         grid[1].axes.plot(x_match, y_match, 'o', color='black')
     grid[1].axes.annotate("Time: {:.5f} s".format(float(ds.current_time)),
-                          xy=(0.75, -0.17), textcoords='axes fraction')
-    fig.tight_layout()
+                          xy=(0.75, -0.25), xycoords='axes fraction', 
+                          textcoords='axes fraction')
+#     fig.tight_layout()
     if show:
         return fig
     else:
@@ -116,7 +119,7 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
             os.mkdir(os.path.join(savf, tag))
         elif not os.path.exists(os.path.join(savf, tag)):
             os.mkdir(os.path.join(savf, tag))
-        plt.savefig(savp)
+        plt.savefig(savp, bbox_inches='tight')
         plt.close(fig)
         print("Wrote: {}".format(savp))
 
@@ -138,12 +141,12 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
                            norm=norm)
         yticks = im.axes.yaxis.get_major_ticks()
         yticks[0].label.set_visible(False)
-        im.axes.tick_params(axis='x', bottom='off')
+        im.axes.tick_params(axis='x', bottom=False)
     else:
         im = gridAx.imshow(imArr, 
                            cmap=cmap, aspect='auto', 
                            extent=[yr, yl, xr, xl], norm=norm)
-        im.axes.tick_params(axis='x', top='off')
+        im.axes.tick_params(axis='x', top=False)
     
     # get order of mag of highest y value and rescale the ticks
     #print im.get_extent()
@@ -241,30 +244,6 @@ def mainProps(fname, mhead=True, grids=False, show=False,
         plt.savefig(savp)
         plt.close(fig)
         print("Wrote: {}".format(savp))
-
-
-def locateShock(ray, vvv=True):
-    """returns index within ray of detected shock."""
-    ray_sort = np.argsort(ray['t'])
-    # build reference vectors
-    igr = np.array((ray.ds.parameters['x_match'], ray.ds.parameters['y_match'], ray.ds.parameters['z_match']))
-    r = np.array((float(ray['x'][ray_sort][-1]), float(ray['y'][ray_sort][-1]), float(ray['z'][ray_sort][-1])))
-    cross = np.linalg.norm(np.cross(igr,r))
-    dot = np.linalg.norm(np.dot(igr, r))
-    angle = np.arctan(cross/dot)
-
-    spx = np.cos(angle)*np.linalg.norm(igr)
-    filt, offs1 = split(ray['radius'][ray_sort], spx, True)
-    shockin = shock1D(ray['radius'][ray_sort][filt], ray['sound_speed'][ray_sort][filt][:-1], True)
-    filt, offs2 = split(ray['radius'][ray_sort], spx, False)
-    shockout = shock1D(ray['radius'][ray_sort][filt], ray['sound_speed'][ray_sort][filt][:-1], False)
-    if vvv:
-        print('Ray: ', r)
-        print('Ignition Center: ', igr)
-        print('Angle: ', angle)
-        print('Inward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockin+offs1])))
-        print('Outward Shock at: {:E}'.format(float(ray['radius'][ray_sort][shockout+offs2])))
-    return shockin+offs1, shockout+offs2
 
 
 def colortest(fname, name, cmap=palettable.cmocean.diverging.Balance_20.mpl_colors,
