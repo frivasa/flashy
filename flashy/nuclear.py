@@ -2,7 +2,7 @@
 mass fractions and Isotope weighing.
 
 """
-from flashy.utils import np, msol, Avogadro, m_e, m_p, amu
+from .utils import np, msol, Avogadro, m_e, m_p, amu
 import pkg_resources
 
 AMDC = pkg_resources.resource_filename('flashy', '../data/nuclides/ame2017.masses')
@@ -251,12 +251,7 @@ def splitSpecies(Spcodes, trueA=True, standardize=False):
 
 def sortNuclides(spcodes, capitalize=False):
     """sorts a list of nuclides by atomic number."""
-    tuples = []
-    for s in spcodes:
-        if len(s.strip())==1:
-            tuples.append((s, ''))
-        else:
-            tuples.append(elemSplit(s, True))
+    tuples = [elemSplit(s, True) for s in spcodes]
     nucs = ['{}{}'.format(s, a) for (a, s) in sorted(tuples)]
     if capitalize:
         return nucs

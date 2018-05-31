@@ -1,7 +1,8 @@
 import pandas as pd
 from .IOutils import cl, np, fortParse, os, _cdxfolder, getTITANtime, writePBSscript
+from .utils import cart2sph
 _FLASHdefaults = 'setup_params'
-
+pd.set_option('display.max_colwidth', 0)
 
 class parGroup(object):
     def __setattr__(self, att, val):
@@ -63,6 +64,21 @@ class parameterGroup(object):
             if self.meta['code']:
                 self.mergeValues()
     
+    def purgeGroup(self):
+        """clears default value fields and removes self.params"""
+        if self.meta['code']==0:
+            print('Erasing params.')
+            self.params = parGroup({})
+        elif self.meta['code']==1:
+            print('Clearing defaults.')
+            for k, v in self.defaults.items():
+                setattr(self.defaults, k, '')
+        else:
+            print('Clearing parameterGroup')
+            self.params = parGroup({})
+            for k, v in self.params.items():
+                setattr(self.defaults, k, '')
+    
     def mergeValues(self):
         """adds parameter values to the defaults dictionary."""
         if not self.defaults or not self.params:
@@ -70,14 +86,14 @@ class parameterGroup(object):
             return 1
         else:
             for k, v in self.params.items():
-                setattr(self.defaults, k, v)
+                setattr(self.defaults, k, fortParse(v, dec=False))
             self.meta['code'] = 2
     
-    def tabulate(self):
+    def tabulate(self, allpars=False):
         if not self.meta['code']:  # return params
             A = pd.DataFrame(list(self.params.items()), columns=['Parameter', 'Value'])
             return A.set_index('Parameter')
-        elif self.meta['code']==1:  # return defaults
+        elif self.meta['code']==1 or allpars:  # return defaults
             A = pd.DataFrame(dict(self.defaults.items()))
         else:  # return 'docked' params
             try:
@@ -89,7 +105,32 @@ class parameterGroup(object):
             A = pd.DataFrame(dict(docked))
         A = A.transpose()
         A.index.name = 'Parameter'
-        return A
+        if 'comment' in A.columns:
+            return A[['value', 'default', 'family', 'comment']]
+        else:
+            return A
+
+    def getStyledTable(self, stylerprops={}, tableprops={}):
+        #if not stylerprops:
+        #    stylerprops = {'background-color':'#111111', 'color': '#dbe1ea'}
+        #if not tableprops:
+        #    tableprops = {'selector':"tr:hover", 'props':[("background-color", '#6f5757')]}
+        if self.meta['code']==0:
+            print('No defaults found, returning params only')
+            A = self.tabulate()
+            return A.style
+        elif self.meta['code']==1:
+            print('No set values, returning defaults')
+            A = self.tabulate()
+            return A.style
+        else:
+            A = self.tabulate(allpars=True)
+            S = A.style
+            #S.set_properties(**stylerprops)
+            #S.set_table_styles([tableprops])
+            redind = A.index[A['value']!=A['default']].tolist()
+            S.applymap(stylerTest, subset=pd.IndexSlice[redind, ['value']])
+            return S
 
     def writeParfile(self, outfile='', terse=False):
         if outfile:
@@ -117,19 +158,6 @@ class parameterGroup(object):
             writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
             print('Wrote: {}'.format(cpname))
 
-    def readChanges(self, df):
-        # turn df to a simple dictionary
-        if 'comment' in df.columns:
-            pars, values = list(df.index), list(df['value'])
-            newpdict = dict(zip(pars, values))
-        else:
-            newpdict = df.T.to_dict("records")[0]
-        # parse values to avoid 'int'
-        parsedv = [fortParse(str(x), dec=False) for x in newpdict.values()]
-        self.params.update(dict(zip(newpdict.keys(), parsedv)))
-        # refresh docked values and remove empty value parameters for when retabulating.
-        self.mergeValues()
-        
     def vuvuzela(self):
         """Sound the horn of ERROR."""
         dkeys = [z[0] for z in self.defaults.items() if len(str(z[1]['value']))>0]
@@ -140,7 +168,7 @@ class parameterGroup(object):
         for k in getEssential(self.meta['dimension']):
             if k not in dkeys:
                 print("BZZZZZZZZZZZZ: {} NOT SET!".format(k))
-    
+
     def readMeta(self):
         """returns dimension, cells per block, and maxblocks from a 'docked' parfile"""
         dim = int(self.meta['dimension'])
@@ -191,34 +219,111 @@ class parameterGroup(object):
         print('\n'.join(sotp))
         return int(maxPEs*frac)+1
     
-    def writeSubmit(self, submitpath, recommended=True, frac=0.4, j1=False,
-                    time='02:00:00', nodes=16, ompth=16):
+    def writeRunFiles(self, frac=0.4, terse=True, multisub=True, prefix=''):
+        """Probes the parameters, sets up required resources, and writes 
+        necessary files based on a stringent structure.
+        
+        Args:
+            frac(float): reduce allocation by frac.
+            terse(bool): add descriptions to parameters in the par file.
+            multisub(bool): activate iterator (see flashy.IOutils).
+            
+        """
+        self.generateRunName(prefix=prefix)  # this alters otp_directory so call it first
+        otpf = self.defaults.output_directory['value']
+        
+        # write parfiles in both cdx and otp folders 
+        subname = os.path.basename(otpf.strip('/'))
+        nodes = self.probeSimulation(frac)
+        time = getTITANtime(nodes)
+        inputs = np.array([float(x) for x in time.split(':')])
+        factrs = np.array([3600.0, 60.0, 1.0])
+        seconds = sum(inputs*factrs) - 120.0  # time for last checkpoint
+        self.defaults.wall_clock_time_limit = int(seconds)
+        self.writeParfile(terse=terse)
+        # write submit at otp folder
+        outpath = os.path.join(self.meta['cdxpath'], otpf)
+        subpath = os.path.join(outpath, '{}.pbs'.format(subname))
+        self.writeSubmit(subpath, nodes=nodes, time=time, j1=False, multisub=multisub)
+        return subpath
+    
+    def writeSubmit(self, submitpath, j1=False, time='02:00:00', 
+                    nodes=16, ompth=16, multisub=True):
         qsubfold, qsubname = os.path.split(submitpath)
         runf = os.path.abspath(self.meta['cdxpath'])
+        otpf = self.defaults.output_directory['value']
         code = []
-        code.append('export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
-        code.append('export QSUBNAME={}'.format(qsubname))
-        code.append('cd {}'.format(runf))
-        code.append('bash iterator {} flash.par'.format(self.defaults.output_directory['value']))
-        code.append('wait')
-        if recommended:
-            nodes = self.probeSimulation(frac)
-            time = getTITANtime(nodes)
+        if multisub:
+            code.append('export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
+            code.append('export QSUBNAME={}'.format(qsubname))
+            code.append('cd {}'.format(runf))
+            code.append('bash iterator {} flash.par'.format(otpf))
+            code.append('wait')
+        else:
+            code.append('cd {}'.format(runf))
+        # cp corresponding flash.par
+        code.append('cp {}flash.par .'.format(otpf))
         if j1:
             nodes*=2
             ompth = 8
             code.append('aprun -n{} -d{} -j1 ./flash4 &'.format(nodes, ompth))
         else:
             code.append('aprun -n{} -d{} ./flash4 &'.format(nodes, ompth))
+        if multisub:
+            code.append('wait')
+            code.append('cd $QSUBFOLD')
+            code.append('qsub $QSUBNAME')
         code.append('wait')
-        code.append('cd $QSUBFOLD')
-        code.append('qsub $QSUBNAME')
         writePBSscript(submitpath, code, time=time, nodes=nodes, ompth=ompth,
                        proj='csc198', mail='rivas.aguilera@gmail.com',abe='a')
-                
+        print('Wrote: {}'.format(submitpath))
+        
+    def generateRunName(self, prefix=''):
+        match = (self.defaults.x_match['value'], 
+                 self.defaults.y_match['value'], 
+                 self.defaults.z_match['value'])
+        direc = cart2sph(*match)
+        rout, rin = self.defaults.r_match_outer['value'], self.defaults.r_match_inner['value']
+        size = rout-rin
+        dim = self.meta['dimension']
+        if sum(direc)==0.0:
+            prefix += '_ring{}'.format(int(self.defaults.r_match_inner['value']/1e5))
+        elif dim==3:
+            prefix += '_point{}{}{}'.format(int(direc[0]/1e5), int(direc[1]), int(direc[2]))
+        elif dim==2:  # 2D is x-y, not x-z as in canonical spherical, hence direc[2]
+            prefix += '_point{}{}'.format(int(direc[0]/1e5), int(direc[2]))
+        else:
+            prefix += '_point{}'.format(int(direc[0]/1e5))
+        temp = self.defaults.t_ignite_outer['value']
+        runname = '{}_ms{}_t{:.1f}'.format(prefix, int(size/1e5), temp/1e9)
+        print ('Run name generated: {}'.format(runname))
+        self.defaults.geometry = self.meta['geometry']
+        self.defaults.output_directory = "../{}/".format(runname)
+        self.defaults.log_file = "../{}/run.log".format(runname)
+        self.defaults.stats_file = "../{}/stats.dat".format(runname)
+
+    # qgrid-df methods, deprecated
+    def readChanges(self, df):
+        # turn df to a simple dictionary
+        if 'comment' in df.columns:
+            pars, values = list(df.index), list(df['value'])
+            newpdict = dict(zip(pars, values))
+        else:
+            newpdict = df.T.to_dict("records")[0]
+        # parse values to avoid 'int'
+        parsedv = [fortParse(str(x), dec=False) for x in newpdict.values()]
+        self.params.update(dict(zip(newpdict.keys(), parsedv)))
+        # refresh docked values and remove empty value parameters for when retabulating.
+        self.mergeValues()
+
+def stylerTest(value):
+    """stub to change colors in selected cells."""
+    return 'color: #ec971f'
+
+
 def getMeta(filepath):
     """Infer required properties of the run from runfolder name 
-    created by flashy.setupFLASH.
+    created by the method flashy.setupFLASH.
     """
     path, file = os.path.split(filepath)
     # path is either ../runcode/cdx or ../runcode/otp_***
@@ -259,14 +364,14 @@ def readSetupParams(filename):
                 fam = line.strip('\n ')
                 for k in pardict.keys():
                     pardict[k]['family'] = fam
-                #setp[fam] = pardict
                 setp.update(pardict)
                 pardict = {}
             elif line.startswith('    '):
                 par = line.strip().split()[0]
                 pardict[par] = {}
                 pardict[par]['value'] = ""
-                pardict[par]['default'] = line.strip().split()[-1]
+                defa = line.strip().split('[')[-1].strip(' ]')
+                pardict[par]['default'] = fortParse(defa)
                 pardict[par]['comment'] = " ".join(reversed(comment))
                 comment = []
     except FileNotFoundError:
@@ -341,5 +446,3 @@ def writeDictionary(indict, outfile, meta=False, terse=False):
             for key, val in sorted(indict.items()):
                 o.write("{:{pal}} = {:}\n".format(key, fortParse(str(val)), pal=maxlen))
 
-
-# def 

@@ -3,12 +3,13 @@ import sys
 import shutil
 import h5py
 import collections as cl
-from flashy.utils import np
+from .utils import np
 from subprocess import PIPE, Popen
+import operator
 from PIL import Image
 import imageio
 _cdxfolder = "cdx"
-_otpfolder = "otp"
+# _otpfolder = "otp"
 _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
 _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
 
@@ -79,7 +80,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
 
     Arguments:
         module(str): name of Simulation folder to setup.
-        runfolder(str): run folder (creates _cdx, and _otp within it).
+        runfolder(str): run folder (creates _cdx within it).
         kwargs(dict): keyword arguments to setup
         nbs(int tuple): cells per block for setup per dimension.
         geometry(str): cartesian, spherical, cylindrical(default).
@@ -108,10 +109,10 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         print('Emptying {}'.format(destination))
         shutil.rmtree(destination)
         os.makedirs(destination)
-    try:
-        os.makedirs(os.path.join(runfolder, _otpfolder))
-    except:
-        pass
+#     try:
+#         os.makedirs(os.path.join(runfolder, _otpfolder))
+#     except:
+#         pass
     
     if len(nbs)==1:
         dimstr = "-1d -nxb={}".format(*nbs)
@@ -185,24 +186,19 @@ def cpFLASHrun(runfolder, newrunfol):
     os.makedirs(os.path.join(newrunfol, _otpfolder))
 
 
-def makeGIF(runfolder, prefix='', subf='', speed=0.2):
-    """Join all png images within a folder in an animated .gif
+def makeGIF(srcfolder, speed=0.2):
+    """Join all png images within a folder in an 
+    animated .gif, outputs at srcfolder/..
 
     Args:
-        runfolder (str): folder path
-        prefix (str): prefix for files
-        subf (str): subfolder for files
+        srcfolder (str): folder path
         speed (float): seconds between frames
     
     """
-    if not subf:
-        prepath = runfolder
-    else:
-        prepath = os.path.join(runfolder, "png", subf)
-    finns = sorted([i for i in os.listdir(prepath) if prefix in i])
-    finns = [x for x in finns if '.png' in x]
-    if not prefix:
-        prefix = subf
+    finns = [x for x in os.listdir(srcfolder) if '.png' in x]
+    outfolder = os.path.dirname(srcfolder)
+    # maim the first file to get a name for the gif
+    outname = os.path.join(outfolder, '{}.gif'.format(x[0][:-8]))
     # image resize
     #    for finn in finns:
     #        name, ext = os.path.splitext(finn)
@@ -213,12 +209,34 @@ def makeGIF(runfolder, prefix='', subf='', speed=0.2):
     for finn in finns:
         sys.stdout.write(finn + " ")
         jakes.append(imageio.imread(os.path.join(prepath,finn)))
-    if prefix:
-        expname = "{}/{}.gif".format(runfolder, prefix)
-    else:
-        expname = "{}/joined.gif".format(runfolder, prefix)
-    imageio.mimsave(expname, jakes, format='gif', duration=speed)
-    print("\n\tSaved: {}".format(expname))
+    imageio.mimsave(outname, jakes, format='gif', duration=speed)
+    print("\n\tSaved: {}".format(outname))
+
+
+# def fortParse(arg, dec=True):
+#     """returns a parsed variable from a parameter (bool,
+#     str, or number)
+
+#     Args:
+#         arg(str): parameter value.
+#         dec(bool): add "" to strings for printing.
+
+#     Returns:
+#         str: decorated argument for fortran parsing.
+
+#     """
+#     booleans = ['.true.', '.false.', 'false', 'true' ]
+#     try:
+#         val = np.float(arg.replace('d','E'))
+#         return arg
+#     except ValueError:
+#         if arg.strip().lower() in booleans:
+#             return arg.strip()
+#         else:
+#             if dec:
+#                 return '"{}"'.format(arg.strip('"\' '))
+#             else:
+#                 return arg.strip('"\' ')
 
 
 def fortParse(arg, dec=True):
@@ -233,14 +251,17 @@ def fortParse(arg, dec=True):
         str: decorated argument for fortran parsing.
 
     """
+    booleans = ['false', 'true']
+    query = arg.strip('."\' ').lower()
     try:
-        val = np.float(arg.replace('d','E'))
-        return arg
+        val = np.float(query.replace('d','E'))
+        if int(val)==val:
+            return int(val)
+        else:
+            return '{:+1.10E}'.format(val)
     except ValueError:
-        if '.true.' in arg.lower():
-            return arg.strip()
-        elif '.false.' in arg.lower():
-            return arg.strip()
+        if query in booleans:
+            return '.{}.'.format(query)
         else:
             if dec:
                 return '"{}"'.format(arg.strip('"\' '))
@@ -311,8 +332,7 @@ def writePBSscript(subfile, code, pbsins=[],
     subHeader.append('#PBS -N {}'.format(os.path.basename(subfile)[:-4]))
     subHeader.append('#PBS -j oe')  # join err and otp
     subScript = []
-    subScript.append('echo Submitted from: $PBS_O_WORKDIR')
-    subScript.append('date')
+    #subScript.append('echo Submitted from: $PBS_O_WORKDIR')
     subScript.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     subScript.append('export CRAY_CUDA_MPS=1')
     if mail:

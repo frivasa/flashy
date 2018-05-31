@@ -178,6 +178,19 @@ def estimateMatch(direction, paramd, vvv=True):
     return spx
 
 
+def cart2sph(x, y, z):
+    """returns radius, polar angle and azimuth for a vector."""
+    r = np.sqrt(x**2+y**2+z**2)
+    if r==0.0:
+        return 0, 0, 0
+    if x==0.0:
+        phi = 90.0
+    else:
+        phi = np.arctan(y/x)
+    tht = np.arccos(z/r)
+    return r, thr, phi
+
+
 def percentDiff(x1, y1, x2, y2):
     """returns the percentage difference between two abscissas 
     subject to the x range of the first via interpolation.

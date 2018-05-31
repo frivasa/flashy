@@ -4,18 +4,34 @@ flashy.plot package
 Submodules
 ----------
 
-flashy.plot.oneDim module
--------------------------
+flashy.plot.globals module
+--------------------------
 
-.. automodule:: flashy.plot.oneDim
+.. automodule:: flashy.plot.globals
     :members:
     :undoc-members:
     :show-inheritance:
 
-flashy.plot.twoDim module
+flashy.plot.higherDim module
+----------------------------
+
+.. automodule:: flashy.plot.higherDim
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+flashy.plot.nucplot module
+--------------------------
+
+.. automodule:: flashy.plot.nucplot
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+flashy.plot.oneDim module
 -------------------------
 
-.. automodule:: flashy.plot.twoDim
+.. automodule:: flashy.plot.oneDim
     :members:
     :undoc-members:
     :show-inheritance:

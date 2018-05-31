@@ -6,23 +6,25 @@ Subpackages
 
 .. toctree::
 
+    flashy.datahaul
     flashy.plot
+    flashy.wdprofiles
 
 Submodules
 ----------
 
-flashy.butils module
---------------------
+flashy.IOutils module
+---------------------
 
-.. automodule:: flashy.butils
+.. automodule:: flashy.IOutils
     :members:
     :undoc-members:
     :show-inheritance:
 
-flashy.cgs module
------------------
+flashy.nuclear module
+---------------------
 
-.. automodule:: flashy.cgs
+.. automodule:: flashy.nuclear
     :members:
     :undoc-members:
     :show-inheritance:
@@ -31,6 +33,30 @@ flashy.paramSetup module
 ------------------------
 
 .. automodule:: flashy.paramSetup
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+flashy.post module
+------------------
+
+.. automodule:: flashy.post
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+flashy.profile\_workshop module
+-------------------------------
+
+.. automodule:: flashy.profile_workshop
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+flashy.utils module
+-------------------
+
+.. automodule:: flashy.utils
     :members:
     :undoc-members:
     :show-inheritance:

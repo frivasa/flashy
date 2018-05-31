@@ -2,7 +2,7 @@
 import flashy.datahaul.hdf5yt as reader
 from scipy.integrate import trapz
 import flashy.utils as ut
-from flashy.utils import h, m_e, np, c, kb, Avogadro
+from .utils import h, m_e, np, c, kb, Avogadro
 from scipy.optimize import newton, minimize
 
 
@@ -22,7 +22,8 @@ def getYields(fname, geom='spherical', direction=[]):
         masses: (list of float)
 
     """
-    data, species = reader.getLineout(fname, fields=['density'], species=True, geom=geom, direction=direction)
+    data, species = reader.getLineout(fname, fields=['density'], 
+                                      species=True, geom=geom, direction=direction)
     time, _, _, _, _ = reader.getMeta(fname)
     masses = ut.byMass(data[0], data[1])
     spms = []
@@ -182,6 +183,25 @@ def nonRelFermi(dens, ye=0.5):
     par1 = 0.5*np.power(0.5*h/np.pi, 2.0)/m_e
     par2 = np.power(3.0*np.pi*np.pi,2.0/3)
     par3 = np.power(Avogadro*dens*ye, 2.0/3)
+    return par1*par2*par3
+
+
+def extRelFermi(dens, ye=0.5):
+    """ Completely degenerate, extreme-relativistic Fermi energy.
+    E_f = hbar(3/8pi)^(1/3)(N_a \rho Y_e)^(1/3)
+    
+    Args:
+        dens(float): input density.
+        ye(float): electron fraction.
+    
+    Returns:
+        (float)
+    
+    """
+    par1 = h
+    par2 = np.power(3.0/8.0/np.pi,1.0/3)
+    par3 = np.power(Avogadro*dens*ye, 1.0/3)
+#     print(par1, par2, par3)
     return par1*par2*par3
 
 

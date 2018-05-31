@@ -33,9 +33,9 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
     p.set_cmap(field, 'custom')
     p.set_axes_unit('cm')
     fig = plt.figure(figsize=(10,10))
-    grid = AxesGrid(fig, 111, nrows_ncols = (1, 1),
-                    axes_pad = 0.0, label_mode = "L",
-                    share_all = False, cbar_location="right",
+    grid = AxesGrid(fig, 111, nrows_ncols=(1, 1),
+                    axes_pad=0.0, label_mode="L",
+                    share_all=False, cbar_location="right",
                     cbar_mode="each", cbar_size="5%", cbar_pad="0%")
     im, cax = plotFRB(grid[0], grid.cbar_axes[0], 
                       np.transpose(p.frb[field]), 

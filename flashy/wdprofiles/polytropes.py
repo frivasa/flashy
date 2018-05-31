@@ -2,9 +2,9 @@
 """
 # Giant Hammer
 from scipy.integrate import solve_ivp
-from flashy.utils import msol, rsol, G, c, np
-from flashy.datahaul.plainText import dataMatrix
-from flashy.datahaul.helmholtz import getTemps
+from ..utils import msol, rsol, G, c, np
+from ..datahaul.plainText import dataMatrix
+from ..datahaul.helmholtz import getTemps
 # Tools for micromanagement
 # from scipy.integrate import RK45
 # mercury = RK45(derv, rads[0], [ms[0], ps[0]], rads[2], max_step=100)

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>flashy.profile_workshop</title>
+    <link rel="stylesheet" href="../../_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flashy.profile_workshop</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">np</span>
+
+<div class="viewcode-block" id="goldenIdolShell"><a class="viewcode-back" href="../../flashy.xhtml#flashy.profile_workshop.goldenIdolShell">[docs]</a><span class="k">def</span> <span class="nf">goldenIdolShell</span><span class="p">(</span><span class="n">dmatr</span><span class="p">,</span> <span class="n">shellmass</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;replaces composition in a profile such that a </span>
+<span class="sd">    shell of a given mass is formed. Shell is pure He to </span>
+<span class="sd">    trick the 50/50 CO abar.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        dmatr(dataMatrix): profile to modify.</span>
+<span class="sd">        shellmass():</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float, float, dataMatrix): cell index, edge radius, modified profile.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">shellc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">dmatr</span><span class="o">.</span><span class="n">masses</span><span class="o">&lt;</span><span class="p">(</span><span class="n">dmatr</span><span class="o">.</span><span class="n">masses</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">shellmass</span><span class="p">))[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="s1">&#39;he4&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">dmatr</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+        <span class="n">dmatr</span><span class="o">.</span><span class="n">species</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;he4&#39;</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">dmatr</span><span class="p">,</span> <span class="s1">&#39;he4&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dmatr</span><span class="o">.</span><span class="n">masses</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">dmatr</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+        <span class="n">sp</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">dmatr</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">s</span><span class="o">==</span><span class="s1">&#39;he4&#39;</span><span class="p">:</span>
+            <span class="n">sp</span><span class="p">[</span><span class="n">shellc</span><span class="p">:]</span> <span class="o">=</span> <span class="mf">1.0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">sp</span><span class="p">[</span><span class="n">shellc</span><span class="p">:]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">return</span> <span class="n">shellc</span><span class="p">,</span> <span class="n">dmatr</span><span class="o">.</span><span class="n">radius</span><span class="p">[</span><span class="n">shellc</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

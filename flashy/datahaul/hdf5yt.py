@@ -15,7 +15,7 @@ def _speed(field, data):
 
 
 def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=True,
-               radius=5e11, geom='cartesian', direction=[]):
+               radius=5e11, geom='cartesian', direction=[], srcnames=True):
     """Returns a np.array with radius, dens, temp, pres and species specified.
     
     Args:
@@ -46,15 +46,17 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=Tru
     if species:
         for s in sps:
             dblock = np.vstack((dblock, ray[s][rs].value))
+    _, sps = getFields(ds.field_list, srcnames=srcnames)
     return dblock, sps
 
 
-def getFields(flist):
+def getFields(flist, srcnames=True):
     """filters flash checkpoint field list, extracting species found
     in the checkpoint (including named exceptions, see source).
     
     Args:
-        flist (list of tuples): ds.derived_field_list from yt.
+        flist(tuple list): ds.derived_field_list from yt.
+        srcnames(bool): return original names for species (n, d, t).
     
     Returns:
         fields (list of str): field names in checkpoint.
@@ -62,7 +64,8 @@ def getFields(flist):
     
     """
     fields, species = [], []
-    exceptions = ['n', 'd', 't', 'neut']
+    exceptions = ['n', 'd', 't' ]
+    parsedvals = ['n1', 'd2', 't3']
     for (t, field) in flist:
         if any(char.isdigit() for char in field):
             species.append(field)
@@ -71,6 +74,11 @@ def getFields(flist):
         else:
             fields.append(field)
     species = sortNuclides(species)
+    # once sorted, rename the exceptions
+    if srcnames:
+        for i, e in enumerate(parsedvals):
+            if e in species:
+                species[species.index(e)] = exceptions[i]
     return fields, species
 
 

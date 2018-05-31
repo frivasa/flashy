@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>flashy.datahaul.hdf5yt</title>
+    <link rel="stylesheet" href="../../../_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flashy.datahaul.hdf5yt</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">yt</span>
+<span class="kn">from</span> <span class="nn">flashy.utils</span> <span class="k">import</span> <span class="n">np</span><span class="p">,</span> <span class="n">getBearing</span>
+<span class="kn">from</span> <span class="nn">flashy.nuclear</span> <span class="k">import</span> <span class="n">sortNuclides</span>
+<span class="c1"># avoid yt warnings</span>
+<span class="kn">from</span> <span class="nn">yt.funcs</span> <span class="k">import</span> <span class="n">mylog</span>
+<span class="n">mylog</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+
+<span class="c1"># custom fields</span>
+<span class="k">def</span> <span class="nf">_speed</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+    <span class="n">vx</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;flash&#39;</span><span class="p">,</span> <span class="s1">&#39;velx&#39;</span><span class="p">]</span>
+    <span class="n">vy</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s1">&#39;flash&#39;</span><span class="p">,</span> <span class="s1">&#39;vely&#39;</span><span class="p">]</span>
+    <span class="n">spd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vx</span><span class="o">*</span><span class="n">vx</span> <span class="o">+</span> <span class="n">vy</span><span class="o">*</span><span class="n">vy</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">spd</span>
+<span class="c1">#yt.add_field((&quot;flash&quot;,&quot;speed&quot;), function=_speed, units=&quot;cm/s&quot;, take_log=False)</span>
+
+
+<div class="viewcode-block" id="getLineout"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.hdf5yt.getLineout">[docs]</a><span class="k">def</span> <span class="nf">getLineout</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">],</span> <span class="n">species</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+               <span class="n">radius</span><span class="o">=</span><span class="mf">5e11</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="s1">&#39;cartesian&#39;</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="sd">&quot;&quot;&quot;Returns a np.array with radius, dens, temp, pres and species specified.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname (str): filename to extract data from.</span>
+<span class="sd">        species (bool): toggle nuclide data.</span>
+<span class="sd">        radius (float): reach of lineout.</span>
+<span class="sd">        geom (str): geometry ([&#39;cartesian&#39;], &#39;spherical&#39;).</span>
+<span class="sd">        direction (list of float): angles of lineout.</span>
+<span class="sd">            takes x/(x,z) as normals for 2D/3D. </span>
+<span class="sd">            also sets dimensionality.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        dblock (numpy array): matrix with fields as columns.</span>
+<span class="sd">        species (list of str): names of species in the checkpoint.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    <span class="c1"># spherical (r, theta, phi)</span>
+    <span class="c1"># cartesian (x, y, z)</span>
+    <span class="n">cname</span><span class="p">,</span> <span class="n">bearing</span> <span class="o">=</span> <span class="n">getBearing</span><span class="p">(</span><span class="n">direction</span><span class="p">,</span> <span class="n">geom</span><span class="p">)</span>
+    <span class="n">ray</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">ray</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span> <span class="n">radius</span><span class="o">*</span><span class="n">bearing</span><span class="p">)</span>
+    <span class="n">rs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">ray</span><span class="p">[</span><span class="s1">&#39;t&#39;</span><span class="p">])</span>
+
+    <span class="n">dblock</span> <span class="o">=</span> <span class="n">ray</span><span class="p">[</span><span class="n">cname</span><span class="p">][</span><span class="n">rs</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">fields</span><span class="p">:</span>
+        <span class="n">dblock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">dblock</span><span class="p">,</span> <span class="n">ray</span><span class="p">[</span><span class="n">f</span><span class="p">][</span><span class="n">rs</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">sps</span> <span class="o">=</span> <span class="n">getFields</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">field_list</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">species</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sps</span><span class="p">:</span>
+            <span class="n">dblock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">((</span><span class="n">dblock</span><span class="p">,</span> <span class="n">ray</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="n">rs</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">dblock</span><span class="p">,</span> <span class="n">sps</span></div>
+
+
+<div class="viewcode-block" id="getFields"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.hdf5yt.getFields">[docs]</a><span class="k">def</span> <span class="nf">getFields</span><span class="p">(</span><span class="n">flist</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;filters flash checkpoint field list, extracting species found</span>
+<span class="sd">    in the checkpoint (including named exceptions, see source).</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        flist (list of tuples): ds.derived_field_list from yt.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        fields (list of str): field names in checkpoint.</span>
+<span class="sd">        species (list of str): nuclide codes as in checkpoint.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fields</span><span class="p">,</span> <span class="n">species</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;n&#39;</span><span class="p">,</span> <span class="s1">&#39;d&#39;</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">,</span> <span class="s1">&#39;neut&#39;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="ow">in</span> <span class="n">flist</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">char</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">field</span><span class="p">):</span>
+            <span class="n">species</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">field</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">in</span> <span class="n">exceptions</span><span class="p">:</span>
+            <span class="n">species</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+    <span class="n">species</span> <span class="o">=</span> <span class="n">sortNuclides</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">fields</span><span class="p">,</span> <span class="n">species</span></div>
+
+
+<div class="viewcode-block" id="getMeta"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.hdf5yt.getMeta">[docs]</a><span class="k">def</span> <span class="nf">getMeta</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">print_stats</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns metadata from checkpoint</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filename to check.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float): simtime of checkpoint.</span>
+<span class="sd">        (dict): flash.par dictionary.</span>
+<span class="sd">        (list of str): fields in checkpoint.</span>
+<span class="sd">        (list of str): species in checkpoint.</span>
+<span class="sd">        (list of str): fullpath, filename of checkpoint.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">print_stats</span><span class="p">:</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">print_stats</span><span class="p">()</span>
+    <span class="n">fields</span><span class="p">,</span> <span class="n">species</span> <span class="o">=</span> <span class="n">getFields</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">derived_field_list</span><span class="p">)</span>
+    <span class="n">filepaths</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">fullpath</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">parameter_filename</span>
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">current_time</span><span class="p">),</span> <span class="n">ds</span><span class="o">.</span><span class="n">parameters</span><span class="p">,</span> <span class="n">fields</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">filepaths</span></div>
+
+
+<div class="viewcode-block" id="getExtrema"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.hdf5yt.getExtrema">[docs]</a><span class="k">def</span> <span class="nf">getExtrema</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">flist</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;returns a list of tuples with extrema for given fields(flist).</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filename to probe.</span>
+<span class="sd">        flist(list of str): fields to query.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (list of np.arrays): list of paired extrema [min max] for each field queried.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">yt</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    <span class="n">ad</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">all_data</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">flist</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">ad</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">extrema</span><span class="p">(</span><span class="n">flist</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">ad</span><span class="o">.</span><span class="n">quantities</span><span class="o">.</span><span class="n">extrema</span><span class="p">(</span><span class="n">flist</span><span class="p">)]</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

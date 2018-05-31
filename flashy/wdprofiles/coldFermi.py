@@ -3,10 +3,11 @@
 
 TDL: apply min dens criteria.
 """
-from flashy.utils import msol, rsol, G, c, h, m_e, Avogadro, np
-from flashy.nuclear import convXmass2Abun
-from flashy.datahaul.plainText import dataMatrix
-from flashy.datahaul.helmholtz import getTemps
+from ..utils import msol, rsol, G, c, h, m_e, Avogadro, np, kb
+from ..nuclear import convXmass2Abun
+from ..datahaul.plainText import dataMatrix
+from ..datahaul.helmholtz import getTemps
+from ..post import nonRelFermi
 # Giant Hammer
 from scipy.integrate import solve_ivp
 # Tools for micromanagement
@@ -14,16 +15,20 @@ from scipy.integrate import solve_ivp
 # mercury = RK45(derv, rads[0], [ms[0], ps[0]], rads[2], max_step=100)
 
 
-def buildFermiHelmhotz(denc, xmass, species, pdens=0):
+def buildFermiHelmhotz(denc, xmass, species, pdens=0, hack=False):
     """Solves an IVP for a completely degenerate Fermi gas under hydrostatic equilibrium,
     then uses a Helmholtz EoS to assign a temperature value to the profile (this is somewhat
     wrong but better than guessing or putting an average).
+    WARN: for high densities (over 1e8), helmholtz temp breaks 
+    (reaches minimum 1e4 K and 'bounces').
+    WARN: pdens maxes around 600 points, beyond that the helmholtz package breaks.
 
     Args:
         denc(float): initial central density.
         xmass(float list): mass fractions for the used species.
         species(str list): nuclide code for each species.
         pdens(int): force a set number of points in the output (WARNING: runs ivp twice).
+        hack(bool): avoid helmholtz temperature and return a 'weighted' fermi temperature.
 
     Returns:
         (dataMatrix): tabbable profile object.
@@ -32,7 +37,11 @@ def buildFermiHelmhotz(denc, xmass, species, pdens=0):
     ymass, abar, zbar = convXmass2Abun(species, xmass)
     ye = zbar/abar
     r, m, d, p = buildFermiProfile(denc, ye=ye, pdens=pdens)
-    t = getTemps(d, p, len(d)*[xmass], species)
+    tH = getTemps([d[0]], [p[0]], [xmass], species)
+    if hack: 
+        t = [nonRelFermi(de)/kb/tH for de in d]
+    else:
+        t = getTemps(d, p, len(d)*[xmass], species)
     keys = ['radius', 'dens', 'pres', 'temp']
     datablock = np.column_stack([r, d, p, t])
     mult = len(r)

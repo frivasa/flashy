@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>flashy.datahaul.plainText</title>
+    <link rel="stylesheet" href="../../../_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flashy.datahaul.plainText</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;module for handling plain text 1D profiles sorted in columns and with structure:</span>
+<span class="sd"># col names</span>
+<span class="sd">length of data(rows int)</span>
+<span class="sd">&lt;data block&gt;</span>
+<span class="sd"># comments or anything</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">linecache</span>
+<span class="kn">from</span> <span class="nn">flashy.utils</span> <span class="k">import</span> <span class="n">np</span><span class="p">,</span> <span class="n">byMass</span>
+<span class="kn">from</span> <span class="nn">flashy.IOutils</span> <span class="k">import</span> <span class="n">cl</span>
+<span class="kn">from</span> <span class="nn">flashy.utils</span> <span class="k">import</span> <span class="n">msol</span><span class="p">,</span> <span class="n">byMass</span>
+<span class="kn">import</span> <span class="nn">os</span>
+
+
+<div class="viewcode-block" id="dataMatrix"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix">[docs]</a><span class="k">class</span> <span class="nc">dataMatrix</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;object for interacting with columned data in a plain text file.</span>
+<span class="sd">    format for file is strict at the start since it uses np.genfromtxt to handle </span>
+<span class="sd">    the data block. after row 3 any comment is allowed (# marked).</span>
+<span class="sd">    Essential columns: radius and density.</span>
+<span class="sd">    Anything with a number becomes a species.</span>
+<span class="sd">    </span>
+<span class="sd">    # col names</span>
+<span class="sd">    length of data(rows int)</span>
+<span class="sd">    &lt;data block&gt;</span>
+<span class="sd">    # comments or anything</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rnames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;rad&#39;</span><span class="p">]</span>
+    <span class="n">dnames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;rho&#39;</span><span class="p">,</span> <span class="s1">&#39;dens&#39;</span><span class="p">,</span> <span class="s1">&#39;density&#39;</span><span class="p">]</span>
+    <span class="n">mnames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">,</span> <span class="s1">&#39;m&#39;</span><span class="p">,</span> <span class="s1">&#39;masses&#39;</span><span class="p">]</span>
+    <span class="n">tnames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;temp&#39;</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">,</span> <span class="s1">&#39;temperature&#39;</span><span class="p">]</span>
+    <span class="n">pnames</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;pressure&#39;</span><span class="p">,</span> <span class="s1">&#39;p&#39;</span><span class="p">,</span> <span class="s1">&#39;pres&#39;</span><span class="p">]</span> 
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">comment</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filekeys</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">filename</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">filename</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">filekeys</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">chopFile</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">species</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulkprops</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">skip</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">num</span> <span class="o">=</span> <span class="n">multiIndex</span><span class="p">([</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="s1">&#39;rad&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">filekeys</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">radius</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="n">num</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulkprops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">)</span>
+        <span class="n">skip</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">num</span> <span class="o">=</span> <span class="n">multiIndex</span><span class="p">([</span><span class="s1">&#39;rho&#39;</span><span class="p">,</span> <span class="s1">&#39;dens&#39;</span><span class="p">,</span> <span class="s1">&#39;density&#39;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">filekeys</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">density</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="n">num</span><span class="p">]</span>
+        <span class="n">skip</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">num</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulkprops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;density&#39;</span><span class="p">)</span>
+        
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filekeys</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">skip</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+                <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">k</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">bulkprops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">continue</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">masses</span> <span class="o">=</span> <span class="n">byMass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">density</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bulkprops</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;masses&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">masses</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;central dens&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">density</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;resolution&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">radius</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">comment</span>
+
+    <span class="k">def</span> <span class="nf">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="c1"># run name through the &#39;dictionary&#39; of names</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s1">&#39;masses&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s1">&#39;temperature&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="s1">&#39;pressure&#39;</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="c1"># run name through the &#39;dictionary&#39; of names</span>
+        <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">dnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s1">&#39;density&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">rnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s1">&#39;masses&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s1">&#39;temperature&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pnames</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="s1">&#39;pressure&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="fm">__getattribute__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+    
+<div class="viewcode-block" id="dataMatrix.printMeta"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix.printMeta">[docs]</a>    <span class="k">def</span> <span class="nf">printMeta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">: </span><span class="si">{:E}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span> <span class="n">v</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="dataMatrix.writeProf"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix.writeProf">[docs]</a>    <span class="k">def</span> <span class="nf">writeProf</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="p">[],</span> <span class="n">autotag</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">Xthresh</span><span class="o">=</span><span class="mf">1e-15</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write profile to file</span>
+<span class="sd">        bug: ndarray ninja breaks formatting (np.array([float]))</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            ouput(str): otp filename.</span>
+<span class="sd">            subset(list): write a subset of keys to file.</span>
+<span class="sd">            autotag(bool): setup name based on the profile (WDs)</span>
+<span class="sd">        </span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">basedir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">autotag</span><span class="p">:</span>
+            <span class="n">rhoc</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{:2.4e}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">density</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;+&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span><span class="s1">&#39;p&#39;</span><span class="p">)</span>
+            <span class="n">c12</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{:2.2f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">c12</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;+&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span><span class="s1">&#39;p&#39;</span><span class="p">)</span>
+            <span class="n">o16</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{:2.2f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">o16</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;+&#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span><span class="s1">&#39;p&#39;</span><span class="p">)</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;wd_fermi_helm_</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">.dat&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">rhoc</span><span class="p">,</span> <span class="n">c12</span><span class="p">,</span> <span class="n">o16</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">otp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">basedir</span><span class="p">,</span> <span class="n">filename</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">subset</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="n">dataMatrix</span><span class="o">.</span><span class="n">checkbulkprops</span><span class="p">(</span><span class="n">subset</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bulkprops</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Writing: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">keys</span><span class="p">)))</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">otp</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">header</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;# </span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">header</span><span class="p">))</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]))</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;points&#39;</span><span class="p">]):</span>
+                <span class="n">line</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="c1"># clip stupid numbers such as 1e-99</span>
+                        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="n">value</span> <span class="o">&lt;</span> <span class="n">Xthresh</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
+                            <span class="n">value</span> <span class="o">=</span> <span class="mf">0.0</span>
+                        <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{:15.8e}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+                    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+                        <span class="n">missing</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+                        <span class="n">line</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{:15.8e}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="mf">0.0</span><span class="p">))</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">line</span><span class="p">)))</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;comment&#39;</span><span class="p">]:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;# </span><span class="si">{}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;comment&#39;</span><span class="p">]))</span>
+            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;# Total Mass </span><span class="si">{}</span><span class="s2"> Msun&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s1">&#39;mass&#39;</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Missing keys: </span><span class="si">{}</span><span class="s1"> were set to zero.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing</span><span class="p">)))</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Wrote: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">otp</span><span class="p">))</span></div>
+    
+<div class="viewcode-block" id="dataMatrix.checkbulkprops"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix.checkbulkprops">[docs]</a>    <span class="k">def</span> <span class="nf">checkbulkprops</span><span class="p">(</span><span class="n">klist</span><span class="p">):</span>
+        <span class="n">nklist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">klist</span><span class="p">:</span>
+            <span class="c1"># hard bulk props are always named density and radius</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dataMatrix</span><span class="o">.</span><span class="n">rnames</span><span class="p">:</span>
+                <span class="c1"># key requested is a valid radius name</span>
+                <span class="n">nklist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dataMatrix</span><span class="o">.</span><span class="n">dnames</span><span class="p">:</span>
+                <span class="c1"># key requested is a valid density name</span>
+                <span class="n">nklist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;density&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># key is something else, careful with temp/temperature</span>
+                    <span class="n">nklist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">nklist</span></div></div>
+                
+
+<div class="viewcode-block" id="joinProfiles"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.joinProfiles">[docs]</a><span class="k">def</span> <span class="nf">joinProfiles</span><span class="p">(</span><span class="n">pori</span><span class="p">,</span> <span class="n">pnew</span><span class="p">,</span> <span class="n">skipP</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;splices two dataMatrix objects. </span>
+<span class="sd">    probable bug: output profile may have a different resolution.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cut</span> <span class="o">=</span> <span class="n">pnew</span><span class="o">.</span><span class="n">radius</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ncut</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">pori</span><span class="o">.</span><span class="n">radius</span><span class="o">&lt;</span><span class="n">cut</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span>
+    <span class="k">if</span> <span class="n">skipP</span><span class="p">:</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="s1">&#39;dens&#39;</span><span class="p">,</span> <span class="s1">&#39;temp&#39;</span><span class="p">]</span>
+        <span class="n">nra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">radius</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">radius</span><span class="p">))</span>
+        <span class="n">nde</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">density</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">density</span><span class="p">))</span>
+        <span class="n">nte</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">temp</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">temp</span><span class="p">))</span>
+        <span class="n">dblock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">nra</span><span class="p">,</span> <span class="n">nde</span><span class="p">,</span> <span class="n">nte</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="s1">&#39;dens&#39;</span><span class="p">,</span> <span class="s1">&#39;pres&#39;</span><span class="p">,</span> <span class="s1">&#39;temp&#39;</span><span class="p">]</span>
+        <span class="n">nra</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">radius</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">radius</span><span class="p">))</span>
+        <span class="n">nde</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">density</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">density</span><span class="p">))</span>
+        <span class="n">npr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">pres</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">pres</span><span class="p">))</span>
+        <span class="n">nte</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">pori</span><span class="o">.</span><span class="n">temp</span><span class="p">[:</span><span class="n">ncut</span><span class="p">],</span> <span class="n">pnew</span><span class="o">.</span><span class="n">temp</span><span class="p">))</span>
+        <span class="n">dblock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">nra</span><span class="p">,</span> <span class="n">nde</span><span class="p">,</span> <span class="n">npr</span><span class="p">,</span> <span class="n">nte</span><span class="p">])</span>
+
+    <span class="n">species</span> <span class="o">=</span> <span class="n">pori</span><span class="o">.</span><span class="n">species</span> <span class="o">+</span> <span class="n">pnew</span><span class="o">.</span><span class="n">species</span>
+    <span class="n">species</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="n">keys</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
+    <span class="n">flen</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">nra</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">species</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">osp</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">pori</span><span class="p">,</span> <span class="n">x</span><span class="p">)[:</span><span class="n">ncut</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">osp</span> <span class="o">=</span> <span class="n">ncut</span><span class="o">*</span><span class="p">[</span><span class="mf">0.0</span><span class="p">]</span>
+            <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">nsp</span><span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">pnew</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+            <span class="n">nsp</span> <span class="o">=</span> <span class="p">(</span><span class="n">flen</span><span class="o">-</span><span class="n">ncut</span><span class="p">)</span><span class="o">*</span><span class="p">[</span><span class="mf">0.0</span><span class="p">]</span>
+        <span class="n">xmass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">((</span><span class="n">osp</span><span class="p">,</span> <span class="n">nsp</span><span class="p">))</span>
+        <span class="n">dblock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">dblock</span><span class="p">,</span> <span class="n">xmass</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">dataMatrix</span><span class="p">([</span><span class="n">keys</span><span class="p">,</span> <span class="n">dblock</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="multiIndex"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.multiIndex">[docs]</a><span class="k">def</span> <span class="nf">multiIndex</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">keys</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns the index of a key with multiple probable names in a </span>
+<span class="sd">    list. (assumes such key only happens once)&quot;&quot;&quot;</span>
+    <span class="n">exists</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">num</span> <span class="o">=</span> <span class="n">keys</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+            <span class="n">exists</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="k">break</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">continue</span>
+    <span class="k">if</span> <span class="n">exists</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">n</span><span class="p">,</span> <span class="n">num</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">n</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="chopFile"><a class="viewcode-back" href="../../../flashy.datahaul.xhtml#flashy.datahaul.plainText.chopFile">[docs]</a><span class="k">def</span> <span class="nf">chopFile</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns header names and a data matrix from a file.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        filename(str): file path.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (list): lowercase header names.</span>
+<span class="sd">        (np.array): data matrix of shape (coords, properties)</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">skip_header</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">comments</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">)</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">linecache</span><span class="o">.</span><span class="n">getline</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39; #</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">h</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">header</span><span class="p">],</span> <span class="n">data</span></div>
+</pre></div>
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

@@ -5,10 +5,9 @@ length of data(rows int)
 # comments or anything
 """
 import linecache
-from flashy.utils import np, byMass
-from flashy.IOutils import cl
-from flashy.utils import msol, byMass
-import os
+from flashy.utils import np, byMass, msol
+from flashy.IOutils import cl, os, operator
+import inspect
 
 
 class dataMatrix(object):
@@ -24,8 +23,11 @@ class dataMatrix(object):
     # comments or anything
     """
     rnames = ['radius', 'r', 'rad']
-    dnames = ['rho', 'dens', 'density']
-    mnames = ['mass', 'm', 'masses']
+    dnames = ['density', 'rho', 'dens']
+    mnames = ['masses', 'm', 'mass']
+    tnames = ['temperature', 't', 'temp']
+    pnames = ['pressure', 'p', 'pres']
+    classn = ['species', 'data', 'filekeys', 'bulkprops', 'meta']
     
     def __init__(self, filename, comment=''):
         if isinstance(filename, list):
@@ -35,33 +37,49 @@ class dataMatrix(object):
         self.species = []
         self.bulkprops = []
         self.meta = {}
+        
+        # sift data
         skip = []
         n, num = multiIndex(['radius', 'r', 'rad'], self.filekeys)
         self.radius = self.data[:, num]
-        self.bulkprops.append('radius')
         skip.append(num)
         n, num = multiIndex(['rho', 'dens', 'density'], self.filekeys)
         self.density = self.data[:, num]
         skip.append(num)
-        self.bulkprops.append('density')
-        
         for i, k in enumerate(self.filekeys):
             if i not in skip:
                 setattr(self, k, self.data[:, i])
-                if any(i.isdigit() for i in k):
-                    self.species.append(k)
-                else:
-                    self.bulkprops.append(k)
             else:
                 continue
         self.masses = byMass(self.radius, self.density)
-        self.bulkprops.append('masses')
-        self.meta['mass'] = self.masses[-1]
-        self.meta['central dens'] = self.density[0]
-        self.meta['radius'] = self.radius[-1]
-        self.meta['resolution'] = (self.radius[-1] - self.radius[0])/len(self.radius)
-        self.meta['points'] = len(self.radius)
-        self.meta['comment'] = comment
+        self.setMeta(comment=comment)
+
+    def __setattr__(self, name, value):
+        # run name through the 'dictionary' of names
+        bulk = True
+        if name in self.dnames:
+            rname = 'density'
+        elif name in self.rnames:
+            rname = 'radius'
+        elif name in self.mnames:
+            rname = 'masses'
+        elif name in self.tnames:
+            rname = 'temperature'
+        elif name in self.pnames:
+            rname = 'pressure'
+        else:
+            rname = name
+            bulk = False
+        if rname in self.classn:  # skip init settings
+            return super().__setattr__(rname, value)
+        if rname not in self.__dict__:
+            if bulk:
+                self.__dict__['bulkprops'].append(rname)
+            else:
+                self.__dict__['species'].append(rname)
+            return super().__setattr__(rname, value)
+        else:
+            return super().__setattr__(rname, value)
 
     def __getattr__(self, name):
         # run name through the 'dictionary' of names
@@ -71,9 +89,23 @@ class dataMatrix(object):
             return self.__getattribute__('radius')
         elif name in self.mnames:
             return self.__getattribute__('masses')
+        elif name in self.tnames:
+            return self.__getattribute__('temperature')
+        elif name in self.pnames:
+            return self.__getattribute__('pressure')
         else:
-            # default call
             return self.__getattribute__(name)
+    
+    def setMeta(self, comment=''):
+        self.meta['mass'] = self.masses[-1]
+        self.meta['central dens'] = self.density[0]
+        self.meta['radius'] = self.radius[-1]
+        self.meta['resolution'] = (self.radius[-1] - self.radius[0])/len(self.radius)
+        self.meta['points'] = len(self.radius)
+        if comment:
+            self.meta['comment'] = comment
+        elif 'comment' not in self.meta:
+            self.meta['comment'] = ''
     
     def printMeta(self):
         for k, v in self.meta.items():
@@ -139,50 +171,66 @@ class dataMatrix(object):
                 # key requested is a valid density name
                 nklist.append('density')
             else:
-                # key is something else, careful with temp/temperature
-                    nklist.append(k)
-        return nklist
-                
+                # key is something else.
+                nklist.append(k)
+        return nklist 
 
 
-def joinProfiles(pori, pnew, skipP=True):
-    """splices two dataMatrix objects. 
-    probable bug: output profile may have a different resolution.
+def spliceProfs(left, right):
+    """joins profiles at ends, 'right' takes precedence on overlap.
+    
+    Args:
+        left(dataMatrix): innermost profile.
+        right(dataMatrix): outermost profile.
+    
+    Returns:
+        (dataMatrix): spliced profile.
     
     """
-    cut = pnew.radius[0]
-    ncut = np.where(pori.radius<cut)[0][-1]+1
-    if skipP:
-        keys = ['radius', 'dens', 'temp']
-        nra = np.hstack((pori.radius[:ncut], pnew.radius))
-        nde = np.hstack((pori.density[:ncut], pnew.density))
-        nte = np.hstack((pori.temp[:ncut], pnew.temp))
-        dblock = np.column_stack([nra, nde, nte])
+    offs = right.radius[0]
+    left = snipProf(left, offs)
+    hsr = np.hstack((left.radius, right.radius))
+    hsd = np.hstack((left.density, right.density))
+    dblock = np.column_stack((hsr, hsd))
+    lprops = left.bulkprops + left.species
+    rprops = right.bulkprops + right.species
+    if lprops==rprops:
+        print('same')
+        keys = left.filekeys
     else:
-        keys = ['radius', 'dens', 'pres', 'temp']
-        nra = np.hstack((pori.radius[:ncut], pnew.radius))
-        nde = np.hstack((pori.density[:ncut], pnew.density))
-        npr = np.hstack((pori.pres[:ncut], pnew.pres))
-        nte = np.hstack((pori.temp[:ncut], pnew.temp))
-        dblock = np.column_stack([nra, nde, npr, nte])
-
-    species = pori.species + pnew.species
-    species = set(species)
-    keys = keys + list(species)
-    flen = len(nra)
-    for i, x in enumerate(species):
+        keys = list(set(lprops + rprops))
+    for k in keys[2:]:
         try:
-            osp = getattr(pori, x)[:ncut]
+            latt = getattr(left, k)
         except AttributeError:
-            osp = ncut*[0.0]
-            offset = 0
+            latt = np.zeros(len(left.radius))    
         try:
-            nsp= getattr(pnew, x)
+            ratt = getattr(right, k)
         except AttributeError:
-            nsp = (flen-ncut)*[0.0]
-        xmass = np.hstack((osp, nsp))
-        dblock = np.column_stack((dblock, xmass))
+            ratt = np.zeros(len(right.radius))
+        hst = np.hstack((latt, ratt))
+        dblock = np.column_stack((dblock, hst))
     return dataMatrix([keys, dblock])
+        
+
+def snipProf(orig, cut, byM=False, left=True, keys=[]):
+    """ cuts a profile, returning a standalone profile obj for 
+    conv: center is 0, edge is -1.
+    
+    """
+    abscissa = orig.masses if byM else orig.radius
+    npabs = np.array(abscissa)
+    flow = operator.le(npabs, cut) if left else operator.ge(npabs, cut)
+    cells = np.where(flow)
+    # start block with essential properties (all dmat have these 2).
+    nra = orig.radius[cells]
+    nde = orig.density[cells]
+    dblock = np.column_stack([nra, nde])
+    keys = orig.filekeys
+    for k in keys[2:]:
+        dblock = np.column_stack((dblock, getattr(orig, k)[cells]))
+    return dataMatrix([keys, dblock])
+
 
 def multiIndex(names, keys):
     """returns the index of a key with multiple probable names in a 
