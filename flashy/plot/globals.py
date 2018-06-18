@@ -40,9 +40,9 @@ lines = [(0, ()),
 # simple 20 color list (based on metro lines).
 # https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
 colors = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', 
-          '#911eb4', '#008080', '#e6beff', '#aa6e28', '#ccc8a0', 
-          '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000080', 
-          '#808080', '#ffe119', '#f032e6', '#46f0f0', '#bddc36', '#fabebe']
+          '#911eb4', '#008080', '#e6beff', '#bddc36', '#ccc8a0', 
+          '#800000', '#808080', '#808000', '#46f0f0', '#000080', 
+          '#ffe119', '#aa6e28', '#f032e6', '#ffd8b1', '#7fbf92', '#fabebe']
 cc = (cycler('linestyle', lines)*cycler('color', colors))
 
 # styling

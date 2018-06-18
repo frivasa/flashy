@@ -21,7 +21,7 @@
 <span id="flashy-datahaul-hdf5yt-module"></span><h2>flashy.datahaul.hdf5yt module</h2>
 <dl class="function">
 <dt id="flashy.datahaul.hdf5yt.getExtrema">
-<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>fname, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.xhtml#getExtrema"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>fname, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span></dt>
 <dd><p>returns a list of tuples with extrema for given fields(flist).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -41,12 +41,15 @@
 
 <dl class="function">
 <dt id="flashy.datahaul.hdf5yt.getFields">
-<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getFields</code><span class="sig-paren">(</span><em>flist</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.xhtml#getFields"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getFields</code><span class="sig-paren">(</span><em>flist</em>, <em>srcnames=True</em><span class="sig-paren">)</span></dt>
 <dd><p>filters flash checkpoint field list, extracting species found
 in the checkpoint (including named exceptions, see source).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>flist</strong> (<em>list of tuples</em>) – ds.derived_field_list from yt.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flist</strong> (<em>tuple list</em>) – ds.derived_field_list from yt.</p></li>
+<li><p><strong>srcnames</strong> (<em>bool</em>) – return original names for species (n, d, t).</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>field names in checkpoint.
@@ -60,7 +63,7 @@ species (list of str): nuclide codes as in checkpoint.</p>
 
 <dl class="function">
 <dt id="flashy.datahaul.hdf5yt.getLineout">
-<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getLineout</code><span class="sig-paren">(</span><em>fname, fields=['density', 'temperature', 'pressure'], species=True, radius=500000000000.0, geom='cartesian', direction=[]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.xhtml#getLineout"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getLineout</code><span class="sig-paren">(</span><em>fname, fields=['density', 'temperature', 'pressure'], species=True, radius=500000000000.0, geom='cartesian', direction=[], srcnames=True</em><span class="sig-paren">)</span></dt>
 <dd><p>Returns a np.array with radius, dens, temp, pres and species specified.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -86,7 +89,7 @@ species (list of str): names of species in the checkpoint.</p>
 
 <dl class="function">
 <dt id="flashy.datahaul.hdf5yt.getMeta">
-<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getMeta</code><span class="sig-paren">(</span><em>fname</em>, <em>print_stats=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.xhtml#getMeta"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getMeta</code><span class="sig-paren">(</span><em>fname</em>, <em>print_stats=False</em><span class="sig-paren">)</span></dt>
 <dd><p>returns metadata from checkpoint</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -110,7 +113,7 @@ species (list of str): names of species in the checkpoint.</p>
 <span id="flashy-datahaul-helmholtz-module"></span><h2>flashy.datahaul.helmholtz module</h2>
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.adiabat">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">adiabat</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em>, <em>q</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#adiabat"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">adiabat</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em>, <em>q</em><span class="sig-paren">)</span></dt>
 <dd><p>Hack-feeding data to helmholtz:
 fuel/ash = [[pressure, eint], [rho], [temp], [abar], [zbar]]</p>
 <p>fits a temperature to a hugoniot curve</p>
@@ -118,7 +121,7 @@ fuel/ash = [[pressure, eint], [rho], [temp], [abar], [zbar]]</p>
 
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.buildHelmTrojan">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">buildHelmTrojan</code><span class="sig-paren">(</span><em>fname</em>, <em>offset=1</em>, <em>geom='spherical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#buildHelmTrojan"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">buildHelmTrojan</code><span class="sig-paren">(</span><em>fname</em>, <em>offset=1</em>, <em>geom='spherical'</em><span class="sig-paren">)</span></dt>
 <dd><p>Frankensteinian bridge between flash checkpoints and
 J.Schwab’s Helmholtz python module.
 Joined inward/outward and spewing cj data to avoid
@@ -135,7 +138,7 @@ calling yt more than once.</p>
 
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.cj_cond">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">cj_cond</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#cj_cond"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">cj_cond</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em><span class="sig-paren">)</span></dt>
 <dd><p>Calculate Cj velocity from Helmholtz Eos calculation
 fits density for a set temperature</p>
 <dl class="field-list simple">
@@ -150,22 +153,22 @@ fits density for a set temperature</p>
 
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.getExtHelmCJ">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getExtHelmCJ</code><span class="sig-paren">(</span><em>fname</em>, <em>geom='spherical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#getExtHelmCJ"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getExtHelmCJ</code><span class="sig-paren">(</span><em>fname</em>, <em>geom='spherical'</em><span class="sig-paren">)</span></dt>
 <dd></dd></dl>
 
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.getPres">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getPres</code><span class="sig-paren">(</span><em>rhos</em>, <em>temps</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#getPres"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getPres</code><span class="sig-paren">(</span><em>rhos</em>, <em>temps</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span></dt>
 <dd></dd></dl>
 
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.getTemps">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getTemps</code><span class="sig-paren">(</span><em>rhos</em>, <em>pres</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#getTemps"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getTemps</code><span class="sig-paren">(</span><em>rhos</em>, <em>pres</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span></dt>
 <dd></dd></dl>
 
 <dl class="function">
 <dt id="flashy.datahaul.helmholtz.wrapVector">
-<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">wrapVector</code><span class="sig-paren">(</span><em>rho</em>, <em>var</em>, <em>xmass</em>, <em>species</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.xhtml#wrapVector"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">wrapVector</code><span class="sig-paren">(</span><em>rho</em>, <em>var</em>, <em>xmass</em>, <em>species</em><span class="sig-paren">)</span></dt>
 <dd><p>Wrapper for J.Schwab’s Helmholtz python module, which is
 itself also one for Timmes’ Helmholtz EoS.
 Checks rho for length and comparison so that it can be
@@ -198,7 +201,7 @@ length of data(rows int)
 # comments or anything</p>
 <dl class="function">
 <dt id="flashy.datahaul.plainText.chopFile">
-<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">chopFile</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#chopFile"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">chopFile</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span></dt>
 <dd><p>Returns header names and a data matrix from a file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -216,7 +219,7 @@ length of data(rows int)
 
 <dl class="class">
 <dt id="flashy.datahaul.plainText.dataMatrix">
-<em class="property">class </em><code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">dataMatrix</code><span class="sig-paren">(</span><em>filename</em>, <em>comment=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#dataMatrix"><span class="viewcode-link">[source]</span></a></dt>
+<em class="property">class </em><code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">dataMatrix</code><span class="sig-paren">(</span><em>filename</em>, <em>comment=''</em><span class="sig-paren">)</span></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>object for interacting with columned data in a plain text file.
 format for file is strict at the start since it uses np.genfromtxt to handle
@@ -229,17 +232,22 @@ length of data(rows int)
 # comments or anything</p>
 <dl class="method">
 <dt id="flashy.datahaul.plainText.dataMatrix.checkbulkprops">
-<code class="descname">checkbulkprops</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#dataMatrix.checkbulkprops"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descname">checkbulkprops</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.classn">
+<code class="descname">classn</code><em class="property"> = ['species', 'data', 'filekeys', 'bulkprops', 'meta']</em></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
 <dt id="flashy.datahaul.plainText.dataMatrix.dnames">
-<code class="descname">dnames</code><em class="property"> = ['rho', 'dens', 'density']</em></dt>
+<code class="descname">dnames</code><em class="property"> = ['density', 'rho', 'dens']</em></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
 <dt id="flashy.datahaul.plainText.dataMatrix.mnames">
-<code class="descname">mnames</code><em class="property"> = ['mass', 'm', 'masses']</em></dt>
+<code class="descname">mnames</code><em class="property"> = ['masses', 'm', 'mass']</em></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -249,7 +257,7 @@ length of data(rows int)
 
 <dl class="method">
 <dt id="flashy.datahaul.plainText.dataMatrix.printMeta">
-<code class="descname">printMeta</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#dataMatrix.printMeta"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descname">printMeta</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -257,14 +265,19 @@ length of data(rows int)
 <code class="descname">rnames</code><em class="property"> = ['radius', 'r', 'rad']</em></dt>
 <dd></dd></dl>
 
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.setMeta">
+<code class="descname">setMeta</code><span class="sig-paren">(</span><em>comment=''</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
 <dl class="attribute">
 <dt id="flashy.datahaul.plainText.dataMatrix.tnames">
-<code class="descname">tnames</code><em class="property"> = ['temp', 't', 'temperature']</em></dt>
+<code class="descname">tnames</code><em class="property"> = ['temperature', 't', 'temp']</em></dt>
 <dd></dd></dl>
 
 <dl class="method">
 <dt id="flashy.datahaul.plainText.dataMatrix.writeProf">
-<code class="descname">writeProf</code><span class="sig-paren">(</span><em>output</em>, <em>subset=[]</em>, <em>autotag=False</em>, <em>Xthresh=1e-15</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#dataMatrix.writeProf"><span class="viewcode-link">[source]</span></a></dt>
+<code class="descname">writeProf</code><span class="sig-paren">(</span><em>output</em>, <em>subset=[]</em>, <em>autotag=False</em>, <em>Xthresh=1e-15</em><span class="sig-paren">)</span></dt>
 <dd><p>Write profile to file
 bug: ndarray ninja breaks formatting (np.array([float]))</p>
 <dl class="field-list simple">
@@ -281,17 +294,37 @@ bug: ndarray ninja breaks formatting (np.array([float]))</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="flashy.datahaul.plainText.joinProfiles">
-<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">joinProfiles</code><span class="sig-paren">(</span><em>pori</em>, <em>pnew</em>, <em>skipP=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#joinProfiles"><span class="viewcode-link">[source]</span></a></dt>
-<dd><p>splices two dataMatrix objects.
-probable bug: output profile may have a different resolution.</p>
+<dt id="flashy.datahaul.plainText.multiIndex">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">multiIndex</code><span class="sig-paren">(</span><em>names</em>, <em>keys</em><span class="sig-paren">)</span></dt>
+<dd><p>returns the index of a key with multiple probable names in a
+list. (assumes such key only happens once)</p>
 </dd></dl>
 
 <dl class="function">
-<dt id="flashy.datahaul.plainText.multiIndex">
-<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">multiIndex</code><span class="sig-paren">(</span><em>names</em>, <em>keys</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.xhtml#multiIndex"><span class="viewcode-link">[source]</span></a></dt>
-<dd><p>returns the index of a key with multiple probable names in a
-list. (assumes such key only happens once)</p>
+<dt id="flashy.datahaul.plainText.snipProf">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">snipProf</code><span class="sig-paren">(</span><em>orig</em>, <em>cut</em>, <em>byM=False</em>, <em>left=True</em>, <em>keys=[]</em><span class="sig-paren">)</span></dt>
+<dd><p>cuts a profile, returning a standalone profile obj for
+conv: center is 0, edge is -1.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.spliceProfs">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">spliceProfs</code><span class="sig-paren">(</span><em>left</em>, <em>right</em><span class="sig-paren">)</span></dt>
+<dd><p>joins profiles at ends, ‘right’ takes precedence on overlap.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>left</strong> (<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – innermost profile.</p></li>
+<li><p><strong>right</strong> (<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – outermost profile.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>spliced profile.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix">dataMatrix</a>)</p>
+</dd>
+</dl>
 </dd></dl>
 
 </div>

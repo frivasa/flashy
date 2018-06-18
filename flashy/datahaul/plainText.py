@@ -27,6 +27,7 @@ class dataMatrix(object):
     mnames = ['masses', 'm', 'mass']
     tnames = ['temperature', 't', 'temp']
     pnames = ['pressure', 'p', 'pres']
+    
     classn = ['species', 'data', 'filekeys', 'bulkprops', 'meta']
     
     def __init__(self, filename, comment=''):
@@ -56,7 +57,7 @@ class dataMatrix(object):
 
     def __setattr__(self, name, value):
         # run name through the 'dictionary' of names
-        bulk = True
+#         bulk = True
         if name in self.dnames:
             rname = 'density'
         elif name in self.rnames:
@@ -69,14 +70,16 @@ class dataMatrix(object):
             rname = 'pressure'
         else:
             rname = name
-            bulk = False
+#             bulk = False
         if rname in self.classn:  # skip init settings
             return super().__setattr__(rname, value)
         if rname not in self.__dict__:
-            if bulk:
-                self.__dict__['bulkprops'].append(rname)
-            else:
+#             if bulk:
+            if any(char.isdigit() for char in rname):
                 self.__dict__['species'].append(rname)
+            else:
+#             else:
+                self.__dict__['bulkprops'].append(rname)
             return super().__setattr__(rname, value)
         else:
             return super().__setattr__(rname, value)
@@ -109,7 +112,8 @@ class dataMatrix(object):
     
     def printMeta(self):
         for k, v in self.meta.items():
-            print('{}: {:E}'.format(k.capitalize(), v))
+            pformat = '{}: {:}' if isinstance(v, str) else '{}: {:E}'
+            print(pformat.format(k.capitalize(), v))
 
     def writeProf(self, output, subset=[], autotag=False, Xthresh=1e-15):
         """Write profile to file
@@ -195,7 +199,7 @@ def spliceProfs(left, right):
     lprops = left.bulkprops + left.species
     rprops = right.bulkprops + right.species
     if lprops==rprops:
-        print('same')
+        #print('same')
         keys = left.filekeys
     else:
         keys = list(set(lprops + rprops))

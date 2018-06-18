@@ -5,6 +5,7 @@ import h5py
 import collections as cl
 from .utils import np
 from subprocess import PIPE, Popen
+import subprocess as subp
 import operator
 from PIL import Image
 import imageio
@@ -12,6 +13,7 @@ _cdxfolder = "cdx"
 # _otpfolder = "otp"
 _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
 _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
+_maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
 
 
 def turn2cartesian(folder, prefix='all', nowitness=False):
@@ -27,7 +29,7 @@ def turn2cartesian(folder, prefix='all', nowitness=False):
     
     if prefix=='all':
         finns = getFileList(folder)
-        finns += getFileList(folder, prefix='chk')
+        finns += getFileList(folder, glob='chk')
     else:
         finns = getFileList(folder)
     finns = [f for f in finns if "cart_" not in f]
@@ -153,7 +155,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     return comm, exitcode
 
 
-def getFileList(folder, prefix='plt', fullpath=False):
+def getFileList(folder, glob='plt', fullpath=False):
     """Returns a filename list subject to a prefix 'glob'.
     
     Args:
@@ -167,7 +169,7 @@ def getFileList(folder, prefix='plt', fullpath=False):
     
     """
     names = sorted(os.listdir(folder))
-    fnames = [x for x in names if prefix in x]
+    fnames = [x for x in names if glob in x]
     if fullpath:
         return [os.path.join(os.path.abspath(folder), x) for x in fnames]
     else:
@@ -188,55 +190,24 @@ def cpFLASHrun(runfolder, newrunfol):
 
 def makeGIF(srcfolder, speed=0.2):
     """Join all png images within a folder in an 
-    animated .gif, outputs at srcfolder/..
+    animated .gif. Outputs at srcfolder/../
+    # reduce size via webm conversion.
 
     Args:
         srcfolder (str): folder path
         speed (float): seconds between frames
     
     """
-    finns = [x for x in os.listdir(srcfolder) if '.png' in x]
+    finns = sorted([x for x in os.listdir(srcfolder) if '.png' in x])
     outfolder = os.path.dirname(srcfolder)
     # maim the first file to get a name for the gif
-    outname = os.path.join(outfolder, '{}.gif'.format(x[0][:-8]))
-    # image resize
-    #    for finn in finns:
-    #        name, ext = os.path.splitext(finn)
-    #        im = Image.open(finn)
-    #        im.thumbnail(size)
-    #        im.save(name + ".resized.png", "png")
+    outname = os.path.join(os.path.dirname(outfolder), '{}.gif'.format(finns[0][:-9]))
     jakes = []
     for finn in finns:
         sys.stdout.write(finn + " ")
-        jakes.append(imageio.imread(os.path.join(prepath,finn)))
+        jakes.append(imageio.imread(os.path.join(srcfolder,finn)))
     imageio.mimsave(outname, jakes, format='gif', duration=speed)
     print("\n\tSaved: {}".format(outname))
-
-
-# def fortParse(arg, dec=True):
-#     """returns a parsed variable from a parameter (bool,
-#     str, or number)
-
-#     Args:
-#         arg(str): parameter value.
-#         dec(bool): add "" to strings for printing.
-
-#     Returns:
-#         str: decorated argument for fortran parsing.
-
-#     """
-#     booleans = ['.true.', '.false.', 'false', 'true' ]
-#     try:
-#         val = np.float(arg.replace('d','E'))
-#         return arg
-#     except ValueError:
-#         if arg.strip().lower() in booleans:
-#             return arg.strip()
-#         else:
-#             if dec:
-#                 return '"{}"'.format(arg.strip('"\' '))
-#             else:
-#                 return arg.strip('"\' ')
 
 
 def fortParse(arg, dec=True):
@@ -255,10 +226,14 @@ def fortParse(arg, dec=True):
     query = arg.strip('."\' ').lower()
     try:
         val = np.float(query.replace('d','E'))
-        if int(val)==val:
-            return int(val)
+        if int(val)==val: # FORT does not handle big ints nor 'X.XEXX ints.
+            if abs(val)>_maxint:
+                return '{:E}'.format(val)
+            else:
+                return int(val)
         else:
-            return '{:+1.10E}'.format(val)
+            return '{:E}'.format(val)
+        return '{:E}'.format(val)
     except ValueError:
         if query in booleans:
             return '.{}.'.format(query)

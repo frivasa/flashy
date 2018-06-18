@@ -14,13 +14,11 @@ import palettable  # cmocean colors are included in palettable
 cmap = palettable.cmocean.sequential.Tempo_20.mpl_colormap
 # import cmocean fails for ipyparallel. 
 # so hack it through palettable
-#_ytcmap = palettable.cmocean.sequential.Ice_14_r.mpl_colors
 #_ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
-_ytcmap = palettable.cmocean.sequential.Haline_10.mpl_colors
-#_ytcmap = palettable.cmocean.diverging.Balance_20.mpl_colors
+_ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
 cols = [tuple([list(x),1]) for x in _ytcmap]
-#cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
-cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
+cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
+# cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
 
 setcmap = yt.make_colormap(cols, name='custom')
 
@@ -175,7 +173,7 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
     return im, cax
 
 
-def mainProps(fname, mhead=True, grids=False, show=False,
+def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
               fields=['density', 'pressure', 'temperature'], linear=False, 
               mins=[0.1, 1e+16, 3e7], maxs=[4e7, 6e+24, 2e9]):
     """Plots the list of fields specified in yt.
@@ -200,9 +198,8 @@ def mainProps(fname, mhead=True, grids=False, show=False,
                     share_all = True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
     p = yt.SlicePlot(ds, 'z', list(fields))
-    #plR = 7e8
-    #p.set_width((plR, 2*plR))
-    #p.set_center((plR*0.5, plR*0.7))
+    p.set_width((frame, 2*frame))
+    p.set_center((frame*0.5, 0.0))
     p.set_origin(("center", "left", "domain"))
     p.set_axes_unit('cm')
     header = '{:17.6f} s'
@@ -226,26 +223,20 @@ def mainProps(fname, mhead=True, grids=False, show=False,
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
-    if show:
+    if not batch:
         return fig
     else:
-        num = ds.parameter_filename[-5:]
-        otpf, _ = os.path.split(ds.fullpath)
-        tag = 'ytprops'
-        savn = '{}{}.png'.format(tag, num)
-        savf = os.path.join(otpf, "png")
-        savp = os.path.join(otpf, "png", tag, savn)
-        # build filetree and show or save the figure
-        if not os.path.exists(savf):
-            os.mkdir(savf)
-            os.mkdir(os.path.join(savf, tag))
-        elif not os.path.exists(os.path.join(savf, tag)):
-            os.mkdir(os.path.join(savf, tag))
-        plt.savefig(savp)
+        filetag = 'ytprops'
+        num = ds.parameter_filename[-5:]  # checkpoint number 'flash_hdf5_chk_0001'
+        dest = os.path.join(os.path.dirname(ds.fullpath), filetag)
+        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+        os.makedirs(dest, exist_ok=True)  # bless you, p3
+        plt.savefig(name, format='png')
         plt.close(fig)
-        print("Wrote: {}".format(savp))
+        print("Wrote: {}".format(name))
 
 
+# deprecate
 def colortest(fname, name, cmap=palettable.cmocean.diverging.Balance_20.mpl_colors,
               mhead=True, grids=False, show=False,
               fields=['density'], linear=False, 

@@ -188,7 +188,7 @@ def cart2sph(x, y, z):
     else:
         phi = np.arctan(y/x)
     tht = np.arccos(z/r)
-    return r, thr, phi
+    return r, tht, phi
 
 
 def percentDiff(x1, y1, x2, y2):

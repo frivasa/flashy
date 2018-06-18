@@ -1,6 +1,7 @@
 import yt
-from flashy.utils import np, getBearing
+from flashy.utils import np, getBearing, byMass
 from flashy.nuclear import sortNuclides
+from scipy.integrate import trapz
 # avoid yt warnings
 from yt.funcs import mylog
 mylog.setLevel(50)
@@ -35,10 +36,9 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=Tru
     ds = yt.load(fname)
     # spherical (r, theta, phi)
     # cartesian (x, y, z)
-    cname, bearing = getBearing(direction, geom)
+    cname, bearing = getBearing(direction, geom=geom)
     ray = ds.ray([0.0, 0.0, 0.0], radius*bearing)
     rs = np.argsort(ray['t'])
-
     dblock = ray[cname][rs].value
     for f in fields:
         dblock = np.vstack((dblock, ray[f][rs].value))
@@ -121,3 +121,31 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
         return [ad.quantities.extrema(flist).value]
     else:
         return [x.value for x in ad.quantities.extrema(flist)]
+
+
+def getYields(fname, geom='spherical', direction=[]):
+    """returns time, names and masses for each species in a checkpoint file.
+    Note: there's a small difference between sum(masses) and masses[-1] 
+    (less than 1e-3 percent)
+    direction is unphysical, but leaving it to test on multiD models
+    
+    Args:
+        fname(str): filename to inspect.
+        geom(str): geometry spec for lineout.
+    
+    Returns:
+        time (float), 
+        species names: (list of str),
+        masses: (list of float)
+
+    """
+    data, species = getLineout(fname, fields=['density'], 
+                                      species=True, geom=geom, direction=direction)
+    time, _, _, _, _ = getMeta(fname)
+    masses = byMass(data[0], data[1])
+    spms = []
+    for i in range(len(species)):
+        spdat = data[i+len(data)-len(species)]
+        spmass = trapz(data[i+len(data)-len(species)], x=masses)
+        spms.append(spmass)
+    return time, species, spms

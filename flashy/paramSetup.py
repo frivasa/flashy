@@ -2,6 +2,7 @@ import pandas as pd
 from .IOutils import cl, np, fortParse, os, _cdxfolder, getTITANtime, writePBSscript
 from .utils import cart2sph
 _FLASHdefaults = 'setup_params'
+_otpfolder = 'chk'
 pd.set_option('display.max_colwidth', 0)
 
 class parGroup(object):
@@ -35,7 +36,7 @@ class parGroup(object):
 
 class parameterGroup(object):
     def __init__(self, parfile):
-        """fillcode is a workaround to avoid creating empty parGroups."""
+        # fillcode is a workaround to avoid creating empty parGroups.
         self.meta = getMeta(parfile)
         if not self.meta['code']:
             dc = makeParDict(parfile)
@@ -150,10 +151,13 @@ class parameterGroup(object):
             cpname = os.path.join(cdx, 'flash.par')
             writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
             print('Wrote: {}'.format(cpname))
+            # create checkpoint folder
             otpf = self.defaults.output_directory['value']
             outpath = os.path.join(cdx, otpf)
-            if not os.path.exists(outpath):
-                os.makedirs(outpath)
+            os.makedirs(outpath, exist_ok=True)
+            # write flash.par to runfolder
+            otpf = "../{}/".format(self.meta['runname'])
+            outpath = os.path.join(cdx, otpf)
             cpname = os.path.join(outpath, 'flash.par')
             writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
             print('Wrote: {}'.format(cpname))
@@ -188,7 +192,7 @@ class parameterGroup(object):
         maxs = [getattr(self.defaults, k)['value'] for k in keys[2::step]]
         return [float(n) for n in nblocks], [float(m) for m in mins], [float(m) for m in maxs]
     
-    def probeSimulation(self, frac=0.4):
+    def probeSimulation(self, frac=0.4, forcePEs=0, verbose=True):
         dim, cells, maxbl = self.readMeta()
         nblocks, mins, maxs = self.readEssential()
         area, tblcks, tcells = 1.0, 1.0, 1.0
@@ -201,25 +205,32 @@ class parameterGroup(object):
             limcells = limblcks*cells[i]
             #minspan = span/limcells
             sotp.append('{} span: {:2.4E}, resolution: {:2.4E}'.format(dname, span, span/limcells))
-            area*=span
+            #area*=span
             tblcks*=limblcks
             tcells*=limcells
             # print(limblcks, limcells)
         
         # mult(spans)/mult(nblocks)/mult(cells)/2^(ref-1)/2^(ref-1) = area of cell
         # ref 1 is nblocks, therefore ref-1
-        maxPEs = tblcks/maxbl
+
         sotp.append('Max Refinement: {:0.0f}'.format(rmax))
-        sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))
+        #sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))  # this is not correct
         sotp.append('Maximum cells: {:E}'.format(tcells))
         sotp.append('Maximum Blocks: {:E}'.format(tblcks))
         sotp.append('Max Blocks per PE: {:0.0f}'.format(maxbl))
-        sotp.append('Maximum PEs: {:0.0f}'.format(maxPEs))
-        sotp.append('Optimistic alloc ({:.0%}): {:0.2f}'.format(frac, maxPEs*frac))
-        print('\n'.join(sotp))
-        return int(maxPEs*frac)+1
+        if forcePEs:
+            sotp.append('forced PEs: {:0.0f}'.format(forcePEs))
+            nodes = forcePEs
+        else:
+            maxPEs = tblcks/maxbl
+            sotp.append('Maximum PEs: {:0.0f}'.format(maxPEs))
+            sotp.append('Optimistic alloc ({:.0%}): {:0.2f}'.format(frac, maxPEs*frac))
+            nodes = int(maxPEs*frac)+1
+        if verbose:
+            print('\n'.join(sotp))
+        return nodes, sotp
     
-    def writeRunFiles(self, frac=0.4, terse=True, multisub=True, prefix=''):
+    def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, multisub=True, prefix='', IOwindow=120):
         """Probes the parameters, sets up required resources, and writes 
         necessary files based on a stringent structure.
         
@@ -227,23 +238,26 @@ class parameterGroup(object):
             frac(float): reduce allocation by frac.
             terse(bool): add descriptions to parameters in the par file.
             multisub(bool): activate iterator (see flashy.IOutils).
+            prefix(str): pass a prefix to runname generator.
+            IOwindow(int): seconds to extract from walltime to write Checkpoints.
             
         """
-        self.generateRunName(prefix=prefix)  # this alters otp_directory so call it first
-        otpf = self.defaults.output_directory['value']
-        
-        # write parfiles in both cdx and otp folders 
-        subname = os.path.basename(otpf.strip('/'))
-        nodes = self.probeSimulation(frac)
+        # sets otp_directory and runname key in meta
+        self.generateRunName(prefix=prefix)
+        # estimate allocation
+        nodes, _ = self.probeSimulation(frac=frac,  forcePEs=forcePEs)
         time = getTITANtime(nodes)
         inputs = np.array([float(x) for x in time.split(':')])
         factrs = np.array([3600.0, 60.0, 1.0])
-        seconds = sum(inputs*factrs) - 120.0  # time for last checkpoint
+        seconds = sum(inputs*factrs) - IOwindow  # time for last checkpoint
         self.defaults.wall_clock_time_limit = int(seconds)
+
+        # write parfiles in both cdx and otp folders 
         self.writeParfile(terse=terse)
-        # write submit at otp folder
-        outpath = os.path.join(self.meta['cdxpath'], otpf)
-        subpath = os.path.join(outpath, '{}.pbs'.format(subname))
+        # write submit script at otp folder
+        auxpath = '../{}/'.format(self.meta['runname'])
+        outpath = os.path.join(self.meta['cdxpath'], auxpath)
+        subpath = os.path.join(outpath, '{}.pbs'.format(self.meta['runname']))
         self.writeSubmit(subpath, nodes=nodes, time=time, j1=False, multisub=multisub)
         return subpath
     
@@ -252,17 +266,23 @@ class parameterGroup(object):
         qsubfold, qsubname = os.path.split(submitpath)
         runf = os.path.abspath(self.meta['cdxpath'])
         otpf = self.defaults.output_directory['value']
+        auxf = '../{}'.format(self.meta['runname'])
         code = []
+        # move where the action is and get the corresponding flash.par
+        code.append('cd {}'.format(runf))
+        code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
         if multisub:
+            nendestimate = self.defaults.tmax['value']/self.defaults.checkpointFileIntervalTime['value']
+            # export chaining arguments and apply iterator to set the file number
             code.append('export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
             code.append('export QSUBNAME={}'.format(qsubname))
-            code.append('cd {}'.format(runf))
-            code.append('bash iterator {} flash.par'.format(otpf))
+            code.append('bash iterator {} flash.par {}'.format(otpf, int(nendestimate)))
             code.append('wait')
-        else:
-            code.append('cd {}'.format(runf))
-        # cp corresponding flash.par
-        code.append('cp {}flash.par .'.format(otpf))
+        if self.meta['dimension'] > 1:
+            if nodes>512:  # heed the warnings, set limit to 512
+                code.append('lfs setstripe -c 512 {}'.format(os.path.join(otpf)))
+            else:
+                code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
         if j1:
             nodes*=2
             ompth = 8
@@ -274,11 +294,14 @@ class parameterGroup(object):
             code.append('cd $QSUBFOLD')
             code.append('qsub $QSUBNAME')
         code.append('wait')
-        writePBSscript(submitpath, code, time=time, nodes=nodes, ompth=ompth,
+        pbsins = ['#PBS -o {}'.format(os.path.join(runf, auxf))]
+        writePBSscript(submitpath, code, pbsins=pbsins, time=time, nodes=nodes, ompth=ompth,
                        proj='csc198', mail='rivas.aguilera@gmail.com',abe='a')
         print('Wrote: {}'.format(submitpath))
         
     def generateRunName(self, prefix=''):
+        if not prefix:
+            prefix = getProfilePrefix(self.defaults.initialWDFile['value'])
         match = (self.defaults.x_match['value'], 
                  self.defaults.y_match['value'], 
                  self.defaults.z_match['value'])
@@ -289,16 +312,18 @@ class parameterGroup(object):
         if sum(direc)==0.0:
             prefix += '_ring{}'.format(int(self.defaults.r_match_inner['value']/1e5))
         elif dim==3:
-            prefix += '_point{}{}{}'.format(int(direc[0]/1e5), int(direc[1]), int(direc[2]))
+            prefix += '_point{}_{}_{}'.format(int(direc[0]/1e5), int(direc[1]), int(direc[2]))
         elif dim==2:  # 2D is x-y, not x-z as in canonical spherical, hence direc[2]
-            prefix += '_point{}{}'.format(int(direc[0]/1e5), int(direc[2]))
+            prefix += '_point{}_{}'.format(int(direc[0]/1e5), int(direc[2]))
         else:
             prefix += '_point{}'.format(int(direc[0]/1e5))
         temp = self.defaults.t_ignite_outer['value']
         runname = '{}_ms{}_t{:.1f}'.format(prefix, int(size/1e5), temp/1e9)
         print ('Run name generated: {}'.format(runname))
         self.defaults.geometry = self.meta['geometry']
-        self.defaults.output_directory = "../{}/".format(runname)
+        # separate auxiliary files from checkpoints to stripe otp folder.
+        self.meta['runname'] = runname
+        self.defaults.output_directory = "../{}/{}/".format(runname, _otpfolder)
         self.defaults.log_file = "../{}/run.log".format(runname)
         self.defaults.stats_file = "../{}/stats.dat".format(runname)
 
@@ -315,6 +340,31 @@ class parameterGroup(object):
         self.params.update(dict(zip(newpdict.keys(), parsedv)))
         # refresh docked values and remove empty value parameters for when retabulating.
         self.mergeValues()
+
+
+def getProfilePrefix(string):
+    """returns a prefix for a runfolder from a given profile filename
+    profile format: wdSource_shellSource_mass_shellmass.dat
+    
+    """
+    profilename = os.path.basename(string[:-4])
+    wd, shell, wdm, shm = profilename.split('_')
+    code = wd[0]+shell[0]
+    mass = getFloat(wdm)
+    shma = getFloat(shm)
+    return '{}_m{:.0f}_sh{:.0f}'.format(code, mass*1e3, shma*1e3)
+
+
+def getFloat(string):
+    """returns rightmost float in a string."""
+    for i in range(len(string)):
+        try:
+            val = float(string[i:])
+            return val
+        except ValueError:
+            continue
+    return 0.0
+
 
 def stylerTest(value):
     """stub to change colors in selected cells."""
@@ -414,6 +464,7 @@ def getEssential(dim):
 
 
 def getListedDefs(supradict):
+    """split a defaults dictionary into arrays."""
     pars, vals, defs, docs, fams = [], [], [], [], []
     for par in supradict.keys():
         pars.append(par)
@@ -425,6 +476,7 @@ def getListedDefs(supradict):
 
 
 def writeDictionary(indict, outfile, meta=False, terse=False):
+    """write a formatted parameter list to a file."""
     if meta:
         ps, vs, ds, dcs, fms = getListedDefs(indict)
         dat = list(zip(ps,vs,ds,dcs,fms))
@@ -437,9 +489,9 @@ def writeDictionary(indict, outfile, meta=False, terse=False):
                 maxlen = max([len(x[0]) for x in vals])
                 for (p, v, d, dc, fm) in sorted(vals):
                     if terse:
-                        o.write("{:{length}} = {} # {} \n".format(p, v, d, length=maxlen))
+                        o.write("{:{length}} = {} # {} \n".format(p, fortParse(str(v)), d, length=maxlen))
                     else:
-                        o.write("{:{length}} = {} # {} {}\n".format(p, v, d, dc, length=maxlen))
+                        o.write("{:{length}} = {} # {} {}\n".format(p, fortParse(str(v)), d, dc, length=maxlen))
     else:
         maxlen = max([len(x) for x in indict.keys()])
         with open(outfile, 'w') as o:

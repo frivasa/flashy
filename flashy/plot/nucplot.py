@@ -1,95 +1,22 @@
-from flashy.nuclear import *
+from flashy.nuclear import \
+splitSpecies, convertYield2Abundance, getMassFractions,\
+getAbundances, readSunComp, readYield, sortNuclides, elemSplit, AGSS09
 from .globals import *
-from flashy.post import getYields, reader, ut
-from flashy.utils import x2clog
+import flashy.utils as ut
+from flashy.datahaul.hdf5yt import getLineout, getYields
+from flashy.datahaul.hdfdirect import directMeta
 from matplotlib.patches import Rectangle
 
 
-class patchN(object):
-    def legend_artist(self, legend, orig_handle, fontsize, handlebox):
-        x0, y0 = handlebox.xdescent, handlebox.ydescent
-        width, height = handlebox.width, handlebox.height
-        patch = Rectangle((x0,y0), height, height)
-        patch.update_from(orig_handle)
-        patch.set_transform(handlebox.get_transform())
-        handlebox.add_artist(patch)
-        return patch
-
-
-def fileChemistry(fname, species=[], thresh=1e-6, sprange=[0.0, 0.0], 
-                  filetag='chem', show=False, byM=True, 
-                  geom='cartesian', direction=[]):
-    """Plot yield mass and species from a checkpoint via a lineout.
-    
-    """
-    # ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", sharex=ax1, sharey=ax1, adjustable='box-forced')
-    t, sp , mss = getYields(fname, geom=geom, direction=direction)
-    ad, allsp = reader.getLineout(fname, geom=geom, direction=direction)
-    time, _, _, _, paths = reader.getMeta(fname)
-    fig = plt.figure(figsize=(8, 8))
-    
-    layout = (2, 1)
-    ax1 = plt.subplot2grid(layout, (0, 0), aspect='auto')
-    ax2 = plt.subplot2grid(layout, (1, 0), aspect="auto", adjustable='box-forced')
-    
-    ax1.annotate("Time: {:.5f} s".format(time),
-                 xy=(0.0, 0.0), xytext=(1.1, 0.95), size=12,
-                 textcoords='axes fraction', xycoords='axes fraction')
-    ax1.set_ylabel('Total Mass ($M_\odot$)', rotation=90, labelpad=5)
-    ax1.set_xlabel('Mass Number (A)')
-    ax1.yaxis.set_major_formatter(StrMethodFormatter('{x:.2f}'))
-    ax1.yaxis.set_minor_formatter(StrMethodFormatter(''))
-    ax1.xaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
-    ax1.xaxis.set_minor_formatter(StrMethodFormatter(''))
-    
-    if not species:
-        species = allsp
-    spoffset = len(ad)-len(allsp)
-    allsp = sortNuclides(allsp)
-    if byM:
-        xs = ut.byMass(ad[0], ad[1])
-        ax2.set_xlabel('Mass ($M_{\odot}$)')
-    else:
-        xs = ad[0]
-        ax2.set_xlabel('Radius ($cm$)')
-    spnames = []
-    for s in range(len(allsp)):
-        if allsp[s] not in species:
-            continue
-        A, sym = elemSplit(allsp[s], invert=True)
-        tag = '$^{{{}}}{}$'.format(A, sym)
-        spnames.append(sym)
-        ax1.scatter(A, mss[s])
-        ax2.semilogy(xs, ad[s+spoffset], label=tag, alpha=0.9)
-    lgd = ax2.legend(ncol=5, loc='center left', bbox_to_anchor=(1.0, 1.0), 
-                     columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
-                     numpoints=3, handletextpad=0.0)
-    if sum(sprange)!=0.0:
-        ax2.set_xlim(sprange)
-    ax2.axhline(1e0, linewidth=1, linestyle=':', color='black')
-    ax2.set_ylim(thresh, 2.0)
-    ax2.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
-    if show:
-        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 1.0, 1.0))
-        return
-    else:
-        num = paths[1][-5:]
-        otpf, _ = os.path.split(paths[0])
-        tag = filetag
-        savn = '{}{}.png'.format(tag, num)
-        savf = os.path.join(otpf, "png")
-        savp = os.path.join(otpf, "png", tag, savn)
-        # build filetree and save the figure
-        if not os.path.exists(savf):
-            os.mkdir(savf)
-            os.mkdir(os.path.join(savf, tag))
-        elif not os.path.exists(os.path.join(savf, tag)):
-            os.mkdir(os.path.join(savf, tag))
-        plt.tight_layout(pad=1.0, h_pad=0.05, w_pad=0.5, rect=(0, 0, 0.8,1.0))
-        plt.savefig(savp,  bbox_extra_artists=(lgd,), bbox_inches='tight')
-        plt.close(fig)
-        print("Wrote: {}".format(savp))
-
+# class patchN(object):
+#     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+#         x0, y0 = handlebox.xdescent, handlebox.ydescent
+#         width, height = handlebox.width, handlebox.height
+#         patch = Rectangle((x0,y0), height, height)
+#         patch.update_from(orig_handle)
+#         patch.set_transform(handlebox.get_transform())
+#         handlebox.add_artist(patch)
+#         return patch
 
 def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38], 
                     boxsize=1.0, cmmin=1.0e-5, cmmax=1.0, cmap='Blues', 
@@ -105,11 +32,11 @@ def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38],
         clr = 'white'
     else:
         clr = 'black'
-    nam, zs, ns, As = splitSpecies(species)
+    nam, zs, ns, As = splitSpecies(species, standardize=True)
     for (z, n, xi) in zip(zs, ns, xis):
         if log:
             square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
-                    boxsize, boxsize, facecolor=cmap(x2clog(xi)),
+                    boxsize, boxsize, facecolor=cmap(ut.x2clog(xi)),
                     edgecolor=clr)
         else:
             square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
@@ -144,10 +71,38 @@ def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38],
     return mainsquare
 
 
-def plotReaclist(ax, species, rates=[], boxsize=1.0, 
-                 cmmin=1.0e-5, cmmax=1.0, cmap='Blues'):
-    """external lib."""
-    return 0
+def plotReacNet(ax, sunet, matr_shape, forcedZ=0, step=6, xoffset=1, cmap='Blues'):
+    """plots a reaction network based on default files at cdx/Network/netname"""
+    with open(matr_shape) as f:
+        for i, line in enumerate(f):
+            if len(line)!=22:
+                continue
+            else:
+                break
+    data = np.genfromtxt(matr_shape, skip_header=i)
+    x, y, z = np.hsplit(data, 3)
+    with open(sunet) as f:
+        species = f.readlines()
+    species = [s.strip() for s in species]
+    names = [elemSplit(s, invert=True) for s in species]
+    nsp = len(names)
+    rates = len(x)
+    mat = np.zeros((nsp, nsp))
+    mat[x.astype(int)-1, y.astype(int)-1] = z+forcedZ
+    ax.imshow(mat, cmap=cmap)
+    # set labels
+    ax.set_yticks(np.arange(0, nsp, step))
+    labels = names[::step]
+    ax.set_yticklabels(['$^{{{}}}{{{}}}$'.format(*t) for t in labels], 
+                       fontsize=5, ha='right')
+    ax.set_xticks(np.arange(xoffset, nsp, step))
+    labels = names[xoffset::step]
+    ax.set_xticklabels(['$^{{{}}}{{{}}}$'.format(*t) for t in labels], 
+                       fontsize=5, va='baseline')
+
+    t = '{} Isotopes\n{} Rates'
+    note = ax.annotate(t.format(nsp, rates), xy=(100,30), fontsize=10)
+    return nsp, rates
 
 
 def doYouBelieveInMagic(ax, color='brown'):
