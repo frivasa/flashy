@@ -31,6 +31,8 @@ class simulation(object):
         if self.timings:
             self.rundelts = [timingParser(t.split('\n')) for t in self.timings]
             self.runtime = sum(self.rundelts, datetime.timedelta())
+        else:
+            self.runtime, self.rundelts = None, None
         # stats (.dat output)
         data = readStats(os.path.join(name, 'stats.dat'))
         for att in data.dtype.names:
@@ -46,9 +48,19 @@ class simulation(object):
         """returns the blocks used for each timestep."""
         return [t.blocks for t in self.steps]
     
-    def getTsteps(self):
-        """get all timesteps in the run."""
-        return [t.dt for t in self.steps]
+    def getTsteps(self, which='dt'):
+        """get all timesteps in the run.
+        
+        Args:
+            which(str): type of timestep ('dtburn', 'dthydro', 'dt')
+            
+        Returns:
+            (float list): time taken per step.
+        
+        """
+#         if which in skewed
+        return [getattr(t, which) for t in self.steps]
+
 
     def getTimes(self):
         """get all timesteps in the run."""
@@ -84,25 +96,33 @@ class simulation(object):
     
     def addOtp(self, filename):
         """read in a qsub output file. getting slowest coordinates for each timestep."""
-        ns, slowps = readOtp(filename)
+        ns, slowps, dthy, dtbu = readOtp(filename)
         if not ns:
             print('Qsub stopped in {}. Deleting.'.format(filename))
             os.remove(filename)
-        for (n, p) in zip(ns,slowps):
+        for (n, p, dth, dtb) in zip(ns, slowps, dthy, dtbu):
             try:
                 setattr(self.steps[n], 'slowx', p[0])
                 setattr(self.steps[n], 'slowy', p[1])
                 setattr(self.steps[n], 'slowz', p[2])
+                setattr(self.steps[n], 'dthydro', dth)
+                setattr(self.steps[n], 'dtburn', dtb)
             except IndexError:
+                print('inderr')
                 continue
 
     def quickLook(self):
         """print a group of general information about the run."""
         nodes, info = self.pargroup.probeSimulation(verbose=False)
+        # nodes from probe may change if a forced PE count is used, 
+        # that meta is lost so get PEs from log file (3rd row).
+        nodes = int(self.header.split('\n')[2].split()[-1])
         info[-1] = 'Nodes used: {}'.format(nodes)
-        info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
-        info.append('Timesteps (s): min {:e} max {:e} mean {:e}'.format(*self.getAvgTstep()))
-        info.append('IRL timestep (s): {:e}'.format(self.runtime.seconds/len(self.time)))
+        info.append('Achieved timesteps: {}'.format(len(self.time)))
+        info.append('Tstep sizes (s): min {:e} max {:e} mean {:e}'.format(*self.getAvgTstep()))
+        if self.timings:
+            info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
+            info.append('IRL timestep (s): {:e}'.format(self.runtime.seconds/len(self.time)))
         limblks = np.max(self.getBlocks())
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints: {}'.format(len(self.checkpoints)))
@@ -117,6 +137,47 @@ class simulation(object):
             else:
                 return self.steps[i].n, self.steps[i].t
         return self.steps[-1].n-1, self.steps[-1].t
+
+    def mergeTimings(self):
+        """Averages timing information."""
+        props = ['secs', 'calls', 'percent', 'depth']
+        if not self.timings:
+            return {}
+        #elif len(self.timings)==1:
+        else:  # just use the first one.
+            tsteps, ttime, md = readTiming(self.timings[0])
+            return tsteps, ttime, ttime/tsteps, md
+        # some keys change in timings. skipping merging for now
+        tims = []
+        for timing in self.timings:
+            tims.append(readTiming(timing))
+        tsteps = sum([a[0] for a in tims])
+        ttime = sum([a[1] for a in tims])
+        fmd = tims[0][2]
+        avg = len(tims)
+        print(fmd.keys())
+        for md in [a[2] for a in tims[1:]]:
+            print (md.keys())
+            for k in md.keys():
+                print(k)
+                fmd[k]['secs'] += md[k]['secs']
+                fmd[k]['calls'] += md[k]['calls']
+                fmd[k]['percent'] += md[k]['percent']
+                for j in md[k].keys():
+                    if j not in props:
+                        fmd[k][j]['secs'] += md[k][j]['secs']
+                        fmd[k][j]['calls'] += md[k][j]['calls']
+                        fmd[k][j]['percent'] += md[k][j]['percent']
+        for k in fmd.keys():
+            fmd[k]['secs'] /= avg
+            fmd[k]['calls'] /= avg
+            fmd[k]['percent'] /= avg
+            for j in fmd[k].keys():
+                if j not in props:
+                    fmd[k][j]['secs'] /= avg
+                    fmd[k][j]['calls'] /= avg
+                    fmd[k][j]['percent'] /= avg
+        return tsteps, ttime, ttime/tsteps, fmd
 
 
 def readStats(filename):
@@ -148,8 +209,12 @@ def readLog(filename):
                     steps.append(tst)
             else:
                 hlines.append(l.strip('\n'))
-    header, timings = splitHeader(hlines)
-    timings = ['\n'.join(t) for t in timings]
+    try:
+        header, timings = splitHeader(hlines)
+        timings = ['\n'.join(t) for t in timings]
+    except IndexError:
+        header = hlines
+        timings = None
     return steps, '\n'.join(header), timings
 
 
@@ -173,7 +238,7 @@ def readOtp(filename):
     """reads an output file (.oNUMBER) extracting the slowest coordinate for 
     each step."""
     with open(filename, 'r') as f:
-        ns, slowp = [], []
+        ns, slowp, dthydro, dtburn = [], [], [], []
         for i, l in enumerate(f):
             if _pancake in l:
                 return [], []
@@ -183,9 +248,12 @@ def readOtp(filename):
                 else:
                     n = l.split()[0]
                     a, b = l.index('('), l.index(')')
-                    ns.append(int(n))
+                    ns.append(int(n)-1)
                     slowp.append([float(x) for x in l[a+1:b].split(',')])
-        return ns, slowp
+                    dth, dtb = l.split()[-2:]
+                    dthydro.append(float(dth))
+                    dtburn.append(float(dtb))
+        return ns, slowp, dthydro, dtburn
 
 
 def timingParser(tlines):
@@ -241,4 +309,43 @@ def chopLogline(string):
 #                 print('bad log line: {}'.format(v))
 #                 params.append((k.strip(), 1.0e-20))
     return stamp, params
+
+
+def readTiming(timingString):
+    lim = []
+    depth, indent = 0, 0
+    for i, l in enumerate(timingString.split('\n')):
+    #     depth = len(l) - len(l.lstrip(' '))
+        if 'seconds in monitoring period' in l:
+            tdelt = float(l.split()[-1])
+        elif 'number of evolution steps' in l:
+            steps = int(l.split()[-1])
+        elif '---' in l:
+            start = i
+        elif '====' in l:
+            stop = i
+            break
+        else:
+            indent = len(l) - len(l.lstrip(' '))
+            if indent>depth and indent<20:  # first lines have large indents
+                depth = indent
+    md = {}
+    for i, l in enumerate(timingString.split('\n')[start+1:stop]):
+        specialsplt = [a for a in l.split('  ') if a!='']
+        delt = len(l) - len(l.lstrip(' '))
+        mp, secs, calls, avgt, perc = specialsplt
+        mp = mp.strip().replace(' ', '_')
+        if delt==1:
+            md[mp] = {}
+            md[mp]['secs'] = float(secs)
+            md[mp]['calls'] = int(calls)
+            md[mp]['percent'] = float(perc)
+            stem = mp
+        else:
+            md[stem][mp]={}
+            md[stem][mp]['secs'] = float(secs)
+            md[stem][mp]['calls'] = int(calls)
+            md[stem][mp]['percent'] = float(perc)
+            md[stem][mp]['depth'] = delt
+    return steps, tdelt, md
         

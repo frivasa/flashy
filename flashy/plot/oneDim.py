@@ -33,7 +33,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-6, xrange=[0.0, 0.0],
     a = ax.annotate("{:.5f} s".format(time),
                     xy=(0.0, 0.0), xytext=(0.84, 0.10), size=12,
                     textcoords='figure fraction', xycoords='figure fraction', 
-                    bbox=dict(boxstyle='round', fc='w', ec='g'))
+                    bbox=dict(boxstyle='round', fc='w', ec='k'))
     axlist = fig.axes
     for ax in axlist[1:]:
         ax.axvline(rm, ls=':', color='red', alpha=0.7)
@@ -78,7 +78,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
                    thresh=thresh, xrange=xrange)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
-                    xy=(0.0, 0.0), xytext=(0.84, 0.10), size=12,
+                    xy=(0.0, 0.0), xytext=(0.8, 0.10), size=12,
                     textcoords='figure fraction', xycoords='figure fraction', 
                     bbox=dict(boxstyle='round', fc='w', ec='k'))
     if not batch:
@@ -219,8 +219,8 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
     keys = sortNuclides(prof.species)
-    ncol = 6
-    pad = 0.0
+    ncol = 5
+    labelspace = -0.15
 
     if byM:
         xs = prof.masses
@@ -231,17 +231,10 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
         xlab = 'Radius ($cm$)'
         log = True
 
-    layout = (len(plotp)+2, 2)
-    ax1 = plt.subplot2grid(layout, (0, 0))
-    
-    for s in keys:
-        props = next(ax1._get_lines.prop_cycler)
-        if np.max(getattr(prof, s))< thresh:
-            continue
-        else: 
-            tag = '$^{{{}}}{}$'.format(*elemSplit(s, invert=True))
-            ax1.semilogy(xs, getattr(prof, s), label=tag, alpha=0.9, 
-                         color=props['color'], ls=props['linestyle'])
+    layout = (len(plotp)+2, 3)
+    # Species
+    ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
+    skip = plotSpecies(ax1, prof, byMass=byM, thresh=thresh, plotall=False)
     # remove last(lowest) yticklabel to avoid overlap
     ax1.get_yticklabels()[1].set_visible(False)
     lgd = ax1.legend(ncol=ncol, loc='upper left', bbox_to_anchor=(1.00, 1.05), 
@@ -249,35 +242,37 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
                      numpoints=3, handletextpad=0.0)
     ax1.axhline(1e0, linewidth=1, linestyle=':', color='black')
     ax1.set_ylim(thresh, 2.0)
-    ax1.set_ylabel('$X_{i}$', rotation=0, labelpad=10)
+    ax1.set_ylabel('Mass Frac.($X_{i}$)', size=13, rotation=90, labelpad=0)
+    ax1.yaxis.set_label_coords(labelspace, 0.5)
     ax1.yaxis.set_minor_formatter(StrMethodFormatter(''))
     ax1.tick_params(labelbottom=False) 
     if log:
         ax1.set_yscale('log')
         ax1.set_xscale('log')
         
-    ax2 = plt.subplot2grid(layout, (1, 0), sharex=ax1)
+    ax2 = plt.subplot2grid(layout, (1, 0), sharex=ax1, colspan=2)
     ax2.semilogy(xs, prof.density)
-    ax2.set_ylabel('$\\frac{g}{cm^3}$', rotation=0, labelpad=15)
-#     ax2.yaxis.set_major_formatter(StrMethodFormatter('{x:.2e}'))
+    ax2.set_ylabel('Density($\\frac{g}{cm^3}$)', size=13, rotation=90, labelpad=0)
+    ax2.yaxis.set_label_coords(labelspace, 0.5)
     ax2.yaxis.set_minor_formatter(StrMethodFormatter(''))
     ax2.tick_params(labelbottom=False) 
     
     for i, p in enumerate(plotp):
-#         print(i, p, plotp)
-        ax3 = plt.subplot2grid(layout, (i+2, 0), sharex=ax1)
+        ax3 = plt.subplot2grid(layout, (i+2, 0), sharex=ax1, colspan=2)
         for j in range(i+1):
             ax3.plot([], [])
         ax3.semilogy(xs, getattr(prof, p))#, color='k')
-        ax3.set_ylabel(p.capitalize(), rotation=90, labelpad=15)
+        u = ut.getUnit(p)
+        spacer = labelspace if '\\' in u else labelspace - 0.02
+        ax3.set_ylabel('{}({})'.format(p.capitalize(), u), rotation=90, size=13, labelpad=0)
         ax3.yaxis.set_minor_formatter(StrMethodFormatter(''))
+        ax3.yaxis.set_label_coords(spacer, 0.5)
         ax3.tick_params(labelbottom=False)
-#     ax2.set_xlabel('Radius ($cm$)')
     ax3.set_xlabel(xlab)
     ax3.tick_params(labelbottom=True)
     if sum(xrange)!=0.0:
         ax1.set_xlim(xrange)
-    plt.subplots_adjust(hspace=0.001, wspace=pad)
+    plt.subplots_adjust(hspace=0.001, wspace=0.0)
     plt.subplots_adjust(left=0.13, right=0.80)
     plt.subplots_adjust(top=0.99, bottom=0.10)
     fig.set_size_inches(8.5, 7.5, forward=True)
@@ -310,9 +305,10 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False):
                 skip.append(i)
                 continue
             else:
+                tag = '$^{{{}}}{}$'.format(*elemSplit(s, invert=True))
                 line = simplePlot(ax, dmatr, absc, s, log=True, 
                                   color=props['color'], ls=props['linestyle'])
-                line[0].set_label(s)
+                line[0].set_label(tag)
     l = ax.set_ylabel('$X_i$')
     l = ax.set_ylim([thresh, 2.0])
     return skip

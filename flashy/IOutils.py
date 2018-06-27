@@ -76,7 +76,7 @@ def switchGeometry(file, output, verbose=True):
 
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
-               geometry='cylindrical', maxbl=500, debug=False):
+               geometry='cylindrical', maxbl=500, manual=False):
     """calls ./setup at _FLASH_DIR with given parameters,
     writing the code to runfolder. (FLASH setup script runs only on py 2.X).
 
@@ -87,7 +87,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         nbs(int tuple): cells per block for setup per dimension.
         geometry(str): cartesian, spherical, cylindrical(default).
         maxbl(int): maximum blocks per proc. elem.
-        debug(bool): show terminal output.
+        manual(bool): skip terminal call, print command.
 
     """
     if not runfolder:
@@ -136,14 +136,13 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
     print(comm)
-    p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
-    out, err = p.communicate(input=comm.encode())
-    exitcode = p.returncode
-    if debug:
-        print(out.decode())
-        print(err)
+    if manual:
+        print('manual mode: skipping Popen call.')
+    else:
+        p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
+        out, err = p.communicate(input=comm.encode())
+        exitcode = p.returncode
     print('generated run name {}'.format(name))
-    
     # copy parameter varying script
     try:
         iterpath = os.path.join(_AUX_DIR, '07.miscellaneous/bash/iterator')
@@ -151,7 +150,6 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         print('copied iterator')
     except:
         print('bash iterator not found, skipping.')
-
     return comm, exitcode
 
 

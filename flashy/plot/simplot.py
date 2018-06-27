@@ -1,11 +1,7 @@
 # from ..simulation import simulation
 from .nucplot import plotNuclideGrid, plotReacNet
-from .oneDim import plainTprofile
 from .globals import *
 _foe = 1.0e51
-
-def plotInitialProfile(sim):
-    return plainTprofile(sim.profile)
 
 
 def plotNetwork(sim, dpi=100):
@@ -66,9 +62,18 @@ def plotSlowCoords(sim):
 def plotTsteps(sim):
     """build a figure with timestep size vs evolution time."""
     f, ax = plt.subplots()
-    ax.semilogx(sim.time, sim.getTsteps(), color='k')
+    ax.loglog(sim.time, sim.getTsteps(), color='k', label='simulation')
+    try:
+        ax.loglog(sim.time, sim.getTsteps(which='dthydro'), 
+                  color='b', ls=':', alpha=0.8, label='hydro')
+        fac = float(sim.pargroup.defaults.enucDtFactor['default'])
+        ax.loglog(sim.time, np.array(sim.getTsteps(which='dtburn'))/fac, 
+                  color='r', alpha=0.8, ls=':', label='burn/{:e}'.format(fac))
+    except:
+        pass
     ax.set_ylabel('Step size (s)')
     ax.set_xlabel('Time (s)')
+    ax.legend()
     f.tight_layout()
     return f
 
@@ -86,11 +91,54 @@ def plotBlockUse(sim):
 def plotStats(sim):
     """build a figure with energy components through evolution time."""
     f, ax = plt.subplots()
-    ax.loglog(sim.time, sim.E_total/_foe, label='Total')
-    ax.loglog(sim.time, sim.E_kinetic/_foe, label='Kin')
-    ax.loglog(sim.time, sim.E_internal/_foe, label='Pot')
+    ax.loglog(sim.time, sim.E_total/_foe, label='Total', color='k')
+    ax.loglog(sim.time, sim.E_kinetic/_foe, label='Kin', color='r', alpha=0.8, ls=':')
+    ax.loglog(sim.time, sim.E_internal/_foe, label='Pot', color='b', alpha=0.8, ls=':')
     ax.legend()
     ax.set_ylabel('Energy (foe/bethe)')
     ax.set_xlabel('Time (s)')
     f.tight_layout()
     return f
+
+
+def plotTiming(sim, depth=2, cut=0.01):
+    if not sim.timings:
+        print ("No timing information.")
+        return None
+    steps, time, delta, md = sim.mergeTimings()
+    fig = plt.figure(figsize=(9, 9))
+    layout = (1, 3)
+    # Species
+    ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
+    a = ax1.annotate("Steps: {}\nRuntime: {:.5f} s\nAvg.Step:{:.5e} s".format(steps, time, delta),
+                    xy=(0.0, 0.0), xytext=(0.6, 0.10), size=12,
+                    textcoords='figure fraction', xycoords='figure fraction', 
+                    bbox=dict(boxstyle='round', fc='w', ec='k'))
+    for i, k in enumerate(md.keys()):
+        probe = probeAtDepth(md, k, depth)
+        for (lab, val) in probe:
+            if val < cut:
+                continue
+            ax1.bar(i, val, label=lab)
+    ax1.set_ylabel('Percentage(%)')
+    ax1.set_xticks(range(len(md.keys())))
+    ax1.set_xticklabels(md.keys(), rotation=-30, ha='left', rotation_mode='anchor')
+    ax1.tick_params(pad=6)
+    ax1.set_yscale('log')
+    lgd = ax1.legend(ncol=1, loc='upper left', bbox_to_anchor=(1.00, 1.05), 
+                     columnspacing=0.0,
+                     numpoints=3)
+    plt.tight_layout()
+    return fig
+
+
+def probeAtDepth(tree, stem, depth, value='percent'):
+    props = ['secs', 'calls', 'percent']
+    vals = []
+    for k in tree[stem]:
+        if k in props:
+            continue
+        if tree[stem][k]['depth']==depth:
+            vals.append((k, tree[stem][k][value]))
+    return vals
+

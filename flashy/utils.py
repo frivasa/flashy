@@ -210,6 +210,11 @@ def percentDiff(x1, y1, x2, y2):
     return 100*diffs
 
 
+def getUnit(bulkname):
+    """simple cgs unit dictionary for bulk properties."""
+    return {'temperature':'$K$', 'pressure':'$\\frac{dyne}{cm^2}$'}[bulkname.lower()]
+
+
 def x2clog(x, cmin=1e-5, cmax=1.0):
     """normalizes log10(input) to (cmin, cmax) range."""
     y = (np.log10(x)-np.log10(cmin))/(np.log10(cmax)-np.log10(cmin)) 

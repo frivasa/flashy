@@ -14,8 +14,11 @@ import palettable  # cmocean colors are included in palettable
 cmap = palettable.cmocean.sequential.Tempo_20.mpl_colormap
 # import cmocean fails for ipyparallel. 
 # so hack it through palettable
-#_ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
-_ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
+_ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
+# _ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
+# _ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
+# _ytcmap = palettable.cmocean.diverging.Delta_20_r.mpl_colors
+_ytcmap = palettable.cmocean.diverging.Balance_20.mpl_colors
 cols = [tuple([list(x),1]) for x in _ytcmap]
 cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
 # cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
