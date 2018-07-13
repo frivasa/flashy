@@ -8,6 +8,7 @@ import pkg_resources
 AMDC = pkg_resources.resource_filename('flashy', '../data/nuclides/ame2017.masses')
 CIAAW = pkg_resources.resource_filename('flashy', '../data/nuclides/ciaaw2013.masses')
 AGSS09 = pkg_resources.resource_filename('flashy', '../data/suncomp/AGSS09.comp')
+solDecays = pkg_resources.resource_filename('flashy', '../data/yields/decay_paths.dat')
 
 def readStandardWeights():
     """Returns a species dict with standard atomic weights from:
@@ -16,7 +17,7 @@ def readStandardWeights():
     # CIAAW only tabulates 2013 values  so no Tennessine :( and only in xls.
     # Abridged values. Ranges are picked on their lower end.
     """
-    raw = np.genfromtxt(CIAAW, dtype='i4,|S4,f8')
+    raw = np.genfromtxt(CIAAW, dtype='i4,|U4,f8')
     dblock = [x for x in raw if x[2]>0.0]
     keys = [a[1] for a in dblock] + [a[0] for a in dblock]  # set both name and Z as keys
     vals = [a[2]for a in dblock]
@@ -72,13 +73,38 @@ def readNuclideMasses():
     return massdict
 
 
+def readDecays():
+    sunData = np.genfromtxt(solDecays, dtype="U5,i4,i4,f8,i4")
+    snames, _, _, _, scodes = zip(*sunData)
+    _, solZs, _, solAs = splitSpecies([s.capitalize() for s in snames], trueA=False)
+    return snames, solZs, solAs, scodes
+
+
+def decayYield(names, masses):
+    snames, solZ, solA, scodes = readDecays()
+    sunsp = len(snames)
+    _, Zs, Ns, As = splitSpecies([s.capitalize() for s in names], standardize=True, trueA=False)
+    tmass = sum(masses)
+    normedm = masses/tmass
+    m_out = np.zeros(sunsp)
+    for (name, zin, ain, nmass) in zip(names, Zs, As, normedm):
+        for i in range(sunsp):
+            if ain==solA[i] and \
+            ((scodes[i] == 0) or \
+             (scodes[i] == 1 and zin>=solZ[i]) or \
+             (scodes[i] == 2 and zin<=solZ[i]) or \
+             (scodes[i] == 3 and zin==solZ[i])):
+                m_out[i] = m_out[i] + nmass
+    return snames, m_out*tmass
+    
+
 def readYield(filename):
     """Reads a mass yield file or a zipped list (for simulation yields)
     Returns a mass dictionary."""
     if type(filename)==list:
         codes, values = zip(*filename)
     else:
-        comp = np.genfromtxt(filename, comments='#', dtype='|S4,f8')
+        comp = np.genfromtxt(filename, comments='#', dtype='|U5,f8')
         codes, values = zip(*comp)
     sp, z, n, a = splitSpecies(codes, standardize=True)
     mdict = {}
@@ -121,7 +147,7 @@ def readSunComp(filename):
     (Z name abundance abunerror meteoriticAb mAberror)
     mixes meteor and spectral/inferred abundances for completion.
     """
-    comp = np.genfromtxt(filename, comments='#', dtype=None)
+    comp = np.genfromtxt(filename, comments='#', dtype=None, encoding=None)
     zs, names, abun, aerr, met, emet = zip(*comp)
     # pick meteorite values when photospheric is unavailable (AGSS09)
     mix = []
@@ -167,8 +193,10 @@ def getXYZ(masses):
     """Returns Hydrogen, Helium and Metal Fractions from
     given mass fractions (assumes H and He at start of list).
     """
-    atot = reduce(lambda x, y: x + y, masses)
-    z = reduce(lambda x, y: x + y, masses[2:])/atot
+    # atot = reduce(lambda x, y: x + y, masses)
+    atot = sum(masses)
+    # z = reduce(lambda x, y: x + y, masses[2:])/atot
+    z = sum(masses[2:])/atot
     x = masses[0]/atot
     y = masses[1]/atot
     return x, y, z
@@ -237,11 +265,15 @@ def splitSpecies(Spcodes, trueA=True, standardize=False):
     As = np.array(As)
     mdict = readNuclideMasses()
     if standardize:
-        stdnames = [('p', 'H'), ('d', 'H'), ('t', 'H')]
+        # to allow the Nitrogen/neutron disctinction, both upper and lower cases must be checked
+        # proton/Phosphorous
+        stdnames = [('p', 'H'), ('d', 'H'), ('D', 'H'), ('t', 'H'), ('T', 'H'), ('h', 'H')]
         Sp = list(Sp)
-        for (k,v) in stdnames:
+        for (k, v) in stdnames:
             if k in Sp:
-                Sp[Sp.index(k)] = v
+                indices = [i for i, s in enumerate(Sp) if s==k]  # find all indices for repeated species
+                for j in indices:
+                    Sp[j] = v
     Zs = np.array([mdict[n]['z'] for n in Sp])
     Ns = As - Zs
     if trueA:
@@ -275,7 +307,8 @@ def elemSplit(s, invert=False):
     else:
         sym = s.strip('0123456789 ')
         A = s[len(sym):]
-        sym = sym.capitalize()
+        if int(A)>2:
+            sym = sym.capitalize()
     if invert:
         return int(A), sym
     else:

@@ -1,7 +1,7 @@
 import helmholtz
 import flashy.datahaul.hdf5yt as reader
 from flashy.utils import np
-from flashy.post import getVelocities
+from flashy.post import getRayleighVelocities
 from flashy.nuclear import convXmass2Abun
 
 # external starkiller/Helmholtz package wrappers
@@ -142,7 +142,7 @@ def buildHelmTrojan(fname, offset=1, geom='spherical'):
     nprops = len(props)
     data, species = reader.getLineout(fname, fields=props, species=True, geom=geom)
     nspecs = len(species)
-    xin, xout, cjin, cjout, time, xmatch = getVelocities(fname)
+    xin, xout, cjin, cjout, time, xmatch = getRayleighVelocities(fname)
     # get fuel and ash for outward shock
     # xin/xout == ray @ len([x for x in ray['r'][rsort] if x<xout])
     inw = len([x for x in data[0] if x<xout])+offset

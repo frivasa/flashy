@@ -5,30 +5,93 @@ from .globals import *
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from flashy.datahaul.plainText import dataMatrix
-from flashy.nuclear import sortNuclides, elemSplit
+from flashy.nuclear import sortNuclides, elemSplit, decayYield
 from flashy.simulation import simulation
 from scipy.integrate import trapz
 
 
-def PARsimProfile(fname, simfolder='', thresh=1e-6, xrange=[0.0, 0.0], 
-                  filetag='prof', batch=False, byM=False, 
-                  geom='cartesian', direction=[]):
-    """overloaded method for IPP. 
+def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False, 
+                direction=[], wakesize=1e8, inward=False):
+    """plot shock wake for a checkpoint. 
     WARN: slowest pos will not match for non x-axis directions.
-    """
-    ad, allsp = getLineout(fname, geom=geom, direction=direction, srcnames=False)
-    time, _, _, _, paths = directMeta(fname)
     
+    Args:
+        fname(str): path to checkpoint file.
+        simfolder(str): simulation run metadata folder.
+        thresh(float): species threshold.
+        batch(bool): write file instead of returning figure.
+        byM(bool): plot by mass coordinate instead of radius.
+        direction(str list): altitude and azimuthal direction of profile ray.
+        wakesize(float): extent of plot in fraction of shock position.
+        inward(bool): shock to follow.
+    
+    Return:
+        (mpl figure) or (None)
+    
+    """
+    fig, meta = PARsimProfile(fname, simfolder=simfolder, thresh=thresh, 
+                              filetag='', batch=False, byM=byM, 
+                              direction=direction, meta=True)
+    # readjust the plot to center the shock
+    ax = plt.gca()
+    outsh, inwsh, slowx, paths = meta
+    if inward:
+        left, right = inwsh*0.95, inwsh*(1.0 + wakesize)
+        filetag = 'inward_shock'
+    else:
+        left, right = outsh*(1.0 - wakesize), outsh*1.05
+        filetag = 'outward_shock'
+    ax.set_xlim([left, right])
+    #I/O
+    if not batch:
+        return fig
+    else:
+        num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
+        dest = os.path.join(os.path.dirname(paths[0]), filetag)
+        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+        os.makedirs(dest, exist_ok=True)  # bless you, p3
+        plt.savefig(name, format='png')
+        plt.close(fig)
+        print("Wrote: {}".format(name))
+
+
+def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0], 
+                  filetag='metaprof', batch=False, byM=False, direction=[], meta=False):
+    """bloated method for IPP.
+    WARN: slowest pos will not match for non x-axis directions.
+    
+    Args:
+        fname(str): path to checkpoint file.
+        simfolder(str): simulation run metadata folder.
+        thresh(float): species threshold.
+        xrange(float list): abscissa range for all plots.
+        filetag(str): prefix for output files (if any).
+        batch(bool): write file instead of returning figure.
+        byM(bool): plot by mass coordinate instead of radius.
+        direction(str list): altitude and azimuthal direction of profile ray.
+    
+    Return:
+        (mpl figure) or (None)
+    
+    """
+    time, pars, _, _, paths = directMeta(fname)
+    if len(direction)>(pars['dimensionality']-1):
+        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
+        return None
+    ad, allsp = getLineout(fname, geom=pars['geometry'], 
+                           direction=direction, srcnames=False)
     sim = simulation(simfolder)
     n, t = sim.time2step(time)
     step = sim.steps[int(n)]
     xm, ym, zm = step.slowx, step.slowy, step.slowz
     rm = np.sqrt(xm**2+ym**2+zm**2)
+    
     keys = ['radius', 'density', 'temperature', 'pressure']
     keys +=allsp
     prof = dataMatrix([keys, ad.transpose()])
-    fig = plotDMat(prof, byM=byM, 
-                   thresh=thresh, xrange=xrange)
+    fig = plotDMatMerged(prof, byM=byM, 
+                         thresh=thresh, xrange=xrange)
+    # add extra marks from simulation obj
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
                     xy=(0.0, 0.0), xytext=(0.84, 0.10), size=12,
@@ -36,7 +99,26 @@ def PARsimProfile(fname, simfolder='', thresh=1e-6, xrange=[0.0, 0.0],
                     bbox=dict(boxstyle='round', fc='w', ec='k'))
     axlist = fig.axes
     for ax in axlist[1:]:
-        ax.axvline(rm, ls=':', color='red', alpha=0.7)
+        p = rm if not byM else prof.masses[np.where(prof.radius>rm)[0][0]]
+        ax.axvline(p, ls=':', color='brown', alpha=0.5, label='slowest')
+    if sim.CJ:
+        times, xins, cjins, xouts, cjouts = np.genfromtxt(sim.CJ[0], unpack=True)
+        if byM:
+            xo, xi = xouts[pars['checkpointfilenumber']], xins[pars['checkpointfilenumber']]
+            no = np.where(prof.radius>xo)[0][0]
+            ni = np.where(prof.radius>xi)[0][0]
+            po, pi = prof.masses[no], prof.masses[ni]
+        else:
+            po, pi = xouts[pars['checkpointfilenumber']], xins[pars['checkpointfilenumber']]
+        ax.axvline(po, ls=':', color='green', alpha=0.5, label='shock')
+        ax.axvline(pi, ls=':', color='red', alpha=0.5, label='shock')
+    lgd = ax.legend(ncol=1, loc='upper left', bbox_to_anchor=(1.00, 0.50), 
+                      columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
+                      numpoints=3, handletextpad=0.0, edgecolor='k')
+    if meta:
+        markings = [po, pi, p, paths]
+        return fig, markings
+    #I/O
     if not batch:
         return fig
     else:
@@ -50,8 +132,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-6, xrange=[0.0, 0.0],
 
 
 def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], 
-                 filetag='prof', batch=False, byM=True, 
-                 geom='cartesian', direction=[]):
+                 filetag='prof', batch=False, byM=True, direction=[]):
     """Plot bulk properties and species in a chekpoint through a ray.
     
     Args:
@@ -61,24 +142,26 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         filetag(str): prefix for batch mode. 
         batch(bool): skips returning figure, saving it to a structured directory instead.
         byM(bool): plot by mass instead of radius.
-        geom(str): geometry of the file.
         direction(float list): list of spherical angles (alt, azimuth), empty for 1D.
     
     Returns:
         (mpl figure) or (None)
     
     """
-    ad, allsp = getLineout(fname, geom=geom, direction=direction, 
-                                  srcnames=False)
-    time, _, _, _, paths = directMeta(fname)
+    time, pars, _, _, paths = directMeta(fname)
+    if len(direction)>(pars['dimensionality']-1):
+        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
+        return None
+    ad, allsp = getLineout(fname, geom=pars['geometry'], 
+                           direction=direction, srcnames=False)
     keys = ['radius', 'density', 'temperature', 'pressure']
     keys +=allsp
     prof = dataMatrix([keys, ad.transpose()])
-    fig = plotDMat(prof, byM=byM, 
+    fig = plotDMatMerged(prof, byM=byM, 
                    thresh=thresh, xrange=xrange)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
-                    xy=(0.0, 0.0), xytext=(0.8, 0.10), size=12,
+                    xy=(0.0, 0.0), xytext=(0.82, 0.10), size=12,
                     textcoords='figure fraction', xycoords='figure fraction', 
                     bbox=dict(boxstyle='round', fc='w', ec='k'))
     if not batch:
@@ -93,8 +176,8 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         print("Wrote: {}".format(name))
 
 
-def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, byM=True, 
-                 geom='cartesian', direction=[], plotall=False):
+def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, 
+                 byM=True, direction=[], plotall=False):
     """Plot species and aggregated masses in a chekpoint through a ray.
     
     Args:
@@ -103,7 +186,6 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, byM=True,
         filetag(str): prefix for batch mode. 
         batch(bool): skips returning figure, saving it to a structured directory instead.
         byM(bool): plot by mass instead of radius.
-        geom(str): geometry of the file.
         direction(float list): list of spherical angles (alt, azimuth), empty for 1D.
         plotall(bool): force plotting every species found.
     
@@ -112,9 +194,13 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, byM=True,
     
     """
     fields = ['density', 'temperature', 'pressure', 'velx']
-    ad, allsp = getLineout(fname, geom=geom, direction=direction, 
-                           fields=fields, srcnames=False)
-    time, _, _, _, paths = directMeta(fname)
+    time, pars, _, _, paths = directMeta(fname)
+    if len(direction)>(pars['dimensionality']-1):
+        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
+        return None
+    ad, allsp = getLineout(fname, geom=pars['geometry'], 
+                           direction=direction, fields=fields, srcnames=False)
+
     keys = ['radius'] + fields
     keys +=allsp
     prof = dataMatrix([keys, ad.transpose()])
@@ -135,10 +221,15 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, byM=True,
                     numpoints=3, handletextpad=0.0)
     lgd.get_frame().set_edgecolor('k')
     
+    # write otp files for yields
+    massfiletuples = []
+    
     # plot masses
     ax2 = plt.subplot2grid(layout, (1,0), colspan=2)
     for i, sp in enumerate(prof.species):
         props = next(ax2._get_lines.prop_cycler)
+        spmass = trapz(getattr(prof, sp), x=prof.masses)
+        massfiletuples.append((sp, spmass))
         if i in skip:
             continue
         a = elemSplit(sp)[1]
@@ -153,6 +244,9 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, byM=True,
     ax2.xaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
     ax2.xaxis.set_minor_formatter(StrMethodFormatter(''))
     
+    # decay yield
+    names, decmasses = decayYield(*zip(*massfiletuples))
+
     # plot mass vs speed
     ax3 = plt.subplot2grid(layout, (2, 0), colspan=2)
     nbins = 60
@@ -189,9 +283,24 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, byM=True,
         plt.savefig(name, format='png')
         plt.close(fig)
         print("Wrote: {}".format(name))
+        yieldfile = os.path.join(dest, '{}{}.yield'.format(filetag, num))
+        with open(yieldfile, 'w') as f:
+            f.write('# {}\n'.format(paths[1]))
+            f.write('# time: {}\n'.format(time))
+            f.write('\n'.join(['{} {}'.format(*a) for a in massfiletuples]))
+            f.write('\n')
+        print("Wrote: {}".format(yieldfile))
+        decayfile = os.path.join(dest, '{}{}.decayed'.format(filetag, num))
+        with open(decayfile, 'w') as f:
+            f.write('# {}\n'.format(paths[1]))
+            f.write('# time: {}\n'.format(time))
+            f.write('\n'.join(['{} {}'.format(*a) for a in zip(names, decmasses)]))
+            f.write('\n')
+        print("Wrote: {}".format(decayfile))
 
 
-def plainTprofile(fname, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
+
+def plainTprofile(fname, thresh=1e-4, xrange=[0.0, 0.0], byM=True, merged=False):
     """plots main properties of a plain text file.
     
     Args:
@@ -202,7 +311,10 @@ def plainTprofile(fname, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     
     """
     prof = dataMatrix(fname)
-    return plotDMat(prof, thresh=thresh, xrange=xrange, byM=byM)
+    if merged:
+        return plotDMatMerged(prof, thresh=thresh, xrange=xrange, byM=byM)
+    else:
+        return plotDMat(prof, thresh=thresh, xrange=xrange, byM=byM)
     
 
 def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
@@ -219,7 +331,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
     keys = sortNuclides(prof.species)
-    ncol = 5
+    ncol = 4
     labelspace = -0.15
 
     if byM:
@@ -272,6 +384,85 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     ax3.tick_params(labelbottom=True)
     if sum(xrange)!=0.0:
         ax1.set_xlim(xrange)
+    plt.subplots_adjust(hspace=0.001, wspace=0.0)
+    plt.subplots_adjust(left=0.13, right=0.80)
+    plt.subplots_adjust(top=0.99, bottom=0.10)
+    fig.set_size_inches(8.5, 7.5, forward=True)
+    return fig
+
+
+def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
+    """plots main properties of a profile in only two axes, merging 
+    thermodynamic properties.
+    
+    Args:
+        prof (dataMatrix): dataMatrix obj.
+        thresh (float): ymin for species fraction plot.
+        xrange (list of float): if set, change the range of the plots.
+        byM (bool): abundance plot xaxis (by Mass or by Radius).
+    
+    """  
+    fig = plt.figure()
+    skip = ['radius', 'masses', 'density']
+    plotp = [x for x in prof.bulkprops if x not in skip]
+    keys = sortNuclides(prof.species)
+    ncol = 4
+    labelspace = -0.1
+    if byM:
+        xs = prof.masses
+        xlab = 'Mass ($M_{\odot}$)'
+        log = False  
+    else:
+        xs = prof.radius
+        xlab = 'Radius ($cm$)'
+        log = True
+
+    layout = (2, 2)
+    # Species
+    spax = plt.subplot2grid(layout, (0, 0), colspan=2)
+    skip = plotSpecies(spax, prof, byMass=byM, thresh=thresh, plotall=False)
+    # remove last(lowest) yticklabel to avoid overlap
+    spax.get_yticklabels()[1].set_visible(False)
+    lgd = spax.legend(ncol=ncol, loc='upper left', bbox_to_anchor=(1.00, 1.02), 
+                      columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
+                      numpoints=3, handletextpad=0.0, edgecolor='k')
+    spax.axhline(1e0, linewidth=1, linestyle=':', color='black')
+    spax.set_ylim(thresh, 2.0)
+    spax.set_ylabel('Mass Frac.($X_{i}$)', size=13, rotation=90, labelpad=0)
+    spax.yaxis.set_label_coords(labelspace, 0.5)
+    spax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    spax.tick_params(labelbottom=False) 
+    if log:
+        spax.set_yscale('log')
+        spax.set_xscale('log')
+    # Thermodynamical variables (reference is, as always, density)
+    tdax = plt.subplot2grid(layout, (1, 0), colspan=2, sharex=spax)
+    tdax.semilogy(xs, prof.density, label='Density')
+    ylabels = ['$\\frac{g}{cm^3}$']
+    tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    tdax.tick_params(labelbottom=False)
+    
+    for i, p in enumerate(plotp):
+        u = ut.getUnit(p)
+        if p=='pressure':
+            tdax.plot(xs, getattr(prof, p)/1e16, label=p.capitalize())#, color='k')
+            ylabels.append(u+'$\\times10^{-16}$')
+        else:
+            tdax.plot(xs, getattr(prof, p), label=p.capitalize())#, color='k')
+            ylabels.append(u)
+        #spacer = labelspace if '\\' in u else labelspace - 0.02
+    #tdax.set_ylabel('{}({})'.format(p.capitalize(), u), rotation=90, size=13, labelpad=0)
+    tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    tdax.tick_params(labelbottom=False)
+    tdax.set_xlabel(xlab)
+    tdax.tick_params(labelbottom=True)
+    tdax.set_ylabel('({})'.format(','.join(ylabels)), size=13, rotation=90, labelpad=0)
+    tdax.yaxis.set_label_coords(labelspace, 0.5)
+    lgd = tdax.legend(ncol=1, loc='upper left', bbox_to_anchor=(1.00, 0.50), 
+                      columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
+                      numpoints=3, handletextpad=0.0, edgecolor='k')
+    if sum(xrange)!=0.0:
+        spax.set_xlim(xrange)
     plt.subplots_adjust(hspace=0.001, wspace=0.0)
     plt.subplots_adjust(left=0.13, right=0.80)
     plt.subplots_adjust(top=0.99, bottom=0.10)

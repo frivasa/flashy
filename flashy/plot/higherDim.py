@@ -1,3 +1,4 @@
+# TDL separate datahaul elements from plotting routines
 from .globals import *
 import yt  # move this dependency to datahaul
 # avoid yt warnings
@@ -12,6 +13,7 @@ import palettable  # cmocean colors are included in palettable
 #_cScheme = ('GnBu', 'sequential', 9)
 # import cmocean fails for ipyparallel. so hack it through palettable
 cmap = palettable.cmocean.sequential.Tempo_20.mpl_colormap
+cmap = palettable.cmocean.sequential.Amp_20.mpl_colormap
 # import cmocean fails for ipyparallel. 
 # so hack it through palettable
 _ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
@@ -19,10 +21,10 @@ _ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
 # _ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
 # _ytcmap = palettable.cmocean.diverging.Delta_20_r.mpl_colors
 _ytcmap = palettable.cmocean.diverging.Balance_20.mpl_colors
+_ytcmap = palettable.cmocean.sequential.Amp_20.mpl_colors
 cols = [tuple([list(x),1]) for x in _ytcmap]
 cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
 # cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
-
 setcmap = yt.make_colormap(cols, name='custom')
 
 # yt plotting functions
@@ -71,7 +73,7 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
 def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9,
            botfield='temperature', blims=[3e7, 2e9], lintop=False,  show=False,
            linbot=False, name=''):
-    """Plots 2 properties as a joined sphere."""
+    """Plots 2 properties for a hemisphere 2d cut as a joined sphere."""
     ds = yt.load(fname)
     p = yt.SlicePlot(ds, 'z', [topfield, botfield])
     p.set_width((width, 2*width))
@@ -101,7 +103,7 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
     grid[1].axes.annotate("Time: {:.5f} s".format(float(ds.current_time)),
                           xy=(0.75, -0.25), xycoords='axes fraction', 
                           textcoords='axes fraction')
-#     fig.tight_layout()
+    # fig.tight_layout()
     if show:
         return fig
     else:
@@ -123,6 +125,20 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
         plt.savefig(savp, bbox_inches='tight')
         plt.close(fig)
         print("Wrote: {}".format(savp))
+
+
+def get_frb(fname, field, width=3e9, turn=False):
+    """Plots 2 properties for a hemisphere 2d cut as a joined sphere."""
+    ds = yt.load(fname)
+    p = yt.SlicePlot(ds, 'z', [field])
+    p.set_width((width, 2*width))
+    p.set_center((width*0.5, 0.0))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    if turn:
+        return np.transpose(p.frb[field])
+    else:
+        return p.frb[field]
 
 
 def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):

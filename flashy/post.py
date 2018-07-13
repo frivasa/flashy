@@ -6,7 +6,7 @@ from .utils import h, m_e, np, c, kb, Avogadro
 from scipy.optimize import newton, minimize
 
 
-def getVelocities(fname, **kwargs):
+def getFittedVelocities(fname, **kwargs):
     """Analyze a filename, extracting shock position, time, and calculating 
     cj speed in both ends of the shock.
     
@@ -20,26 +20,37 @@ def getVelocities(fname, **kwargs):
     """
     _, _, cjin, pmi, pm, time = getNewtonCJ(fname, inward=True, **kwargs)
     _, _, cjout, pmo, _, _ = getNewtonCJ(fname, inward=False, **kwargs)
-    
     return pmi, cjin, pmo, cjout, pm, time
 
-# def getVelocities(fname, geom='spherical'):
-#     """DEPRECATED, use getNewtonCJ()
-#     Returns positions of the shock, and both inner an outer cj 
-#     velocities for a file, plus the starting x_match.
-#     (xin, xout, cjin, cjout, float(ray.ds.current_time), ray.ds.parameters['x_match'])
-#     """
+def getRayleighVelocities(fname, direction=[]):
+    """Returns positions of the shock, and both inner an outer rayleigh line velocities joining 
+    both sides of the shocked cell.
+    (xin, xout, cjin, cjout, float(ray.ds.current_time), ray.ds.parameters['x_match'])
+    """
 #     fields = ['sound_speed', 'density', 'pressure']
 #     data, _ = reader.getLineout(fname, fields=fields, species=False, geom=geom)
 #     time, params, _, _, _ = reader.getMeta(fname)
 #     rad, cs, dens, pres = data[0], data[1], data[2], data[3]
     
-#     shockin, shockout = ut.locateShock(rad, cs, params['x_match'], vvv=False)
+    fields = ['sound_speed', 'density', 'pressure']
+    time, pars, _, _, paths = directMeta(fname)
+    if len(direction)>(pars['dimensionality']-1):
+        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
+        return None
+    data, _ = getLineout(fname, fields=fields, species=False, direction=direction, geom=pars['geometry'])
+    #time, params, _, _, _ = directMeta(fname)
+    rad, cs, dens, pres = data[0], data[1], data[2], data[3]
     
-#     xin, xout = rad[shockin], rad[shockout]
-#     cjin = ut.roughCJ(dens, pres, shockin)
-#     cjout = ut.roughCJ(dens, pres, shockout)
-#     return xin, xout, cjin, cjout, time, params['x_match']
+    # this fails for x_match = y_match = z_match = 0.0
+    linepos = ut.estimateMatch(direction, pars, vvv=False)
+    # print(linepos)
+    shockin, shockout = ut.locateShock(rad, cs, linepos, vvv=False)
+#     shockin, shockout = ut.locateShock(rad, cs, pars['x_match'], vvv=False)
+    
+    xin, xout = rad[shockin], rad[shockout]
+    cjin = ut.roughCJ(dens, pres, shockin)
+    cjout = ut.roughCJ(dens, pres, shockout)
+    return xin, xout, cjin, cjout, time, pars['x_match']
 
 
 def getNewtonCJ(fname, inward=False, width=0.8, **kwargs):
@@ -53,6 +64,7 @@ def getNewtonCJ(fname, inward=False, width=0.8, **kwargs):
         (float tuple): specific volume, pressure, CJVelocity, matchhead position, time.
     
     """
+    #print('check newtonCJ')
     pos, dens, pres, gamc, cjest, pm, time = getShockConditions(fname, addvar='gamc', 
                                                                 inward=inward, **kwargs)
     # set bulk properties
@@ -61,7 +73,7 @@ def getNewtonCJ(fname, inward=False, width=0.8, **kwargs):
     try:
         v, p, cj = newtonCJ(cjest, fv, fp, fg, av, ap, ag, width=width)
     except:
-        print('error')
+        #print('getNewt error')
         v, p, cj = 0.0, 0.0, cjest
     return v, p, cj, pos[1], pm, time
 
@@ -97,7 +109,7 @@ def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam, width=0.8):
     return cjpos, cjpres, cjspd
 
 
-def getShockConditions(fname, inward=False, addvar='gamc', direction=[], geom='spherical'):
+def getShockConditions(fname, inward=False, addvar='temp', direction=[]):
     """Returns bulk conditions at both sides of shock.
     Conditions are sorted so that output has the form: [ash, shock, fuel]
     
@@ -112,18 +124,25 @@ def getShockConditions(fname, inward=False, addvar='gamc', direction=[], geom='s
         (list): densities of states.
         (list): pressures of states.
         (list): addvar at each state.
-        (float): direct Rayleigh speed for the ash state.
+            (float): direct Rayleigh speed for the ash state.
         (float): match head position
         (float): timestamp of file.
     
     """
     fields = ['sound_speed', 'density', 'pressure', addvar]
-    data, _ = getLineout(fname, fields=fields, species=False, direction=direction, geom=geom)
-    time, params, _, _, _ = directMeta(fname)
+    time, pars, _, _, paths = directMeta(fname)
+    if len(direction)>(pars['dimensionality']-1):
+        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
+        return None
+    data, _ = getLineout(fname, fields=fields, species=False, direction=direction, geom=pars['geometry'])
+    #time, params, _, _, _ = directMeta(fname)
     rad, cs, dens, pres, var = data[0], data[1], data[2], data[3], data[4]
     
-    linepos = ut.estimateMatch(direction, params, vvv=False)
+    # this fails for x_match = y_match = z_match = 0.0
+    linepos = ut.estimateMatch(direction, pars, vvv=False)
+    #print(linepos)
     shockin, shockout = ut.locateShock(rad, cs, linepos, vvv=False)
+    #print('check shockConditions')
     if inward:
         ind = shockin
         offset = -1
@@ -173,7 +192,7 @@ def extRelFermi(dens, ye=0.5):
     par1 = h
     par2 = np.power(3.0/8.0/np.pi,1.0/3)
     par3 = np.power(Avogadro*dens*ye, 1.0/3)
-#     print(par1, par2, par3)
+    #print(par1, par2, par3)
     return par1*par2*par3
 
 
@@ -217,7 +236,7 @@ def rayleighSpeed(p1, v1, p2, v2):
     nom = p2-p1
     denom = v1-v2
     if denom <0:
-        print (nom, denom)
+        print ('Negative specific volume difference: dP {:.2e} dnu {:.2e}'.format(nom, denom))
         denom = 1.0
     return v2*np.sqrt(nom/denom)
 

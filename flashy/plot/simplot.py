@@ -59,17 +59,44 @@ def plotSlowCoords(sim):
     return f
 
 
-def plotTsteps(sim):
+def plotRayleighs(sim):
+    if not sim.CJ:
+        print("plot.simplot: No CJ output in object.")
+        return None
+    times, xins, raylins, xouts, raylouts = np.genfromtxt(sim.CJ[0], unpack=True)
+    dt = np.diff(times)
+    dri = np.diff(xins)
+    dro = np.diff(xouts)
+
+    f, ax = plt.subplots(figsize=(7,5))
+    ind = 1  # remove zeroth checkpoint
+    ax.semilogy(times[ind:], abs(dri/dt), label='Inward Shock', c='#0087ff')
+    ax.semilogy(times[ind:], raylins[ind:], 
+                label='CJ', c='#0087ff', lw=1, marker='o', ms=4, alpha=0.6)
+    ax.semilogy(times[ind:], abs(dro/dt), label='Outward Shock', c='#d75f5f')
+    ax.semilogy(times[ind:], raylouts[ind:], 
+                label='CJ', c='#d75f5f',lw=1, marker='o', ms=4, alpha=0.6)
+    ax.set_title('Speed')
+    ax.set_ylabel('cm/s')
+    ax.set_xlabel('s')
+    ax.legend()
+    return f
+
+
+def plotTsteps(sim, burndtfactor=0.0):
     """build a figure with timestep size vs evolution time."""
     f, ax = plt.subplots()
-    ax.loglog(sim.time, sim.getTsteps(), color='k', label='simulation')
+    ax.loglog(sim.time, sim.getStepProp('dt'), color='k', label='simulation')
     try:
-        ax.loglog(sim.time, sim.getTsteps(which='dthydro'), 
+        ax.loglog(sim.time, sim.getStepProp('dthydro'), 
                   color='b', ls=':', alpha=0.8, label='hydro')
-        fac = float(sim.pargroup.defaults.enucDtFactor['default'])
-        ax.loglog(sim.time, np.array(sim.getTsteps(which='dtburn'))/fac, 
-                  color='r', alpha=0.8, ls=':', label='burn/{:e}'.format(fac))
-    except:
+        if not burndtfactor:
+            burndtfactor = float(sim.pargroup.defaults.enucDtFactor['default'])
+            print(burndtfactor)
+        ax.loglog(sim.time, np.array(sim.getStepProp('dtburn'))/burndtfactor, 
+                  color='r', alpha=0.8, ls=':', label='burn/{:.2e}'.format(burndtfactor))
+    except Exception as e:
+        print(e)
         pass
     ax.set_ylabel('Step size (s)')
     ax.set_xlabel('Time (s)')
@@ -81,7 +108,7 @@ def plotTsteps(sim):
 def plotBlockUse(sim):
     """build a figure with requested blocks vs evolution time."""
     f, ax = plt.subplots()
-    ax.semilogx(sim.time, sim.getBlocks(), color='k')
+    ax.semilogx(sim.time, sim.getStepProp('blocks'), color='k')
     ax.set_ylabel('Blocks Requested')
     ax.set_xlabel('Time (s)')
     f.tight_layout()

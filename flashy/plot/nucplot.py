@@ -18,6 +18,74 @@ from matplotlib.patches import Rectangle
 #         handlebox.add_artist(patch)
 #         return patch
 
+def speciesYields(yieldfiles, tags=[], norm='Si', offset=6):
+    """plots abundances for a list of files or a single file vs solar composition."""
+    fig, ax = plt.subplots(figsize=(10,5))
+    if isinstance(yieldfiles, list):
+        if not tags:
+            print('no tags specified.')
+            tags = [None]*len(yieldfiles)
+        plabels = []
+        for i, f in enumerate(yieldfiles):
+            ryield = readYield(f)
+            props = next(ax._get_lines.prop_cycler)
+            col = props['color'] if i else 'k'
+            tagspecies = True if not i else False
+            plabels.append(plotAbun(ax, ryield, norm=norm, offset=offset, 
+                                    color=col, label=tags[i], tagspecies=tagspecies))
+            lg = ax.legend(*zip(*plabels))
+        # speciesGrid(ax, modspecies, yoffset=5.0)
+    else:
+        plabels = []
+        ryield = readYield(yieldfiles)
+        tag = tags
+        plabels.append(plotAbun(ax, ryield, norm=norm, offset=offset, label=tag, tagspecies=True))
+        # plot sun
+        zs, names, mix = readSunComp(AGSS09)
+        massF = getMassFractions(names, mix)
+        p = ax.plot(zs, getAbundances(names, massF, scale=norm, offset=offset), 
+                    marker='x', markersize=3, ls=':', lw=1, color='brown', label='Sun(AGSS09)')
+        lg = ax.legend()
+    return fig
+
+
+def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
+    """plots profuction factors for comparable species in a pair of yields, or vs solar compositon 
+    for a single file.
+    yieldfiles = [input, reference]
+    """
+    fig, ax = plt.subplots(figsize=(10,5))
+    if isinstance(yieldfiles, list):
+        if len(yieldfiles)!=2:
+            print('Input files must be exactly two.')
+            return None
+        plabels = []
+        ryield = readYield(yieldfiles[0])
+        plabels.append(plotPfac(ax, ryield, refname=yieldfiles[1], 
+                                reftype='yield', label=tag, tagspecies=True))
+        lg = ax.legend()
+        # speciesGrid(ax, modspecies, yoffset=5.0)
+    else:
+        plabels = []
+        ryield = readYield(yieldfiles)
+        plabels.append(plotPfac(ax, ryield, label='Sim vs AGSS09', tagspecies=True))
+        lg = ax.legend()
+    return fig
+
+
+def nuclideYields(files, tags):
+    """plot mass fractions for each nuclide in a yield file."""
+    fig, ax = plt.subplots(figsize=(10,5))
+    plabels = []
+    for i, (f, t) in enumerate(zip(files, tags)):
+        ryield = readYield(f)
+        props = next(ax._get_lines.prop_cycler)
+        col = props['color'] if i else 'k'
+        plabels.append(plotIsoMasses(ax, ryield, notag=False, label=t, color=col))
+    lg = ax.legend(*zip(*plabels))
+    return fig
+
+
 def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38], 
                     boxsize=1.0, cmmin=1.0e-5, cmmax=1.0, cmap='Blues', 
                     log=False, addtags=True, invert=False):
@@ -115,7 +183,7 @@ def doYouBelieveInMagic(ax, color='brown'):
 
 
 def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',#  ylims=[1e-9, 1],
-             norm='Si', offset=6, reftype='solar'):
+             norm='Si', offset=6, reftype='solar', tagspecies=False):
     """draws abundquery/abundref from a massdict and a filename,
     types of reference are 'solar'(for solar composition) and 'yield' (for other sims)
     returns label and line element for legend"""
@@ -136,10 +204,14 @@ def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',#  ylims=[1e-9, 1],
             #pfacs.append((zs[i], n, ab[i]/soldict[n]))
         else:
             print('{} not found in ref.'.format(n))
-    x, _, y = zip(*sorted(pfacs))
+    x, ns, y = zip(*sorted(pfacs))
     ax.axhline(0, ls=':', lw=1, color='green')
     line = ax.plot(x, y, label=label, ls='--', lw=0.5, marker='.', color='black')
     # Prettify
+    if tagspecies:
+        for x, n, y in sorted(pfacs):
+            ax.text(x, y, '${}$'.format(n), color='black',
+                    size=8, horizontalalignment='right', verticalalignment='bottom')
     ax.set_xlabel(u'Atomic Number (Z)')
     ax.set_ylabel('$[X/{}]- [X/{}]_{{ref}}$'.format(norm, norm))
     ax.autoscale()
@@ -163,7 +235,7 @@ def plotIsoMasses(ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], nota
         if notag:
             continue
         ax.text(xs[0], ys[0], '${}$'.format(k), color=color,
-                size=8, horizontalalignment='right', verticalalignment='bottom',)
+                size=8, horizontalalignment='right', verticalalignment='bottom')
     # Prettify
     ax.set_xlabel(u'Atomic Mass (A)')
     ax.set_ylabel('Mass ($M_{\odot}$)')
@@ -174,11 +246,15 @@ def plotIsoMasses(ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], nota
     return line[0], label
 
 
-def plotAbun(ax, mdict, norm='H', offset=12.0, label='W7', color='black'):
+def plotAbun(ax, mdict, norm='H', offset=12.0, label='W7', color='black', tagspecies=False):
     """draws abundances vs atomic number, returns label and line element for legend"""
     zs, names, mix = convertYield2Abundance(mdict, norm=norm, offset=offset)
     line = ax.plot(zs, mix, color=color, label=label, marker='.', ls=':', lw=1)
     # Prettify
+    if tagspecies:
+        for x, n, y in zip(zs, names, mix):
+            ax.text(x, y, '${}$'.format(n), color='black',
+                    size=8, horizontalalignment='right', verticalalignment='bottom')
     ax.set_xlabel(u'Atomic Number (Z)')
     ax.set_ylabel('[X/{}] + {:2.1f}'.format(norm, offset))
     #ax.set_xlim([-2, 78])
@@ -191,11 +267,11 @@ def plotAbun(ax, mdict, norm='H', offset=12.0, label='W7', color='black'):
 def speciesGrid(ax, spcodes, yoffset=5.0):
     """draws a grid of the specified species on target ax."""
     Sp, Zs, Ns, As = splitSpecies(spcodes)
-    ax.set_prop_cycle(cc)
     for i, sp in enumerate(Sp):
-        ax.axvline(Zs[i], alpha=1.0, lw=1, ls='--', c=col)
-        ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset, '${}$'.format(sp), color=col, size=10,
-                horizontalalignment='left', verticalalignment='bottom')
+        props = next(ax._get_lines.prop_cycler)
+        ax.axvline(Zs[i], alpha=1.0, lw=1, ls='--', color=props['color'])
+        ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset, '${}$'.format(sp), size=10,
+                horizontalalignment='left', verticalalignment='bottom', color=props['color'])
     return 0
 
 

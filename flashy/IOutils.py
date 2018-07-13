@@ -76,7 +76,7 @@ def switchGeometry(file, output, verbose=True):
 
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
-               geometry='cylindrical', maxbl=500, manual=False):
+               geometry='cylindrical', maxbl=500):
     """calls ./setup at _FLASH_DIR with given parameters,
     writing the code to runfolder. (FLASH setup script runs only on py 2.X).
 
@@ -136,12 +136,9 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
     print(comm)
-    if manual:
-        print('manual mode: skipping Popen call.')
-    else:
-        p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
-        out, err = p.communicate(input=comm.encode())
-        exitcode = p.returncode
+    p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
+    out, err = p.communicate(input=comm.encode())
+    exitcode = p.returncode
     print('generated run name {}'.format(name))
     # copy parameter varying script
     try:

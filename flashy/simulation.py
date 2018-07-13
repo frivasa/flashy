@@ -13,14 +13,16 @@ class simulation(object):
         self.root = os.path.dirname(name)
         self.cdx = os.path.join(self.root, _cdxfolder)
         self.chk = os.path.join(self.name, _otpfolder)
-        self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
+        self.checkpoints = getFileList(self.chk, glob='cart_flash_hdf5_chk', fullpath=True)
+        if not self.checkpoints:
+            self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
         self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
         # parameters
         self.pargroup = parameterGroup(os.path.join(self.cdx, _FLASHdefaults))
         self.pargroup.setPars(os.path.join(self.name, 'flash.par'))
         # check for Xnet
         if os.path.exists(os.path.join(self.cdx, 'Networks')):
-            netname = 'Data_{}'.format(self.pargroup.meta['network'])
+            netname = 'Data_{}'.format(self.pargroup.meta['network'].split('_')[-1])
             self.netpath = os.path.join(self.cdx, 'Networks', netname)
         else:
             self.netpath = ''
@@ -33,45 +35,46 @@ class simulation(object):
             self.runtime = sum(self.rundelts, datetime.timedelta())
         else:
             self.runtime, self.rundelts = None, None
-        # stats (.dat output)
+        # stats (stats.dat output)
         data = readStats(os.path.join(name, 'stats.dat'))
         for att in data.dtype.names:
             setattr(self, att, data[att][:len(self.steps)])
         # qsub output parsing (.o files)
-        glob = os.path.basename(name)+'.o'
+        glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
         if self.otpfiles:
             for f in self.otpfiles:
                 self.addOtp(f)
+        # cj output parsing (specific .dat files)
+        glob = 'shockDetect_'
+        self.CJ = getFileList(folder, glob=glob, fullpath=True)
+        # yield files
+        yieldf = os.path.join(folder, 'spec')
+        try:
+            glob = '.yield'
+            self.yields = getFileList(yieldf, glob=glob, fullpath=True)
+            glob = '.decayed'
+            self.decayedYields = getFileList(yieldf, glob=glob, fullpath=True)
+        except FileNotFoundError:
+            self.yields = []
+            self.decayedyields = []
 
-    def getBlocks(self):
-        """returns the blocks used for each timestep."""
-        return [t.blocks for t in self.steps]
-    
-    def getTsteps(self, which='dt'):
-        """get all timesteps in the run.
+    def getStepProp(self, which):
+        """get a property of all steps in a run.
         
         Args:
-            which(str): type of timestep ('dtburn', 'dthydro', 'dt')
+            which(str): property to extract.
             
         Returns:
-            (float list): time taken per step.
+            (list): step ordered property list.
         
         """
-#         if which in skewed
         return [getattr(t, which) for t in self.steps]
-
-
-    def getTimes(self):
-        """get all timesteps in the run."""
-        return [t.t for t in self.steps]
     
     def standardizeGeometry(self):
         """convert hdf5 files from cylindrical to cartesian."""
         if self.pargroup.params.geometry.strip('"')=='cylindrical':
-            turn2cartesian(self.chk, prefix='all', nowitness=True)
-            self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
-            self.plotfiles = getFileList(self.chk, glob='plt')
+            turn2cartesian(self.chk, prefix='all', nowitness=False)
         else:
             print('Geometry already cartesian or spherical. Skipping conversion.')
     
@@ -88,7 +91,7 @@ class simulation(object):
         return dirs
     
     def getAvgTstep(self):
-        ts = self.getTsteps()
+        ts = self.getStepProp('dt')
         low = np.min(ts)
         high = np.max(ts)
         avg = np.mean(ts)
@@ -108,7 +111,6 @@ class simulation(object):
                 setattr(self.steps[n], 'dthydro', dth)
                 setattr(self.steps[n], 'dtburn', dtb)
             except IndexError:
-                print('inderr')
                 continue
 
     def quickLook(self):
@@ -122,8 +124,8 @@ class simulation(object):
         info.append('Tstep sizes (s): min {:e} max {:e} mean {:e}'.format(*self.getAvgTstep()))
         if self.timings:
             info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
-            info.append('IRL timestep (s): {:e}'.format(self.runtime.seconds/len(self.time)))
-        limblks = np.max(self.getBlocks())
+            info.append('IRL timestep (s): {:e}'.format(self.runtime.total_seconds()/len(self.time)))
+        limblks = np.max(self.getStepProp('blocks'))
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints: {}'.format(len(self.checkpoints)))
         info.append('Plotfiles: {}'.format(len(self.plotfiles)))
@@ -224,12 +226,13 @@ def splitHeader(hlines):
     for i, l in enumerate(hlines):
         if 'FLASH log' in l:
             heads.append(i)
-        elif 'perf_summary' in l:
+        # average timers may fail sometimes so you get only percentages.
+        elif 'perf_summary: code performance summary for process' in l:
             perfs.append(i)
     header = hlines[heads[0]:perfs[0]]
     timings = []
     heads.append(len(hlines))
-    for i, j in enumerate(perfs[::2]):
+    for i, j in enumerate(perfs):
         timings.append(hlines[j:heads[i+1]])
     return header, timings
 
@@ -241,7 +244,7 @@ def readOtp(filename):
         ns, slowp, dthydro, dtburn = [], [], [], []
         for i, l in enumerate(f):
             if _pancake in l:
-                return [], []
+                return [], [], [], []
             if '|' in l:
                 if 'x' in l:
                     continue

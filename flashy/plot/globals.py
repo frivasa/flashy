@@ -27,14 +27,14 @@ from matplotlib.colors import LogNorm, NoNorm
 # (0, (1, x, 1, x, 1, x)) dash-dot-dot
 from cycler import cycler
 lines = [(0, ()), 
-         (0, (1, 1)),
-         (0, (5, 1)),
-         (0, (3, 1, 1, 1)),
-         (0, (3, 1, 1, 1, 1, 1)),
          (0, (1, 5)),
          (0, (5, 5)),
          (0, (3, 5, 1, 5)),
-         (0, (3, 5, 1, 5, 1, 5))]
+         (0, (3, 5, 1, 5, 1, 5)),
+         (0, (1, 1)),
+         (0, (5, 1)),
+         (0, (3, 1, 1, 1)),
+         (0, (3, 1, 1, 1, 1, 1))]
 
 # Colors modified from Sasha Trubetskoy's 
 # simple 20 color list (based on metro lines).
@@ -42,7 +42,7 @@ lines = [(0, ()),
 colors = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', 
           '#911eb4', '#008080', '#e6beff', '#bddc36', '#ccc8a0', 
           '#800000', '#808080', '#808000', '#46f0f0', '#000080', 
-          '#ffe119', '#aa6e28', '#f032e6', '#ffd8b1', '#7fbf92', '#fabebe']
+          '#ffe119', '#aa6e28', '#f032e6', '#ffa64d', '#7fbf92', '#f68888']
 cc = (cycler('linestyle', lines)*cycler('color', colors))
 
 # styling
