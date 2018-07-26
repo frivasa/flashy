@@ -1,6 +1,7 @@
 from flashy.nuclear import \
 splitSpecies, convertYield2Abundance, getMassFractions,\
-getAbundances, readSunComp, readYield, sortNuclides, elemSplit, AGSS09
+getAbundances, readSunComp, readYield, sortNuclides,\
+elemSplit, AGSS09, readIsotopicSolar
 from .globals import *
 import flashy.utils as ut
 from flashy.datahaul.hdf5yt import getLineout, getYields
@@ -61,29 +62,40 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
             return None
         plabels = []
         ryield = readYield(yieldfiles[0])
-        plabels.append(plotPfac(ax, ryield, refname=yieldfiles[1], 
+        plabels.append(plotPfac(ax, ryield, refname=yieldfiles[1], norm=norm, offset=6,
                                 reftype='yield', label=tag, tagspecies=True))
         lg = ax.legend()
         # speciesGrid(ax, modspecies, yoffset=5.0)
     else:
         plabels = []
         ryield = readYield(yieldfiles)
-        plabels.append(plotPfac(ax, ryield, label='Sim vs AGSS09', tagspecies=True))
+        plabels.append(plotPfac(ax, ryield, label='Sim vs AGSS09', 
+                                norm=norm, offset=offset, tagspecies=True))
         lg = ax.legend()
     return fig
 
 
 def nuclideYields(files, tags):
     """plot mass fractions for each nuclide in a yield file."""
-    fig, ax = plt.subplots(figsize=(10,5))
-    plabels = []
-    for i, (f, t) in enumerate(zip(files, tags)):
-        ryield = readYield(f)
-        props = next(ax._get_lines.prop_cycler)
-        col = props['color'] if i else 'k'
-        plabels.append(plotIsoMasses(ax, ryield, notag=False, label=t, color=col))
-    lg = ax.legend(*zip(*plabels))
-    return fig
+    if isinstance(files, list):
+        fig, ax = plt.subplots(figsize=(10,5))
+        plabels = []
+        for i, (f, t) in enumerate(zip(files, tags)):
+            ryield = readYield(f)
+            props = next(ax._get_lines.prop_cycler)
+            col = props['color'] if i else 'k'
+            plabels.append(plotIsoMasses(ax, ryield, notag=False, label=t, color=col))
+        lg = ax.legend(*zip(*plabels))
+        return fig
+    else:
+        fig, ax = plt.subplots(figsize=(10,5))
+        plabels = []
+        ryield = readYield(files)
+        plabels.append(plotIsoMasses(ax, ryield, notag=False, label=tags, color='k'))
+        ryield = readIsotopicSolar()
+        plabels.append(plotIsoMasses(ax, ryield, notag=False, label='AGSS09', color='orange'))
+        lg = ax.legend(*zip(*plabels))
+        return fig
 
 
 def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38], 

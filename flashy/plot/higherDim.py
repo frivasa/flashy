@@ -127,13 +127,20 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
         print("Wrote: {}".format(savp))
 
 
-def get_frb(fname, field, width=3e9, turn=False):
-    """Plots 2 properties for a hemisphere 2d cut as a joined sphere."""
+def get_frb(fname, field, zcut=0.0, width=3e9, turn=False):
+    """TODO: swtich to new method, this one is dead
+    returns frb with required field."""
     ds = yt.load(fname)
-    p = yt.SlicePlot(ds, 'z', [field])
-    p.set_width((width, 2*width))
-    p.set_center((width*0.5, 0.0))
-    p.set_origin(("center", "left", "domain"))
+#     p = yt.SlicePlot(ds, 'z', [field])
+    p = yt.SlicePlot(ds, 'z', field, center=[0, 0, zcut])
+    
+    p.set_width((width, width))
+    p.set_cmap(field, 'custom')
+    p.set_axes_unit('cm')
+    
+    #p.set_width((width, 2*width))
+    #p.set_center((width*0.5, 0.0))
+    #p.set_origin(("center", "left", "domain"))
     p.set_axes_unit('cm')
     if turn:
         return np.transpose(p.frb[field])
@@ -142,6 +149,7 @@ def get_frb(fname, field, width=3e9, turn=False):
 
 
 def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
+    """draw frb to a given axesgrid."""
     unit = imArr.units
     field = imArr.info['field']
     yl, yr = imArr.info['ylim']

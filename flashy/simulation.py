@@ -1,8 +1,9 @@
 from .utils import np
-from .IOutils import os, getFileList, turn2cartesian, subp, _cdxfolder
+from .IOutils import os, getFileList, subp, _cdxfolder
 import datetime
 from .paramSetup import parameterGroup, _FLASHdefaults, _otpfolder
 import flashy.plot.simplot as simp
+from flashy.datahaul.hdfdirect import turn2cartesian
 _pancake = 'PANCAKE'  # break word
 
 class simulation(object):
@@ -61,23 +62,23 @@ class simulation(object):
 
     def getStepProp(self, which):
         """get a property of all steps in a run.
-        
+
         Args:
             which(str): property to extract.
-            
+
         Returns:
             (list): step ordered property list.
-        
+
         """
         return [getattr(t, which) for t in self.steps]
-    
+
     def standardizeGeometry(self):
         """convert hdf5 files from cylindrical to cartesian."""
         if self.pargroup.params.geometry.strip('"')=='cylindrical':
             turn2cartesian(self.chk, prefix='all', nowitness=False)
         else:
             print('Geometry already cartesian or spherical. Skipping conversion.')
-    
+
     def getSlowCoord(self, direction='x'):
         """returns slowest position for each timestep in a given axis."""
         times, dirs = [], []
@@ -89,20 +90,20 @@ class simulation(object):
             except AttributeError:
                 continue
         return dirs
-    
+
     def getAvgTstep(self):
         ts = self.getStepProp('dt')
         low = np.min(ts)
         high = np.max(ts)
         avg = np.mean(ts)
         return low, high, avg
-    
+
     def addOtp(self, filename):
         """read in a qsub output file. getting slowest coordinates for each timestep."""
         ns, slowps, dthy, dtbu = readOtp(filename)
         if not ns:
-            print('Qsub stopped in {}. Deleting.'.format(filename))
-            os.remove(filename)
+            print('Qsub stopped in {} or No steps achieved.'.format(filename))
+            #os.remove(filename)
         for (n, p, dth, dtb) in zip(ns, slowps, dthy, dtbu):
             try:
                 setattr(self.steps[n], 'slowx', p[0])
@@ -116,7 +117,7 @@ class simulation(object):
     def quickLook(self):
         """print a group of general information about the run."""
         nodes, info = self.pargroup.probeSimulation(verbose=False)
-        # nodes from probe may change if a forced PE count is used, 
+        # nodes from probe may change if a forced PE count is used,
         # that meta is lost so get PEs from log file (3rd row).
         nodes = int(self.header.split('\n')[2].split()[-1])
         info[-1] = 'Nodes used: {}'.format(nodes)
@@ -187,7 +188,7 @@ def readStats(filename):
     data = np.genfromtxt(filename, names=True)
     return data
 
-    
+
 def readLog(filename):
     """reads a FLASH log file filtering everything except step lines and header/timers"""
     steps = []
@@ -238,7 +239,7 @@ def splitHeader(hlines):
 
 
 def readOtp(filename):
-    """reads an output file (.oNUMBER) extracting the slowest coordinate for 
+    """reads an output file (.oNUMBER) extracting the slowest coordinate for
     each step."""
     with open(filename, 'r') as f:
         ns, slowp, dthydro, dtburn = [], [], [], []
@@ -260,7 +261,7 @@ def readOtp(filename):
 
 
 def timingParser(tlines):
-    """for now this returns the timespan of a timing. 
+    """for now this returns the timespan of a timing.
     expand to make stats from run."""
     start, stop = datetime.datetime(1, 1, 1), datetime.datetime(1, 1, 1)
     for t in tlines:
@@ -283,7 +284,7 @@ class tstep(object):
         keys = self.__dict__
         values = [getattr(self, att) for att in keys]
         return zip(keys, values)
-    
+
 
 def unstick(phrase):
     """future: use str.partition(separator) = pre, sep, post"""
@@ -351,4 +352,4 @@ def readTiming(timingString):
             md[stem][mp]['percent'] = float(perc)
             md[stem][mp]['depth'] = delt
     return steps, tdelt, md
-        
+

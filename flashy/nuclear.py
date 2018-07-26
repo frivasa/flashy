@@ -8,6 +8,7 @@ import pkg_resources
 AMDC = pkg_resources.resource_filename('flashy', '../data/nuclides/ame2017.masses')
 CIAAW = pkg_resources.resource_filename('flashy', '../data/nuclides/ciaaw2013.masses')
 AGSS09 = pkg_resources.resource_filename('flashy', '../data/suncomp/AGSS09.comp')
+AGSS09_ISO = pkg_resources.resource_filename('flashy', '../data/suncomp/AGSS09.ISOTOPIC')
 solDecays = pkg_resources.resource_filename('flashy', '../data/yields/decay_paths.dat')
 
 def readStandardWeights():
@@ -101,7 +102,8 @@ def decayYield(names, masses):
 def readYield(filename):
     """Reads a mass yield file or a zipped list (for simulation yields)
     Returns a mass dictionary."""
-    if type(filename)==list:
+#     if type(filename)==zip:
+    if isinstance(filename, zip):
         codes, values = zip(*filename)
     else:
         comp = np.genfromtxt(filename, comments='#', dtype='|U5,f8')
@@ -120,7 +122,17 @@ def readYield(filename):
     return mdict
 
 
-def convertYield2Abundance(mdict, norm='H', offset=12.0):
+def normalizeYield(mdict, norm='H', offset=12.0):
+    """Turns mass yields into massfractions dividing by 
+    the summed mass in the dictionary (assumes Msun units)."""
+    Mtot = fnuc.getTotalMass(mdict)
+    for k in mdict.keys():
+        for n in mdict[k]['n']:
+            mdict[k]['n'][n]/=Mtot
+    return mdict
+
+
+def OLDconvertYield2Abundance(mdict, norm='H', offset=12.0):
     """Turns mass yields into abundances."""
     nucmass = readNuclideMasses()
     partdict = {}
@@ -131,6 +143,40 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
             particles += mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
         partdict[k] = particles
     #print partdict
+    nrm = partdict[norm]
+    otp = []
+    for k, v in partdict.items():
+        if v==0:
+            continue
+        else:
+            otp.append((mdict[k]['z'], k, np.log(partdict[k]/nrm)+offset))
+    zs, names, mix = zip(*sorted(otp))
+    return zs, names, mix
+
+
+def convertYield2Abundance(mdict, norm='H', offset=12.0):
+    percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
+    names, percs = zip(*percdata)
+    sp, z, n, a = splitSpecies(names)
+    sundict = {}
+    for i, s in enumerate(sp):
+        if s in sundict:
+            sundict[s]['z'] = z[i]
+            sundict[s]['n'][n[i]] = percs[i]
+        else:
+            sundict[s] = {}
+            sundict[s]['n'] = {}
+            sundict[s]['n'][n[i]] = percs[i]
+            sundict[s]['z'] = z[i]
+    nucmass = readNuclideMasses()
+    partdict = {}
+    for k in mdict.keys():
+        zz = mdict[k]['z']
+        particles = 0
+        for n in mdict[k]['n']:
+            particles += sundict[k]['n'][n]*mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
+        partdict[k] = particles
+
     nrm = partdict[norm]
     otp = []
     for k, v in partdict.items():
@@ -157,6 +203,29 @@ def readSunComp(filename):
         else:
             mix.append(x)
     return zs, [n.capitalize() for n in names], mix
+
+
+def readIsotopicSolar():
+    """Reads a 6 column file with solar composition
+    (Z name abundance abunerror meteoriticAb mAberror)
+    mixes meteor and spectral/inferred abundances for completion, 
+    then splits into isotopes according to terrestrial percentages.
+    """
+    percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
+    names, percs = zip(*percdata)
+    elems, zees, ens, weights = splitSpecies(names)
+    
+    parts = percs*np.array(weights)/Avogadro
+    abunzees, _, abuns = readSunComp(AGSS09)
+    powabun = np.power(10, abuns)
+    for z, a in zip(abunzees, powabun):
+        if z in zees:
+            indices = [i for i, zz in enumerate(zees) if z==zz]
+            for j in indices:
+                parts[j]*=a
+    tparts = sum(parts)
+    masses = parts/tparts
+    return readYield(zip(names, masses))
 
 
 def getAbundances(names, massfrac, scale='H', offset=12):
@@ -208,7 +277,7 @@ def getTotalMass(massdict):
     for k in massdict.keys():
         for n in massdict[k]['n']:
             mass += massdict[k]['n'][n]
-    print(sum(mass))
+    return mass
 
 
 def convXmass2Abun(species, xmasses):
@@ -225,7 +294,7 @@ def convXmass2Abun(species, xmasses):
         (float): average charge (zbar).
     
     """
-    _, Zs, _, As = splitSpecies(species, trueA=True)
+    _, Zs, _, As = splitSpecies(species, trueA=True, standardize=True)
     molar = [x/a for (x,a) in zip(xmasses, As)]
     abar = 1.0e0/sum(molar)
     zbar = abar * sum([x*z/a for (z,x,a) in zip(Zs, xmasses, As)])

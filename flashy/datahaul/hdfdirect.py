@@ -1,12 +1,14 @@
 import h5py
 from flashy.nuclear import sortNuclides
-from flashy.IOutils import os
+from flashy.IOutils import os, getFileList
 from flashy.utils import np
 from decimal import Decimal
-_hdf5_keys = [ 'integer runtime parameters', 'integer scalars',
-               'string runtime parameters', 'string scalars',
-               'logical runtime parameters', 'logical scalars',
-               'real runtime parameters', 'real scalars' ]
+
+_parameter_keys = [ 'integer runtime parameters', 'integer scalars',
+                    'string runtime parameters', 'string scalars',
+                    'logical runtime parameters', 'logical scalars',
+                    'real runtime parameters', 'real scalars' ]
+
 
 def getUNK(file, srcnames=True):
     """returns fields and species foudn in a hdf5 file.
@@ -56,7 +58,7 @@ def getPardict(file):
     """
     finn = h5py.File(file, "r")
     d = {}
-    for p in _hdf5_keys:
+    for p in _parameter_keys:
         inf = finn[p].value
         # str and bool keys are flipped
         if 'string' in p:
@@ -93,6 +95,97 @@ def directMeta(file):
     paths.append(os.path.dirname(os.path.abspath(file)))
     paths.append(os.path.abspath(file))
     return time, pardict, fields, species, paths
+
+
+def switchGeometry(file, output, verbose=True):
+    """copies hdf5 file, changing the coordinate system name to 
+    cartesian for yt input.
+    
+    Args:
+        file(str): input filename.
+        output(str): output filename.
+        verbose(bool): Report file creation.
+    
+    """
+    finn = h5py.File(file, "r")
+    jake = h5py.File(output, "w")
+    # p2 > p3: obj.iterkeys() > obj.keys()
+    # p2 > p3: hdf5 works with bytes, not str: u"" > b""
+    for k in finn.keys():
+        finn.copy(k, jake)
+    ds = jake[u'string scalars']
+    newt = np.copy(ds[...])
+    newt[0][0] = ds[0][0].replace(b"cylindrical", b"cartesian  ")
+    ds[...] = newt
+    ds2 = jake[u'string runtime parameters']
+    newt2 = np.copy(ds2[...])
+    for i, v in enumerate(ds2):
+        if b"cylindrical" in v[0]:
+            newt2[i][0] = v[0].replace(b"cylindrical", b"cartesian  ")
+    ds2[...] = newt2
+    finn.close()
+    jake.close()
+    if verbose:
+        print("Wrote {} from {}".format(output, file))
+
+
+def turn2cartesian(folder, prefix='all', nowitness=False):
+    """Iterates over files within a folder, switching the geometry of 
+    hdf5 files found to cartesian.
+    
+    Args:
+        folder(str): folder path.
+        prefix(str): filter string (defaults to all files in the folder).
+        nowitness(bool): remove non-modified files.
+    
+    """
+    
+    if prefix=='all':
+        finns = getFileList(folder)
+        finns += getFileList(folder, glob='chk')
+    else:
+        finns = getFileList(folder)
+    finns = [f for f in finns if "cart_" not in f]
+    for finn in finns:
+        jake = os.path.join(folder,'cart_'+finn)
+        if os.path.exists(jake):
+            print("{} found. Skipping.".format(jake))
+            continue
+        switchGeometry(os.path.join(folder,finn), jake, verbose=True)
+        if nowitness:
+            os.remove(os.path.join(folder,finn))
+
+
+def extractVariables(source, destination, variables=['temp']):
+    """creates a new hdf5 FLASH file with a reduced set of variables.
+    
+    Args:
+        source(str): input filename.
+        destination(str): output filename.
+        variables(str list): list of named variables to extract.
+    
+    """
+    finn = h5py.File(source, 'r')
+    # essential mesh data for the FLASH file structure
+    struct = [
+        'bflags', 'block size', 'bounding box', 
+        'coordinates', 'gid', 'gsurr_blks',
+        'integer runtime parameters', 'integer scalars', 'logical runtime parameters',
+        'logical scalars', 'node type', 'real runtime parameters',
+        'real scalars', 'refine level',  'sim info',
+        'string runtime parameters', 'string scalars', 'unknown names',
+        'which child'
+    ]
+    struct += variables
+    newunks = np.array(variables, dtype=np.bytes_)  # turn selected tags to bytes
+    with h5py.File(destination, 'w') as otp:
+        for key in finn.keys():
+            if key in struct:
+                print('Wrote: ', key)
+                if key=='unknown names':  # reduce the variables to selected ones.
+                    otp.create_dataset('unknown names', data=[newunks])
+                else:
+                    otp.copy(finn[key], dest='/{}'.format(key))
 
 
 def decode(entry):

@@ -1,7 +1,6 @@
 import os
 import sys
 import shutil
-import h5py
 import collections as cl
 from .utils import np
 from subprocess import PIPE, Popen
@@ -10,69 +9,9 @@ import operator
 from PIL import Image
 import imageio
 _cdxfolder = "cdx"
-# _otpfolder = "otp"
 _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
 _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
 _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
-
-
-def turn2cartesian(folder, prefix='all', nowitness=False):
-    """Iterates over files within a folder, switching the geometry of 
-    hdf5 files found to cartesian.
-    
-    Args:
-        folder(str): folder path.
-        prefix(str): filter string (defaults to all files in the folder).
-        nowitness(bool): remove non-modified files.
-    
-    """
-    
-    if prefix=='all':
-        finns = getFileList(folder)
-        finns += getFileList(folder, glob='chk')
-    else:
-        finns = getFileList(folder)
-    finns = [f for f in finns if "cart_" not in f]
-    for finn in finns:
-        jake = os.path.join(folder,'cart_'+finn)
-        if os.path.exists(jake):
-            print("{} found. Skipping.".format(jake))
-            continue
-        switchGeometry(os.path.join(folder,finn), jake, verbose=True)
-        if nowitness:
-            os.remove(os.path.join(folder,finn))
-
-
-def switchGeometry(file, output, verbose=True):
-    """copies hdf5 file, changing the coordinate system name to 
-    cartesian for yt input.
-    
-    Args:
-        file(str): input filename.
-        output(str): output filename.
-        verbose(bool): Report file creation.
-    
-    """
-    finn = h5py.File(file, "r")
-    jake = h5py.File(output, "w")
-    # p2 > p3: obj.iterkeys() > obj.keys()
-    # p2 > p3: hdf5 works with bytes, not str: u"" > b""
-    for k in finn.keys():
-        finn.copy(k, jake)
-    ds = jake[u'string scalars']
-    newt = np.copy(ds[...])
-    newt[0][0] = ds[0][0].replace(b"cylindrical", b"cartesian  ")
-    ds[...] = newt
-    ds2 = jake[u'string runtime parameters']
-    newt2 = np.copy(ds2[...])
-    for i, v in enumerate(ds2):
-        if b"cylindrical" in v[0]:
-            newt2[i][0] = v[0].replace(b"cylindrical", b"cartesian  ")
-    ds2[...] = newt2
-    finn.close()
-    jake.close()
-    if verbose:
-        print("Wrote {} from {}".format(output, file))
 
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
@@ -111,10 +50,6 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         print('Emptying {}'.format(destination))
         shutil.rmtree(destination)
         os.makedirs(destination)
-#     try:
-#         os.makedirs(os.path.join(runfolder, _otpfolder))
-#     except:
-#         pass
     
     if len(nbs)==1:
         dimstr = "-1d -nxb={}".format(*nbs)
@@ -180,7 +115,6 @@ def cpFLASHrun(runfolder, newrunfol):
         shutil.copytree(src, dst)
     else:
         shutil.copytree(src, dst)
-    os.makedirs(os.path.join(newrunfol, _otpfolder))
 
 
 def makeGIF(srcfolder, speed=0.2):
