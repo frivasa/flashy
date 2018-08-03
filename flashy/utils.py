@@ -46,10 +46,10 @@ def byMass(radii, dens):
 
 def getBearing(angles, geom):
     """returns a parsed variable name and direction for a given 
-    geometry and spherical angles.
+    geometry and spherical angles (altitude and azimuth).
     
     Args:
-        angles(float list): polar and azimuthal angle (empty list for 1D).
+        angles(float list): altitude and azimuthal angle (empty list for 1D).
         geom(str): geometry string (cartesian, spherical, cylindrical).
         
     Returns:
@@ -70,8 +70,8 @@ def getBearing(angles, geom):
         angles = np.radians(angles)
         x = np.sin(angles[0])*np.cos(angles[1])
         y = np.sin(angles[0])*np.sin(angles[1])
-        z = np.sqrt(1.0-y**2-x**2)
-        return 'radius', np.array([x, y, z])
+        z = np.sqrt(abs(1.0-y**2-x**2))
+        return 'radius', np.array([np.floor(x), np.floor(y), np.floor(z)])
     else:
         print('utils.getBearing: too many angles.')
         return None, np.array([1.0, 0.0, 0.0])

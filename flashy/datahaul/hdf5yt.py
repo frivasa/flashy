@@ -1,6 +1,6 @@
 import yt
 from flashy.utils import np, getBearing, byMass
-from flashy.nuclear import sortNuclides
+from flashy.nuclear import sortNuclides, msol
 from scipy.integrate import trapz
 # avoid yt warnings
 from yt.funcs import mylog
@@ -123,29 +123,24 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
         return [x.value for x in ad.quantities.extrema(flist)]
 
 
-def getYields(fname, geom='spherical', direction=[]):
-    """returns time, names and masses for each species in a checkpoint file.
-    Note: there's a small difference between sum(masses) and masses[-1] 
-    (less than 1e-3 percent)
-    direction is unphysical, but leaving it to test on multiD models
+def getYields(fname):
+    """returns time, summed masses and species in a flash otp file.
+    all units are msun or cgs.
     
     Args:
         fname(str): filename to inspect.
-        geom(str): geometry spec for lineout.
     
     Returns:
-        time (float), 
+        time (float) [s], 
         species names: (list of str),
-        masses: (list of float)
+        masses: (float list) [msun]
 
     """
-    data, species = getLineout(fname, fields=['density'], 
-                                      species=True, geom=geom, direction=direction)
-    time, _, _, _, _ = getMeta(fname)
-    masses = byMass(data[0], data[1])
-    spms = []
-    for i in range(len(species)):
-        spdat = data[i+len(data)-len(species)]
-        spmass = trapz(data[i+len(data)-len(species)], x=masses)
-        spms.append(spmass)
-    return time, species, spms
+    ds = yt.load(fname)
+    ad = ds.all_data()
+    _, species = getFields(ds.field_list)
+    masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
+    total = ad.quantities.total_mass()
+    msunMs = [m.value*total[0].value/msol for m in masses]
+    
+    return ds.current_time.value, species, msunMs

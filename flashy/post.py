@@ -22,6 +22,7 @@ def getFittedVelocities(fname, **kwargs):
     _, _, cjout, pmo, _, _ = getNewtonCJ(fname, inward=False, **kwargs)
     return pmi, cjin, pmo, cjout, pm, time
 
+
 def getRayleighVelocities(fname, direction=[]):
     """Returns positions of the shock, and both inner an outer rayleigh line velocities joining 
     both sides of the shocked cell.

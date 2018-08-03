@@ -4,7 +4,6 @@ getAbundances, readSunComp, readYield, sortNuclides,\
 elemSplit, AGSS09, readIsotopicSolar
 from .globals import *
 import flashy.utils as ut
-from flashy.datahaul.hdf5yt import getLineout, getYields
 from flashy.datahaul.hdfdirect import directMeta
 from matplotlib.patches import Rectangle
 

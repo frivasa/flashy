@@ -202,7 +202,7 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
 
 def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
               fields=['density', 'pressure', 'temperature'], linear=False, 
-              mins=[0.1, 1e+16, 3e7], maxs=[4e7, 6e+24, 2e9]):
+              mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9]):
     """Plots the list of fields specified in yt.
     
     Args:

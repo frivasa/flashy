@@ -273,6 +273,8 @@ class parameterGroup(object):
         code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
         if multisub:
             nendestimate = self.defaults.tmax['value']/self.defaults.checkpointFileIntervalTime['value']
+            if nendestimate<1.0:
+                nendestimate = 10
             # export chaining arguments and apply iterator to set the file number
             code.append('export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
             code.append('export QSUBNAME={}'.format(qsubname))

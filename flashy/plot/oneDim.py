@@ -5,8 +5,9 @@ from .globals import *
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from flashy.datahaul.plainText import dataMatrix
-from flashy.nuclear import sortNuclides, elemSplit, decayYield
+from flashy.nuclear import sortNuclides, elemSplit, decayYield, getMus
 from flashy.simulation import simulation
+from flashy.post import nonRelFermi, extRelFermi
 from scipy.integrate import trapz
 
 
@@ -299,7 +300,6 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
         print("Wrote: {}".format(decayfile))
 
 
-
 def plainTprofile(fname, thresh=1e-4, xrange=[0.0, 0.0], byM=True, merged=False):
     """plots main properties of a plain text file.
     
@@ -333,7 +333,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     keys = sortNuclides(prof.species)
     ncol = 4
     labelspace = -0.15
-
+    
     if byM:
         xs = prof.masses
         xlab = 'Mass ($M_{\odot}$)'
@@ -342,7 +342,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
         xs = prof.radius
         xlab = 'Radius ($cm$)'
         log = True
-
+    
     layout = (len(plotp)+2, 3)
     # Species
     ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
@@ -461,6 +461,86 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     lgd = tdax.legend(ncol=1, loc='upper left', bbox_to_anchor=(1.00, 0.50), 
                       columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
                       numpoints=3, handletextpad=0.0, edgecolor='k')
+    if sum(xrange)!=0.0:
+        spax.set_xlim(xrange)
+    plt.subplots_adjust(hspace=0.001, wspace=0.0)
+    plt.subplots_adjust(left=0.13, right=0.80)
+    plt.subplots_adjust(top=0.99, bottom=0.10)
+    fig.set_size_inches(8.5, 7.5, forward=True)
+    return fig
+
+
+def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
+    """plots composition and degeneracy for a lineout.
+    
+    Args:
+        prof (dataMatrix): dataMatrix obj.
+        thresh (float): ymin for species fraction plot.
+        xrange (list of float): if set, change the range of the plots.
+        byM (bool): abundance plot xaxis (by Mass or by Radius).
+    
+    """  
+    fig = plt.figure()
+    skip = ['radius', 'masses', 'density']
+    plotp = [x for x in prof.bulkprops if x not in skip]
+    keys = sortNuclides(prof.species)
+    ncol = 4
+    labelspace = -0.1
+    if byM:
+        xs = prof.masses
+        xlab = 'Mass ($M_{\odot}$)'
+        log = False  
+    else:
+        xs = prof.radius
+        xlab = 'Radius ($cm$)'
+        log = True
+
+    layout = (3, 2)
+    # Species
+    spax = plt.subplot2grid(layout, (0, 0), colspan=2)
+    skip = plotSpecies(spax, prof, byMass=byM, thresh=thresh, plotall=False)
+    # remove last(lowest) yticklabel to avoid overlap
+    spax.get_yticklabels()[1].set_visible(False)
+    lgd = spax.legend(ncol=ncol, loc='upper left', bbox_to_anchor=(1.00, 1.02), 
+                      columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
+                      numpoints=3, handletextpad=0.0, edgecolor='k')
+    spax.axhline(1e0, linewidth=1, linestyle=':', color='black')
+    spax.set_ylim(thresh, 2.0)
+    spax.set_ylabel('Mass Frac.($X_{i}$)', size=13, rotation=90, labelpad=0)
+    spax.yaxis.set_label_coords(labelspace, 0.5)
+    spax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    spax.tick_params(labelbottom=False) 
+    if log:
+        spax.set_yscale('log')
+        spax.set_xscale('log')
+    # Ye and Yion
+    yes, yis = [], []
+    npnts = len(getattr(prof, prof.species[0]))
+    for i in range(npnts):
+        xis = []
+        for s in prof.species:
+            xis.append(getattr(prof, s)[i])
+        invyi, invye = getMus(prof.species, xis)
+        yes.append(1.0/invye)
+        yis.append(1.0/invyi)
+    
+    yeax = plt.subplot2grid(layout, (1, 0), colspan=2, sharex=spax)
+    yeax.plot(xs, yes, label='$Y_e$', color='#0082c8')
+    yeax.yaxis.set_minor_formatter(customFormatter(0, prec=3, width=4))
+    yeax.set_ylabel('$Y_e$', size=13, rotation=90, labelpad=0)
+    yeax.tick_params(labelbottom=False)
+    # temps
+    tdax = plt.subplot2grid(layout, (2, 0), colspan=2, sharex=spax)    
+    # get fermi temperatures through the lineout
+    # fermT = [ extRelFermi(d)/ut.kb for d in prof.density ]
+    # tdax.plot(xs, prof.temperature/fermT, label='extreme fermT')#, color='k')
+    fermT = [ nonRelFermi(d, ye=y)/ut.kb for d, y in zip(prof.density, yes) ]
+    tdax.semilogy(xs, prof.temperature/fermT, label='$T/T_{f}$', color='#008080')
+    tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    tdax.set_ylabel('$\eta$', size=13, rotation=90, labelpad=0)
+    # prettify
+    tdax.set_xlabel(xlab)
+    tdax.yaxis.set_label_coords(labelspace, 0.5)
     if sum(xrange)!=0.0:
         spax.set_xlim(xrange)
     plt.subplots_adjust(hspace=0.001, wspace=0.0)
