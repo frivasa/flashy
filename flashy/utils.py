@@ -46,10 +46,10 @@ def byMass(radii, dens):
 
 def getBearing(angles, geom):
     """returns a parsed variable name and direction for a given 
-    geometry and spherical angles (altitude and azimuth).
+    geometry and spherical angles (polar angle and azimuth).
     
     Args:
-        angles(float list): altitude and azimuthal angle (empty list for 1D).
+        angles(float list): polar and azimuthal angle (empty list for 1D).
         geom(str): geometry string (cartesian, spherical, cylindrical).
         
     Returns:

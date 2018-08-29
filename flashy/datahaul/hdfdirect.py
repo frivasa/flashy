@@ -62,13 +62,12 @@ def getPardict(file):
         inf = finn[p].value
         # str and bool keys are flipped
         if 'string' in p:
-            d.update(dict([(decode(k), decode(v)) for (v, k) in inf]))
+            d.update(dict([(decode(k), decode(v)) for (k, v) in inf]))
         elif 'logical' in p:
-            v, k = zip(*inf)
-            k = [decode(i) for i in k]
+            k, v = zip(*inf)
             # switch zeroes/ones to strings
             v = [{1:'.true.', 0:'.false.'}[decode(i)] for i in v]
-            d.update(dict(zip(k, v)))
+            d.update(dict([(decode(k), decode(v)) for (k, v) in inf]))
         else: # floats and ints
             d.update(dict([(decode(k), decode(v)) for (k, v) in inf]))
     return d
@@ -120,8 +119,8 @@ def switchGeometry(file, output, verbose=True):
     ds2 = jake[u'string runtime parameters']
     newt2 = np.copy(ds2[...])
     for i, v in enumerate(ds2):
-        if b"cylindrical" in v[0]:
-            newt2[i][0] = v[0].replace(b"cylindrical", b"cartesian  ")
+        if b"cylindrical" in v[1]:
+            newt2[i][1] = v[1].replace(b"cylindrical", b"cartesian  ")
     ds2[...] = newt2
     finn.close()
     jake.close()

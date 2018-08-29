@@ -17,7 +17,7 @@ print("[flash.plot]: Using",mpl.get_backend())
 # misc imports
 from mpl_toolkits.axes_grid1 import AxesGrid
 # from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
-from matplotlib.ticker import FuncFormatter, StrMethodFormatter
+from matplotlib.ticker import FuncFormatter, StrMethodFormatter, ScalarFormatter
 from matplotlib.colors import LogNorm, NoNorm
 
 # x = {1, 5, 10}

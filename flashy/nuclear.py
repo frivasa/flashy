@@ -314,7 +314,7 @@ def getMus(species, xmasses):
         (float): molec weight per free electron.
     
     """
-    _, Zs, _, As = splitSpecies(species, trueA=True)
+    _, Zs, _, As = splitSpecies(species, trueA=True, standardize=True)
     mue = 1.0e0/sum([x*z/a for (z,x,a) in zip(Zs, xmasses, As)])
     muion = 1.0/sum([x*(z+1)/a for (z,x,a) in zip(Zs, xmasses, As)])
     return muion, mue

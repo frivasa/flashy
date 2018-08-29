@@ -29,17 +29,11 @@ class simulation(object):
             self.netpath = ''
         # initial profile
         self.profile = os.path.join(self.cdx, self.pargroup.defaults.initialWDFile['value'])
-        # log file (timings, headers, and timesteps)
-        self.steps, self.header, self.timings = readLog(os.path.join(name, 'run.log'))
-        if self.timings:
-            self.rundelts = [timingParser(t.split('\n')) for t in self.timings]
-            self.runtime = sum(self.rundelts, datetime.timedelta())
-        else:
-            self.runtime, self.rundelts = None, None
-        # stats (stats.dat output)
-        data = readStats(os.path.join(name, 'stats.dat'))
-        for att in data.dtype.names:
-            setattr(self, att, data[att][:len(self.steps)])
+        # log file and stats (read log, sort steps, read stats, merge to steps)
+        self.steps, self.runtime, self.irlstep, \
+        self.header, self.timings = readMeta(os.path.join(name, 'run.log'), 
+                                             os.path.join(name, 'stats.dat'))
+        self.time = self.getStepProp('t')
         # qsub output parsing (.o files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
@@ -70,7 +64,7 @@ class simulation(object):
             (list): step ordered property list.
 
         """
-        return [getattr(t, which) for t in self.steps]
+        return np.array([getattr(t, which) for t in self.steps])
 
     def standardizeGeometry(self):
         """convert hdf5 files from cylindrical to cartesian."""
@@ -121,11 +115,10 @@ class simulation(object):
         # that meta is lost so get PEs from log file (3rd row).
         nodes = int(self.header.split('\n')[2].split()[-1])
         info[-1] = 'Nodes used: {}'.format(nodes)
-        info.append('Achieved timesteps: {}'.format(len(self.time)))
+        info.append('Achieved timesteps: {}'.format(len(self.steps)))
         info.append('Tstep sizes (s): min {:e} max {:e} mean {:e}'.format(*self.getAvgTstep()))
-        if self.timings:
-            info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
-            info.append('IRL timestep (s): {:e}'.format(self.runtime.total_seconds()/len(self.time)))
+        info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
+        info.append('IRL timestep (s): {:e}'.format(self.irlstep.seconds))
         limblks = np.max(self.getStepProp('blocks'))
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints: {}'.format(len(self.checkpoints)))
@@ -182,10 +175,34 @@ class simulation(object):
                     fmd[k][j]['percent'] /= avg
         return tsteps, ttime, ttime/tsteps, fmd
 
+    
+def readMeta(logfile, statsfile, tstepsigma=3.0):
+    """reads both log and stats file, correlating the data to each simulation step."""
+    # read log and base the timing on it's timesteps
+    rsteps, header, timings, skips = readLog(logfile)
+    # get IRL times from log tstamps
+    tstamps = [step.tstamp for step in rsteps]
+    start = tstamps[0]
+    tstamps.insert(0, start)
+    # deltas = np.array([(b-a).seconds for (a,b) in zip(tstamps[:-1], tstamps[1:])])
+    deltas = np.array([b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])])
+    newlogcutoff = np.mean(deltas)*tstepsigma  # threshold for end of a submit
+    deltas[np.where(deltas>newlogcutoff)[0]] = datetime.timedelta(0)  # remove these deltas
+    
+    totaltime = sum(deltas, datetime.timedelta(0))
+    IRLstep = np.mean(deltas)
+    
+    data = readStats(statsfile)
+    for att in data.dtype.names:
+        purgedAtt = np.delete(data[att], skips)
+        for step, p in zip(rsteps, purgedAtt):
+            setattr(step, att, p)
+    return rsteps, totaltime, IRLstep, header, timings
+
 
 def readStats(filename):
     """reads in data from a stats.dat file."""
-    data = np.genfromtxt(filename, names=True)
+    data = np.genfromtxt(filename, names=True)  # this already skips # comments
     return data
 
 
@@ -218,7 +235,18 @@ def readLog(filename):
     except IndexError:
         header = hlines
         timings = None
-    return steps, '\n'.join(header), timings
+    # clean up steps from log
+    nsteps = set()
+    purged = []
+    skipped = []
+    for i, step in enumerate(steps):
+        if step.n not in nsteps:
+            nsteps.add(step.n)
+            purged.append(step)
+        else:
+            skipped.append(i)
+            continue
+    return purged, '\n'.join(header), timings, skipped
 
 
 def splitHeader(hlines):

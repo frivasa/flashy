@@ -118,11 +118,11 @@ def plotBlockUse(sim):
 def plotStats(sim):
     """build a figure with energy components through evolution time."""
     f, ax = plt.subplots()
-    ax.loglog(sim.time, sim.E_total/_foe, label='Total', color='k')
-    ax.loglog(sim.time, sim.E_kinetic/_foe, label='Kin', color='r', alpha=0.8, ls=':')
-    ax.loglog(sim.time, sim.E_internal/_foe, label='Pot', color='b', alpha=0.8, ls=':')
+    ax.loglog(sim.time, sim.getStepProp('E_total')/_foe, label='Total', color='k')
+    ax.loglog(sim.time, sim.getStepProp('E_kinetic')/_foe, label='Kin', color='r', alpha=0.8, ls=':')
+    ax.loglog(sim.time, sim.getStepProp('E_internal')/_foe, label='Pot', color='b', alpha=0.8, ls=':')
     ax.legend()
-    ax.set_ylabel('Energy (foe/bethe)')
+    ax.set_ylabel('Energy (foe)')
     ax.set_xlabel('Time (s)')
     f.tight_layout()
     return f

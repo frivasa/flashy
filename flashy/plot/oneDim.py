@@ -7,8 +7,85 @@ from matplotlib import gridspec
 from flashy.datahaul.plainText import dataMatrix
 from flashy.nuclear import sortNuclides, elemSplit, decayYield, getMus
 from flashy.simulation import simulation
-from flashy.post import nonRelFermi, extRelFermi
+from flashy.post import nonRelFermi, extRelFermi, speedHisto
 from scipy.integrate import trapz
+
+
+def plotSpeedHistogram(fname):
+    """Returns figure with speed vs mass fraction histogram.
+    
+    Args:
+        fname(str): file name.
+        
+    Returns:
+        (mpl.figure)
+    
+    """
+    f, ax = plt.subplots()
+    he, cnos, imes, iges, bins = speedHisto(fname)
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=iges, histtype='step', log=True, label='IGE')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=imes, histtype='step', log=True, label='IME')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=cnos, histtype='step', log=True, label='CNO')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=he, histtype='step', log=True, label='He')
+    ax.set_ylim([1e-6,1.5])
+    ax.axhline(1, ls='--', alpha=0.6, c='k')
+    lgd = ax.legend()
+    return f
+
+
+def fetchData(fname, direction, fields=[]):
+    """builds a profile dataMatrix and retrieves metadata from a file.
+    
+    Args:
+        fname(str): filename.
+        direction(float list): spherical angles for lineout (polar angle and azimuth).
+        fields(str list): specify field to extract (optional).
+        
+    Returns:
+        (float): timestamp for the file.
+        (dict): parameter dictionary for the checkpoint.
+        (str list): filesystem paths for the file.
+        (dataMatrix): block of data for plotting.
+
+    """
+    time, pars, _, _, paths = directMeta(fname)
+    if len(direction)>(pars['dimensionality']-1):
+        print("WARN: Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
+    keys = ['radius']
+    # print(pars['geometry'])  # REMOVE
+    if fields:
+        ad, allsp = getLineout(fname, geom=pars['geometry'], fields=fields,
+                               direction=direction, srcnames=False)
+        keys += fields
+    else:
+        ad, allsp = getLineout(fname, geom=pars['geometry'],
+                               direction=direction, srcnames=False)
+        keys += ['density', 'temperature', 'pressure']
+    keys += allsp
+    return time, pars, paths, dataMatrix([keys, ad.transpose()])
+
+
+def writeFig(fig, paths, filetag):
+    """writes figure to file according to folders in path.
+    
+    Args:
+        fig(mpl.figure): matplotlib object to store.
+        paths(str list): output paths.
+        filetag(str): preffix for output file.
+        
+    Returns:
+        (str): destination path of the file.
+        (str): file suffix number.
+    
+    """
+    num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
+    dest = os.path.join(os.path.dirname(paths[0]), filetag)
+    name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+    os.makedirs(dest, exist_ok=True)  # bless you, p3
+    plt.savefig(name, format='png')
+    plt.close(fig)
+    print("Wrote: {}".format(name))
+    return dest, num
 
 
 def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False, 
@@ -22,7 +99,7 @@ def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
         thresh(float): species threshold.
         batch(bool): write file instead of returning figure.
         byM(bool): plot by mass coordinate instead of radius.
-        direction(str list): altitude and azimuthal direction of profile ray.
+        direction(str list): polar angle and azimuth of profile ray.
         wakesize(float): extent of plot in fraction of shock position.
         inward(bool): shock to follow.
     
@@ -47,13 +124,7 @@ def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
     if not batch:
         return fig
     else:
-        num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-        dest = os.path.join(os.path.dirname(paths[0]), filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        writeFig(fig, paths, filetag)
 
 
 def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0], 
@@ -69,27 +140,19 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
         filetag(str): prefix for output files (if any).
         batch(bool): write file instead of returning figure.
         byM(bool): plot by mass coordinate instead of radius.
-        direction(str list): altitude and azimuthal direction of profile ray.
+        direction(str list): polar angle and azimuth of profile ray.
     
     Return:
         (mpl figure) or (None)
     
     """
-    time, pars, _, _, paths = directMeta(fname)
-    if len(direction)>(pars['dimensionality']-1):
-        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
-        return None
-    ad, allsp = getLineout(fname, geom=pars['geometry'], 
-                           direction=direction, srcnames=False)
+    
+    time, pars, paths, prof = fetchData(fname, direction)
     sim = simulation(simfolder)
     n, t = sim.time2step(time)
     step = sim.steps[int(n)]
     xm, ym, zm = step.slowx, step.slowy, step.slowz
     rm = np.sqrt(xm**2+ym**2+zm**2)
-    
-    keys = ['radius', 'density', 'temperature', 'pressure']
-    keys +=allsp
-    prof = dataMatrix([keys, ad.transpose()])
     fig = plotDMatMerged(prof, byM=byM, 
                          thresh=thresh, xrange=xrange)
     # add extra marks from simulation obj
@@ -123,13 +186,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
     if not batch:
         return fig
     else:
-        num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-        dest = os.path.join(os.path.dirname(paths[0]), filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        writeFig(fig, paths, filetag)
 
 
 def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], 
@@ -149,15 +206,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         (mpl figure) or (None)
     
     """
-    time, pars, _, _, paths = directMeta(fname)
-    if len(direction)>(pars['dimensionality']-1):
-        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
-        return None
-    ad, allsp = getLineout(fname, geom=pars['geometry'], 
-                           direction=direction, srcnames=False)
-    keys = ['radius', 'density', 'temperature', 'pressure']
-    keys +=allsp
-    prof = dataMatrix([keys, ad.transpose()])
+    time, pars, paths, prof = fetchData(fname, direction)
     fig = plotDMatMerged(prof, byM=byM, 
                    thresh=thresh, xrange=xrange)
     ax = plt.gca()
@@ -168,14 +217,24 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
     if not batch:
         return fig
     else:
-        num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-        dest = os.path.join(os.path.dirname(paths[0]), filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        writeFig(fig, paths, filetag)
 
+
+def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False, 
+                    byM=True, direction=[],  xrange=[0.0, 0.0]):
+    time, pars, paths, prof = fetchData(fname, direction)
+    fig = plotDegen(prof, byM=byM, 
+                   thresh=thresh, xrange=xrange)
+    ax = plt.gca()
+    a = ax.annotate("{:.5f} s".format(time),
+                    xy=(0.0, 0.0), xytext=(0.88, 0.10), size=12,
+                    textcoords='figure fraction', xycoords='figure fraction', 
+                    bbox=dict(boxstyle='round', fc='w', ec='k'))
+    if not batch:
+        return fig
+    else:
+        writeFig(fig, paths, filetag)
+    
 
 def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, 
                  byM=True, direction=[], plotall=False):
@@ -195,17 +254,7 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
     
     """
     fields = ['density', 'temperature', 'pressure', 'velx']
-    time, pars, _, _, paths = directMeta(fname)
-    if len(direction)>(pars['dimensionality']-1):
-        print("Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
-        return None
-    ad, allsp = getLineout(fname, geom=pars['geometry'], 
-                           direction=direction, fields=fields, srcnames=False)
-
-    keys = ['radius'] + fields
-    keys +=allsp
-    prof = dataMatrix([keys, ad.transpose()])
-
+    time, pars, paths, prof = fetchData(fname, direction, fields)
     fig = plt.figure(figsize=(10, 8))
     layout = (3,3)
     # plot species
@@ -266,7 +315,8 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
             start+=c
         weights = np.array(weights)
         bins = bins[1:]
-        mpln, mplbins, patches = ax3.hist(bins, bins=len(bins), weights=weights, histtype='step', log=True, label=sp)
+        mpln, mplbins, patches = ax3.hist(bins, bins=len(bins), weights=weights, 
+                                          histtype='step', log=True, label=sp)
         ax3.set_ylim([1e-6, 2])
     ax3.yaxis.set_minor_formatter(StrMethodFormatter(''))
     ax3.xaxis.set_major_formatter(customFormatter(10))
@@ -277,13 +327,7 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
     if not batch:
         return fig
     else:
-        num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-        dest = os.path.join(os.path.dirname(paths[0]), filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        dest, num = writeFig(fig, paths, filetag)
         yieldfile = os.path.join(dest, '{}{}.yield'.format(filetag, num))
         with open(yieldfile, 'w') as f:
             f.write('# {}\n'.format(paths[1]))
@@ -471,13 +515,19 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
 
 
 def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
-    """plots composition and degeneracy for a lineout.
+    """plots composition and degeneracy parameters for a lineout,
+    namely Y_e and \eta = T / T_fermi.
+    \eta near zero implies degeneracy, 
+    while \eta >> 1 or negative implies non-degenerate matter.
     
     Args:
         prof (dataMatrix): dataMatrix obj.
         thresh (float): ymin for species fraction plot.
         xrange (list of float): if set, change the range of the plots.
         byM (bool): abundance plot xaxis (by Mass or by Radius).
+    
+    Returns:
+        (mpl figure) or (None)
     
     """  
     fig = plt.figure()
@@ -495,7 +545,7 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
         xlab = 'Radius ($cm$)'
         log = True
 
-    layout = (3, 2)
+    layout = (2, 2)
     # Species
     spax = plt.subplot2grid(layout, (0, 0), colspan=2)
     skip = plotSpecies(spax, prof, byMass=byM, thresh=thresh, plotall=False)
@@ -525,22 +575,29 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
         yis.append(1.0/invyi)
     
     yeax = plt.subplot2grid(layout, (1, 0), colspan=2, sharex=spax)
-    yeax.plot(xs, yes, label='$Y_e$', color='#0082c8')
-    yeax.yaxis.set_minor_formatter(customFormatter(0, prec=3, width=4))
-    yeax.set_ylabel('$Y_e$', size=13, rotation=90, labelpad=0)
-    yeax.tick_params(labelbottom=False)
+    pl1 = yeax.semilogy(xs, yes, label='$Y_e$', color='#0082c8', alpha=0.8)
+    yeax.set_ylabel('$Y_e$', size=13, rotation=0, labelpad=10)
+    yeax.yaxis.set_major_formatter(customFormatter(0, prec=4, width=4))
+    offset = yeax.get_yaxis().get_offset_text()
+    offset.set_visible(False)
+    yeax.set_ylim(0.1, 1.2)
+#     yeax.get_yticklabels()[1].set_visible(False)
+#     print(yeax.get_yticklabels())
+#     yeax.get_yticklabels()[0].set_visible(False)
     # temps
-    tdax = plt.subplot2grid(layout, (2, 0), colspan=2, sharex=spax)    
+    tdax = yeax.twinx()
     # get fermi temperatures through the lineout
     # fermT = [ extRelFermi(d)/ut.kb for d in prof.density ]
     # tdax.plot(xs, prof.temperature/fermT, label='extreme fermT')#, color='k')
     fermT = [ nonRelFermi(d, ye=y)/ut.kb for d, y in zip(prof.density, yes) ]
-    tdax.semilogy(xs, prof.temperature/fermT, label='$T/T_{f}$', color='#008080')
+    pl2 = tdax.semilogy(xs, prof.temperature/fermT, label=r'$\eta=\frac{T}{T_{f}}$', color='#3cb44b', alpha=0.8)
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
-    tdax.set_ylabel('$\eta$', size=13, rotation=90, labelpad=0)
-    # prettify
-    tdax.set_xlabel(xlab)
-    tdax.yaxis.set_label_coords(labelspace, 0.5)
+    tdax.set_ylabel('$\eta$', size=13, rotation=0, labelpad=8)
+    plts = pl1 + pl2
+    labels = [ l.get_label() for l in plts ]
+    lgd = tdax.legend(plts, labels, ncol=1, loc='upper left', labelspacing=0.0, markerfirst=False, 
+                      numpoints=3, handletextpad=0.0, frameon=False)
+    yeax.set_xlabel(xlab)
     if sum(xrange)!=0.0:
         spax.set_xlim(xrange)
     plt.subplots_adjust(hspace=0.001, wspace=0.0)

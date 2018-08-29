@@ -1,9 +1,84 @@
 """calculates cj velocities for a checkpoint."""
-from flashy.datahaul.hdf5yt import getLineout
+from flashy.datahaul.hdf5yt import getLineout, wedge2d
 from flashy.datahaul.hdfdirect import directMeta
 import flashy.utils as ut
 from .utils import h, m_e, np, c, kb, Avogadro
 from scipy.optimize import newton, minimize
+
+
+def speedHisto(fname):
+    """Calculate speeds within a wedge and build histograms based on mass fractions."""
+    # TDL: stubs, need to split to cover the whole hemisphere
+    
+    elevation = 10
+    depth = 10
+    rawd, species = wedge2d(fname, elevation, depth, polar=False)
+    offset = len(rawd)-len(species)
+    
+    vx2 = np.power(rawd[0][:],2)
+    vy2 = np.power(rawd[1][:],2)
+    vz2 = np.power(rawd[2][:],2)
+    arg = vx2+vy2+vz2
+    speeds = np.sqrt(arg)
+
+    celltpls = []
+    for i in range(len(rawd[0])):
+        masses = [rawd[j][i]*rawd[3][i] for j in range(offset,len(species)+offset)]
+        celltpls.append((speeds[i], masses))
+    
+    sortedcells = sorted(celltpls)
+    speeds, massgrid = zip(*sortedcells)
+    
+    # get ranges for histogram bins
+    vmin, vmax = np.amin(speeds), np.amax(speeds)
+    binsize = 1e7  # 100 km/s bins (Fink, 2010)
+    binnum = int((vmax - vmin)/binsize)
+    print("post.speedHisto: Velocity range: {:e} {:e}".format(vmin, vmax))
+    print("post.speedHisto: Bins: {}".format(binnum))
+    try:
+        counts, bins = np.histogram(speeds, bins=int(binnum))
+    except ValueError:
+        print('post.speedHisto: zero velocity range. try a more evolved checkpoint.')
+        return None
+    
+    # sort by species type and reduce to ap13 species only for now
+    ap13 = ['he4', 'c12', 'o16', 'ne20', 'mg24', 'si28', 's32', 
+            'ar36', 'ca40', 'ti44', 'cr48', 'fe52', 'ni56' ]
+    ige = [ 'cr48', 'fe52', 'ni56' ]
+    ime = [ 'ne20', 'mg24', 'si28', 's32', 
+            'ar36', 'ca40', 'ti44' ]
+    cno = [ 'c12', 'o16' ]
+    iges, imes, cnos, he = np.zeros(len(bins)), np.zeros(len(bins)), np.zeros(len(bins)), np.zeros(len(bins))
+
+    for i in range(len(species)):
+        if species[i] in ap13:  # main species filter
+            # print('Plotting {}'.format(species[i]))
+            weights = [0]
+            start = 0
+            for c in counts:
+                # get all the mass that reaches the bin
+                totalbinmass = sum([sum(m) for m in massgrid[start:start+c]])
+                # get the specific species mass in the bin
+                totalspmass = sum([m[i] for m in massgrid[start:start+c]])
+                # force-assign the value to the bin
+                if totalbinmass==0:
+                    totalbinmass = 1
+                weights.append(totalspmass/totalbinmass)
+                start+=c
+            weights = np.array(weights)
+            if species[i] in ige:
+                iges+=weights
+            elif species[i] in ime:
+                imes+=weights
+            elif species[i] in cno:
+                cnos+=weights
+            elif species[i]=='he4':
+                he+=weights
+    #         mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=weights, 
+    #                                          histtype='step', log=True, label=species[i])
+        else:
+            continue
+    return he, cnos, imes, iges, bins
 
 
 def getFittedVelocities(fname, **kwargs):

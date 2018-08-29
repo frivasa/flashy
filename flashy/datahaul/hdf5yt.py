@@ -40,6 +40,7 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=Tru
     ray = ds.ray([0.0, 0.0, 0.0], radius*bearing)
     rs = np.argsort(ray['t'])
     dblock = ray[cname][rs].value
+    
     for f in fields:
         dblock = np.vstack((dblock, ray[f][rs].value))
     _, sps = getFields(ds.field_list)
@@ -144,3 +145,95 @@ def getYields(fname):
     msunMs = [m.value*total[0].value/msol for m in masses]
     
     return ds.current_time.value, species, msunMs
+
+
+def wedge2d(fname, elevation, depth, polar=False):
+    """cut a wedge in a 2d rectangular domain to perform velocity 
+    vs mass fraction measurements.
+    
+    Args:
+        fname(str): file name
+        elevation(float): equator-north pole wedge angle.
+        depth(float): equator-south pole wedge angle.
+    
+    Returns:
+        (tuple of np.arrays): raw data, species list.
+    
+    """
+    ds = yt.load(fname)
+    domx, domy, _ = ds.domain_width.value
+    if not polar:
+        # top cylinder pivoting on the top right of the domain
+        # this sets the equator-south pole angle
+        alt = np.deg2rad(depth)
+
+        diag = np.sqrt(0.25*domy*domy + domx*domx)
+        diagang = np.arctan(0.5*domy/domx)
+
+        alpha = 0.5*np.pi-alt
+        N = domx/np.cos(alpha)
+        delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
+        h = np.tan(alpha)*domx - 0.5*domy
+        eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
+
+        height = N - delta+eps
+        normal = [-domx, -0.5*domy - h, 0.0]
+        center = [domx, 0.5*domy, 0.0]
+
+        cylinder1 = ds.disk(center=ds.arr(center, "code_length"), 
+                            normal=ds.arr(normal, "code_length"),
+                            radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
+                            height=(height, "code_length"))
+
+        # bottom cylinder pivoting on the bottom left of the domain
+        # this sets the equator-north pole angle
+        alt = np.deg2rad(elevation)
+
+        diag = np.sqrt(0.25*domy*domy + domx*domx)
+        diagang = np.arctan(0.5*domy/domx)
+
+        alpha = 0.5*np.pi-alt
+        N = domx/np.cos(alpha)
+        delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
+        h = np.tan(alpha)*domx - 0.5*domy
+        eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
+
+        height = N - delta+eps
+        normal = [-domx, 0.5*domy + h, 0.0]
+        center = [domx, -0.5*domy, 0.0]
+
+        cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
+                            normal=ds.arr(normal, "code_length"),
+                            radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
+                            height=(height, "code_length"))
+        wedge = ds.intersection([cylinder1, cylinder2])
+    else:
+        # top binded cylinder, polar angle set by -depth to fix measures from equator.
+        alt = np.deg2rad(abs(depth))
+        phi = 0.5*np.pi-alt
+        height = 0.5*domy*np.sin(phi)
+
+        normal = [-height*np.sin(alt), height*np.cos(alt), 0.0]
+        center = [0.0, 0.5*domy, 0.0]
+
+        wedge = ds.disk(center=ds.arr(center, "code_length"),
+                        normal=ds.arr(normal, "code_length"),
+                        radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
+                        height=(height, "code_length"))
+    
+    # get fields and data from data file
+    _, species = getFields(ds.field_list)
+    fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
+    offset = 4
+    # rawd 0 1 2 3 fixed. 
+    # ask yt for data, as always this takes forever.
+    rawd = []
+    for f in fields:
+        rawd.append(wedge[f].value)
+    
+    return rawd, species  # WARNING: this might be humongous. 
+    
+
+
+
+

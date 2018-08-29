@@ -263,83 +263,73 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         print("Wrote: {}".format(name))
 
 
-# deprecate
-def colortest(fname, name, cmap=palettable.cmocean.diverging.Balance_20.mpl_colors,
-              mhead=True, grids=False, show=False,
-              fields=['density'], linear=False, 
-              mins=[0.1], maxs=[4e7]):
-    """Plots the list of fields specified in yt.
+def flashSpeeds(fname, thresh=1e-6, filetag='speeds', batch=False, 
+                 byM=True, direction=[], plotall=False):
+    """Plot species distribution in 'speed' space for a set wedge in the domain.
+    ATM the wedge is fixed at a polar angle of 0-45 degrees at 90 degrees azimuth. 
+    TDL: variable wedge angle.
     
     Args:
-        fname (str): filename to plot.
-        cmap (list of tuple): specify mpl colorlist(yt interpolates by default).
-        mhead (bool): mark the position of the matchhead.
-        grids (bool): overplot the grid structure.
-        show (bool): return figure (true) or save to file (false)
-        fields (list of str): list of named fields to plot.
-        linear (bool): set linear or log scale(false).
-        mins (list of float): minima of scale for each field.
-        maxs (list of float): maxima of scale for each field.
+        fname(str): path of file.
+        thresh(float): threshold for species fraction.
+        filetag(str): prefix for batch mode. 
+        batch(bool): skips returning figure, saving it to a structured directory instead.
+        byM(bool): plot by mass instead of radius.
+    
+    Returns:
+        (mpl figure) or (None)
     
     """
     ds = yt.load(fname)
-    size = len(fields)
-    fig = plt.figure(figsize=(5*size, 10))
-    grid = AxesGrid(fig, (0.075,0.075,0.85,0.85),
-                    nrows_ncols = (1, size),
-                    axes_pad = 1.2, label_mode = "L",
-                    share_all = True, cbar_location="right",
-                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
-    p = yt.SlicePlot(ds, 'z', list(fields))
-    p.set_width((1.2e9, 2*1.2e9))
-    p.set_center((1.2e9*0.5, 0.0))
-    #plr = 6e8
-    #p.set_width((plr, plr))
-    #p.set_center((plr*0.5, plr*4.1))
-    p.set_origin(("center", "left", "domain"))
-    p.set_axes_unit('cm')
-    header = '{} {:10.3f} s'
-    if mhead:
-        x_match = ds.parameters['x_match']
-        y_match = ds.parameters['y_match']
-        p.annotate_marker((x_match, y_match), coord_system='plot',
-                          plot_args={'color':'black', 's': 30})
-    if grids:
-        p.annotate_grids()
-
-    _ytcmap = cmap
-    cols = [tuple([list(x),1]) for x in _ytcmap]
-    cols.append(([0.0, 0.0, 0.0], 0))
-    setcmap = yt.make_colormap(cols, name='custom')
-    pvars = zip(fields, mins, maxs)
-    for i, (f, mi, mx) in enumerate(pvars):
-        if not i:
-            p.annotate_title(header.format(name, float(ds.current_time)))
-        p.set_cmap(f, 'custom')
-        p.set_zlim(f, mi, mx)
-        if linear:
-            p.set_log(field, False)
-        plot = p.plots[f]
-       # plot.figure = fig
-        plot.axes = grid[i].axes
-        plot.cax = grid.cbar_axes[i]
-    p._setup_plots()
-    if show:
+    box = ds.box(ds.arr([-3e9, 0.0, -1e8], "code_length"), ds.domain_right_edge)
+    # left edge is extended in -z to include the central cell
+    cylinder = ds.disk(center=ds.arr([0.0, -3.0e9, 3.0e9], "code_length"),
+                       normal=ds.arr([0.0, -1.0/1.414213562, 1.0/1.414213562], "unitary"),
+                       radius=(1e11, "code_length"),
+    #                    height=(3e9*1.414213562, "code_length"))
+                       height=(3e9*1.424213562, "code_length"))  # this is slightly larger (0.7%) to include edge cells
+    wedge = ds.intersection([box, cylinder])
+    
+    _, species = getFields(ds.field_list)
+    fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
+    
+    # ask yt for data, as always this takes forever.
+    rawd = []
+    for f in fields:
+        rawd.append(wedge[f].value)
+    
+    f, ax = plt.subplots()
+    for i in range(len(species)):
+        spmass = [x[1][i] for x in celltpls]
+        joined = sorted(zip(speedrange, spmass))
+        speeds, masses = zip(*joined)
+        start = 0
+        weights = []
+        for c in counts:
+            massf = sum(masses[start:start+c])
+            weights.append(1.0/c)
+            start+=c
+        weights = np.array(weights)
+        bins = bins[1:]
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=weights, 
+                                         histtype='step', log=True, label=species[i])
+    # plot mass vs speed
+    ax.set_ylim([thresh, 2])
+    ax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    ax.xaxis.set_major_formatter(customFormatter(10))
+    ax.xaxis.set_minor_formatter(StrMethodFormatter(''))
+    ax.set_xlabel('Speed ($10^{10}$ cm/s)')
+    ax.legend()
+    fig.subplots_adjust(hspace=0.4)
+    
+    if not batch:
         return fig
     else:
-        num = ds.parameter_filename[-5:]
-        otpf, _ = os.path.split(ds.fullpath)
-        tag = 'colors'
-        savn = '{}{}.png'.format(tag, name)
-        savf = os.path.join(otpf, "png")
-        savp = os.path.join(otpf, "png", tag, savn)
-        # build filetree and show or save the figure
-        if not os.path.exists(savf):
-            os.mkdir(savf)
-            os.mkdir(os.path.join(savf, tag))
-        elif not os.path.exists(os.path.join(savf, tag)):
-            os.mkdir(os.path.join(savf, tag))
-        plt.savefig(savp)
+        num = ds.parameter_filename[-5:]  # checkpoint number 'flash_hdf5_chk_0001'
+        dest = os.path.join(os.path.dirname(ds.fullpath), filetag)
+        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+        os.makedirs(dest, exist_ok=True)  # bless you, p3
+        plt.savefig(name, format='png')
         plt.close(fig)
-        print("Wrote: {}".format(savp))
-
+        print("Wrote: {}".format(name))
+    
