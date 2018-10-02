@@ -79,6 +79,16 @@ def getBearing(angles, geom):
     # cartesian (x, y, z)
 
 
+def rot(ang, ref):
+    """Counterclockwise rotation matrix of 'ang' in 'ref'-axis (thumb direction)."""
+    if ref=='x':
+        return np.array([[1, 0, 0], [0, np.cos(ang), -np.sin(ang)], [0, np.sin(ang), np.cos(ang)]])
+    elif ref=='y':
+        return np.array([[np.cos(ang), 0.0, np.sin(ang)], [0, 1, 0], [-np.sin(ang), 0.0, np.cos(ang)]])
+    else:
+        return np.array([[np.cos(ang), -np.sin(ang), 0], [np.sin(ang), np.cos(ang), 0], [0, 0, 1]])
+
+
 def roughCJ(dens, pres, index):
     """returns rayleigh line velocity around index.
     

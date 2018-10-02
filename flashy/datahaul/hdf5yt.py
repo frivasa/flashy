@@ -1,5 +1,5 @@
 import yt
-from flashy.utils import np, getBearing, byMass
+from flashy.utils import np, getBearing, byMass, rot
 from flashy.nuclear import sortNuclides, msol
 from scipy.integrate import trapz
 # avoid yt warnings
@@ -145,9 +145,9 @@ def getYields(fname):
     msunMs = [m.value*total[0].value/msol for m in masses]
     
     return ds.current_time.value, species, msunMs
+    
 
-
-def wedge2d(fname, elevation, depth, polar=False):
+def wedge2d(fname, elevation, depth, fields=[]):
     """cut a wedge in a 2d rectangular domain to perform velocity 
     vs mass fraction measurements.
     
@@ -155,85 +155,195 @@ def wedge2d(fname, elevation, depth, polar=False):
         fname(str): file name
         elevation(float): equator-north pole wedge angle.
         depth(float): equator-south pole wedge angle.
-    
+        fields(str list): override default fields.
+
     Returns:
-        (tuple of np.arrays): raw data, species list.
+        (tuple of np.arrays): raw data, [species list].
     
     """
     ds = yt.load(fname)
     domx, domy, _ = ds.domain_width.value
-    if not polar:
-        # top cylinder pivoting on the top right of the domain
-        # this sets the equator-south pole angle
-        alt = np.deg2rad(depth)
+    
+    # top cylinder pivoting on the top right of the domain
+    # this sets the equator-south pole angle
+    alt = np.deg2rad(depth)
 
-        diag = np.sqrt(0.25*domy*domy + domx*domx)
-        diagang = np.arctan(0.5*domy/domx)
+    diag = np.sqrt(0.25*domy*domy + domx*domx)
+    diagang = np.arctan(0.5*domy/domx)
 
-        alpha = 0.5*np.pi-alt
-        N = domx/np.cos(alpha)
-        delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
-        h = np.tan(alpha)*domx - 0.5*domy
+    alpha = 0.5*np.pi-alt
+    N = domx/np.cos(alpha)
+    delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
+    h = np.tan(alpha)*domx - 0.5*domy
+    normal = [-domx, -0.5*domy - h, 0.0]
+
+    if depth>0.0:
         eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
-
         height = N - delta+eps
-        normal = [-domx, -0.5*domy - h, 0.0]
         center = [domx, 0.5*domy, 0.0]
-
-        cylinder1 = ds.disk(center=ds.arr(center, "code_length"), 
-                            normal=ds.arr(normal, "code_length"),
-                            radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
-                            height=(height, "code_length"))
-
-        # bottom cylinder pivoting on the bottom left of the domain
-        # this sets the equator-north pole angle
-        alt = np.deg2rad(elevation)
-
-        diag = np.sqrt(0.25*domy*domy + domx*domx)
-        diagang = np.arctan(0.5*domy/domx)
-
-        alpha = 0.5*np.pi-alt
-        N = domx/np.cos(alpha)
-        delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
-        h = np.tan(alpha)*domx - 0.5*domy
-        eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
-
-        height = N - delta+eps
-        normal = [-domx, 0.5*domy + h, 0.0]
-        center = [domx, -0.5*domy, 0.0]
-
-        cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
-                            normal=ds.arr(normal, "code_length"),
-                            radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
-                            height=(height, "code_length"))
-        wedge = ds.intersection([cylinder1, cylinder2])
     else:
-        # top binded cylinder, polar angle set by -depth to fix measures from equator.
-        alt = np.deg2rad(abs(depth))
-        phi = 0.5*np.pi-alt
-        height = 0.5*domy*np.sin(phi)
+        height = np.cos(alt)*0.5*domy
+        center = [0.0, 0.5*domy, 0.0]        
 
-        normal = [-height*np.sin(alt), height*np.cos(alt), 0.0]
-        center = [0.0, 0.5*domy, 0.0]
-
-        wedge = ds.disk(center=ds.arr(center, "code_length"),
+    cylinder1 = ds.disk(center=ds.arr(center, "code_length"), 
                         normal=ds.arr(normal, "code_length"),
                         radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
                         height=(height, "code_length"))
+
+    # bottom cylinder pivoting on the bottom left of the domain
+    # this sets the equator-north pole angle
+    alt = np.deg2rad(elevation)
+
+    diag = np.sqrt(0.25*domy*domy + domx*domx)
+    diagang = np.arctan(0.5*domy/domx)
+
+    alpha = 0.5*np.pi-alt
+    N = domx/np.cos(alpha)
+    delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
+    h = np.tan(alpha)*domx - 0.5*domy
+    normal = [-domx, 0.5*domy + h, 0.0]
+
+    if elevation>0.0:
+        eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
+        height = N - delta+eps
+        center = [domx, -0.5*domy, 0.0]
+    else:
+        height = np.cos(alt)*0.5*domy
+        center = [0.0, -0.5*domy, 0.0]
+
+    cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
+                        normal=ds.arr(normal, "code_length"),
+                        radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
+                        height=(height, "code_length"))
+    wedge = ds.intersection([cylinder1, cylinder2])
     
     # get fields and data from data file
-    _, species = getFields(ds.field_list)
-    fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
-    offset = 4
-    # rawd 0 1 2 3 fixed. 
-    # ask yt for data, as always this takes forever.
-    rawd = []
-    for f in fields:
-        rawd.append(wedge[f].value)
+    if not fields:
+        _, species = getFields(ds.field_list)
+        fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
+        # rawd 0 1 2 3 fixed.
+        # offset = 4
+        # ask yt for data, as always this takes forever.
+        rawd = []
+        for f in fields:
+            rawd.append(wedge[f].value)
+        return rawd, species  # WARNING: this might be humongous. 
+    else:
+        rawd = []
+        for f in fields:
+            rawd.append(wedge[f].value)
+        return rawd
+
+
+def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
+    """cut a wedge in a 3d rectangular domain to perform velocity 
+    vs mass fraction measurements.
     
-    return rawd, species  # WARNING: this might be humongous. 
+    Args:
+        fname(str): file name
+        elevation(float): equator-north pole wedge angle.
+        depth(float): equator-south pole wedge angle.
+        reference(str): equinox reference for the equator.
+        fields(str list): override default fields.
+        antipode(bool): invert selection, antipodal wedge.
+
+    Returns:
+        (tuple of np.arrays): raw data sorted by field.
     
+    """
+    ds = yt.load(chkp)
+    domx, domy, domz = ds.domain_width.value
+    rad = 100*np.max(ds.domain_width.value)  # huge radius to grab all cells.
+    inv = -1.0 if antipode else 1.0  # flip selection 
 
+    tvec, bvec = {
+    'x': [(0.0, 0.5*domy, 0.5*domz), (0.0, 0.5*domy, -0.5*domz)],
+    'y': [(0.5*domx, 0.0, 0.5*domz), (-0.5*domx, 0.0, 0.5*domz)],
+    'z': [(0.5*domx, 0.5*domy, 0.0), (0.5*domx, -0.5*domy, 0.0)]
+    }[reference]
+    topv = np.array(tvec)
+    botv = np.array(bvec)
 
+    if depth*elevation<0.0:
+        # in this case we are on a quadrant
+        if depth<0.0:
+            # upper right, use 2 bottom cylinders:
+            # normal bot cylinder up to abs(depth)
+            equ = 45 - abs(depth)
+            alt = np.deg2rad(equ)
+            rm = rot(-alt, reference)
+            normal = rm.dot(botv)
+            height = np.cos(alt)*np.sqrt(botv.dot(botv))
+            center = botv*inv
+            cylinder1 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
+                                radius=(10*domy, "code_length"), height=(height, "code_length"))
+            # second cylinder up to elevation but flipped to grab the wedge
+            equ = 45 - elevation
+            alt = np.deg2rad(equ)
+            rm = rot(-alt, reference)
+            normal = rm.dot(botv)
+            height = np.cos(alt)*np.sqrt(botv.dot(botv))
+            center = -botv*inv
+            cylinder2 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
+                                radius=(10*domy, "code_length"), height=(height, "code_length"))
+        else:
+            # lower right, use 2 top cylinders:
+            # first top goes down to depth and in inverted
+            equ = 45 - depth  # 45 degree offset from center-origin reference
+            dep = np.deg2rad(equ)
+            rm = rot(dep, reference)
+            normal = rm.dot(topv)
+            height = np.cos(dep)*np.sqrt(topv.dot(topv))
+            center = topv*inv
+            cylinder1 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
+                                radius=(rad, "code_length"), height=(height, "code_length"))
+            # second top cylinder goes down to abs(elevation)
+            equ = 45 - abs(elevation)  # 45 degree offset from center-origin reference
+            dep = np.deg2rad(equ)
+            rm = rot(dep, reference)
+            normal = rm.dot(topv)
+            height = np.cos(dep)*np.sqrt(topv.dot(topv))
+            center = -topv*inv
+            cylinder2 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
+                                radius=(rad, "code_length"), height=(height, "code_length"))
+    else:
+        # default wedge covering the equator
+        # top cylinder
+        equ = 45 - depth  # 45 degree offset from center-origin reference
+        dep = np.deg2rad(equ)
+        rm = rot(dep, reference)
+        normal = rm.dot(topv)
+        height = np.cos(dep)*np.sqrt(topv.dot(topv))
+        center = topv*inv
+        cylinder1 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
+                            radius=(rad, "code_length"), height=(height, "code_length"))
+        # bottom cylinder
+        equ = 45 - elevation  # 45 degree offset from center-origin reference
+        alt = np.deg2rad(equ)
+        rm = rot(-alt, reference)
 
+        normal = rm.dot(botv)
+        height = np.cos(alt)*np.sqrt(botv.dot(botv))
+        center = botv*inv
+        cylinder2 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
+                            radius=(rad, "code_length"), height=(height, "code_length"))
 
+    wedge = ds.intersection([cylinder1, cylinder2])
+    #XXX
+    print('cylinders created, getting data')
+    # get fields and data from data file
+    if not fields:
+        _, species = getFields(ds.field_list)
+        fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
+        # rawd 0 1 2 3 fixed.
+        # offset = 4
+        # ask yt for data, as always this takes forever.
+        rawd = []
+        for f in fields:
+            rawd.append(wedge[f].value)
+        return rawd, species  # WARNING: this might be humongous. 
+    else:
+        rawd = []
+        for f in fields:
+            rawd.append(wedge[f].value)
+        return rawd

@@ -11,8 +11,11 @@ from flashy.post import nonRelFermi, extRelFermi, speedHisto
 from scipy.integrate import trapz
 
 
-def plotSpeedHistogram(fname):
-    """Returns figure with speed vs mass fraction histogram.
+def plotSpeedHistogram(fname, geom='cartesian',
+                       dimension=2, ref='x', antipode=False):
+    """Returns figure with speed vs mass fraction 
+    histogram for an equatorial slice (this is only a probe since it 
+    does not take the whole hemisphere).
     
     Args:
         fname(str): file name.
@@ -22,12 +25,20 @@ def plotSpeedHistogram(fname):
     
     """
     f, ax = plt.subplots()
-    he, cnos, imes, iges, bins = speedHisto(fname)
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=iges, histtype='step', log=True, label='IGE')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=imes, histtype='step', log=True, label='IME')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=cnos, histtype='step', log=True, label='CNO')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=he, histtype='step', log=True, label='He')
+    he, cnos, imes, iges, bins = speedHisto(fname, geom=geom, dimension=dimension, 
+                                            ref=ref, antipode=antipode)
+    tmass = he + cnos + imes + iges
+    tmass[tmass==0.0] = 1.0
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(iges/tmass), 
+                                     histtype='step', log=True, label='IGE')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(imes/tmass), 
+                                     histtype='step', log=True, label='IME')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(cnos/tmass), 
+                                     histtype='step', log=True, label='CNO')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(he/tmass), 
+                                     histtype='step', log=True, label='He')
     ax.set_ylim([1e-6,1.5])
+    ax.set_xlim([-0.5e9, 7e9])
     ax.axhline(1, ls='--', alpha=0.6, c='k')
     lgd = ax.legend()
     return f
@@ -189,7 +200,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
         writeFig(fig, paths, filetag)
 
 
-def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], 
+def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], yrange=[0.0, 0.0],
                  filetag='prof', batch=False, byM=True, direction=[]):
     """Plot bulk properties and species in a chekpoint through a ray.
     
@@ -208,12 +219,19 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
     """
     time, pars, paths, prof = fetchData(fname, direction)
     fig = plotDMatMerged(prof, byM=byM, 
-                   thresh=thresh, xrange=xrange)
+                         thresh=thresh, xrange=xrange)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
                     xy=(0.0, 0.0), xytext=(0.82, 0.10), size=12,
                     textcoords='figure fraction', xycoords='figure fraction', 
                     bbox=dict(boxstyle='round', fc='w', ec='k'))
+    if direction:
+        b = ax.annotate("Angle(s): {}".format(','.join([str(i) for i in direction])),
+                        xy=(0.0, 0.0), xytext=(0.82, 0.05), size=12,
+                        textcoords='figure fraction', xycoords='figure fraction', 
+                        bbox=dict(boxstyle='round', fc='w', ec='k'))
+    if sum(yrange) != 0.0:
+        ax.set_ylim(yrange)
     if not batch:
         return fig
     else:
@@ -230,14 +248,19 @@ def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False,
                     xy=(0.0, 0.0), xytext=(0.88, 0.10), size=12,
                     textcoords='figure fraction', xycoords='figure fraction', 
                     bbox=dict(boxstyle='round', fc='w', ec='k'))
+    if direction:
+        b = ax.annotate("Angle(s): {}".format(','.join([str(i) for i in direction])),
+                        xy=(0.0, 0.0), xytext=(0.82, 0.05), size=12,
+                        textcoords='figure fraction', xycoords='figure fraction', 
+                        bbox=dict(boxstyle='round', fc='w', ec='k'))
     if not batch:
         return fig
     else:
         writeFig(fig, paths, filetag)
     
 
-def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, 
-                 byM=True, direction=[], plotall=False):
+def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, xrange=[0.0, 0.0],
+                 byM=True, direction=[], vmax=4e9, plotall=False):
     """Plot species and aggregated masses in a chekpoint through a ray.
     
     Args:
@@ -260,15 +283,20 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
     # plot species
     ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
     skip = plotSpecies(ax1, prof, byMass=byM, thresh=thresh, plotall=plotall)
-    ax1.set_xlabel('Mass ($M_{\odot}$)')
+    if byM:
+        ax1.set_xlabel('Mass ($M_{\odot}$)')
+    else:
+        ax1.set_xlabel('Radius (cm)')
+    if sum(xrange) != 0.0:
+        ax1.set_xlim(xrange)
     # timestamp and legend
     a = ax1.annotate("{:.5f} s".format(time),
-                    xy=(0.0, 0.0), xytext=(0.65, 0.1), size=12,
-                    textcoords='figure fraction', xycoords='figure fraction', 
-                    bbox=dict(boxstyle='round', fc='w', ec='k'))
+                     xy=(0.0, 0.0), xytext=(0.65, 0.1), size=12,
+                     textcoords='figure fraction', xycoords='figure fraction', 
+                     bbox=dict(boxstyle='round', fc='w', ec='k'))
     lgd = ax1.legend(ncol=4, loc='upper left', bbox_to_anchor=(1.05, 1.0), 
-                    columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
-                    numpoints=3, handletextpad=0.0)
+                     columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
+                     numpoints=3, handletextpad=0.0)
     lgd.get_frame().set_edgecolor('k')
     
     # write otp files for yields
@@ -317,11 +345,12 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
         bins = bins[1:]
         mpln, mplbins, patches = ax3.hist(bins, bins=len(bins), weights=weights, 
                                           histtype='step', log=True, label=sp)
-        ax3.set_ylim([1e-6, 2])
+    ax3.set_ylim([thresh, 2])
+    ax3.set_xlim([0.0, vmax])
     ax3.yaxis.set_minor_formatter(StrMethodFormatter(''))
-    ax3.xaxis.set_major_formatter(customFormatter(10))
+    ax3.xaxis.set_major_formatter(customFormatter(9))
     ax3.xaxis.set_minor_formatter(StrMethodFormatter(''))
-    ax3.set_xlabel('Speed ($10^{10}$ cm/s)')
+    ax3.set_xlabel('Speed ($10^{9}$ cm/s)')
     fig.subplots_adjust(hspace=0.4)
     
     if not batch:
@@ -435,7 +464,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     return fig
 
 
-def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
+def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True, alpha=1.0):
     """plots main properties of a profile in only two axes, merging 
     thermodynamic properties.
     
@@ -464,7 +493,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     layout = (2, 2)
     # Species
     spax = plt.subplot2grid(layout, (0, 0), colspan=2)
-    skip = plotSpecies(spax, prof, byMass=byM, thresh=thresh, plotall=False)
+    skip = plotSpecies(spax, prof, byMass=byM, thresh=thresh, plotall=False, alpha=alpha)
     # remove last(lowest) yticklabel to avoid overlap
     spax.get_yticklabels()[1].set_visible(False)
     lgd = spax.legend(ncol=ncol, loc='upper left', bbox_to_anchor=(1.00, 1.02), 
@@ -475,7 +504,8 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     spax.set_ylabel('Mass Frac.($X_{i}$)', size=13, rotation=90, labelpad=0)
     spax.yaxis.set_label_coords(labelspace, 0.5)
     spax.yaxis.set_minor_formatter(StrMethodFormatter(''))
-    spax.tick_params(labelbottom=False) 
+    spax.tick_params(labelbottom=False)
+    spax.set_xlabel('')
     if log:
         spax.set_yscale('log')
         spax.set_xscale('log')
@@ -507,7 +537,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
                       numpoints=3, handletextpad=0.0, edgecolor='k')
     if sum(xrange)!=0.0:
         spax.set_xlim(xrange)
-    plt.subplots_adjust(hspace=0.001, wspace=0.0)
+    plt.subplots_adjust(hspace=0.001, wspace=0.01)
     plt.subplots_adjust(left=0.13, right=0.80)
     plt.subplots_adjust(top=0.99, bottom=0.10)
     fig.set_size_inches(8.5, 7.5, forward=True)
@@ -607,7 +637,7 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     return fig
 
 
-def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False):
+def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False, alpha=1.0):
     """draws species from a profile object.
     
     Args:
@@ -624,7 +654,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False):
     skip = []
     if plotall:
         for s in dmatr.species:
-            line = simplePlot(ax, dmatr, absc, s, log=True)
+            line = simplePlot(ax, dmatr, absc, s, log=True, alpha=alpha)
             line[0].set_label(s)
     else:
         for i, s in enumerate(dmatr.species):
@@ -635,7 +665,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False):
             else:
                 tag = '$^{{{}}}{}$'.format(*elemSplit(s, invert=True))
                 line = simplePlot(ax, dmatr, absc, s, log=True, 
-                                  color=props['color'], ls=props['linestyle'])
+                                  color=props['color'], ls=props['linestyle'], alpha=alpha)
                 line[0].set_label(tag)
     l = ax.set_ylabel('$X_i$')
     l = ax.set_ylim([thresh, 2.0])

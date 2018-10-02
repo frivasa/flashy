@@ -112,16 +112,22 @@ def switchGeometry(file, output, verbose=True):
     # p2 > p3: hdf5 works with bytes, not str: u"" > b""
     for k in finn.keys():
         finn.copy(k, jake)
+    # string scalars is usually a single entry, but directly changing it didn't work 
+    # so iterate over all values found.
     ds = jake[u'string scalars']
     newt = np.copy(ds[...])
-    newt[0][0] = ds[0][0].replace(b"cylindrical", b"cartesian  ")
+    for i, v in enumerate(ds):
+        if b"cylindrical" in v[1]:
+            newt[i][1] = v[1].replace(b"cylindrical", b"cartesian  ")
     ds[...] = newt
+    
     ds2 = jake[u'string runtime parameters']
     newt2 = np.copy(ds2[...])
     for i, v in enumerate(ds2):
         if b"cylindrical" in v[1]:
             newt2[i][1] = v[1].replace(b"cylindrical", b"cartesian  ")
     ds2[...] = newt2
+    
     finn.close()
     jake.close()
     if verbose:

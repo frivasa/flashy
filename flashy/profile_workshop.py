@@ -23,6 +23,35 @@ def goldenIdolShell(dmatr, shellmass):
     return shell
 
 
+def smudgeShell(dmatr, csp='he4'):
+    """extends xmasses at the maximum mass fraction of a determined 
+    species throughout the profile, conserving bulk properties.
+    
+    Args:
+        dmatr(dataMatrix): profile to modify.
+        csp(str): reference species.
+
+    Returns:
+        (dataMatrix): modified profile.
+    
+    """
+    for k, pos in getMaximaPositions(dmatr).items():
+        if k==csp:
+            cutPos = pos
+            cutRadius = dmatr.radius[pos]
+
+    cr, cd, cp, ct, xmass, specs = getCond(dmatr, cutPos, verbose=False)
+
+    shellc = np.where(dmatr.radius>cutRadius)[0]
+
+    for sp, val in zip(specs, xmass):
+        array = getattr(dmatr, sp)
+        array[shellc] = val
+        setattr(dmatr, sp, array)
+
+    return dmatr
+
+
 def polyShell(dmatr, cut, index=1.5):
     """return a polytropic shell for a given wd, starting at 'cut' radius."""
     trimmed = snipProf(dmatr, cut)
@@ -66,12 +95,30 @@ def getCond(dmatr, where, verbose=True):
     return cradi, cdens, cpres, ctemp, xmasses, splist
     
 
+def getSummedMasses(dmatr):
+    """Returns summed masses from all species in the profile."""
+    yields = []
+    keys = dmatr.species
+    cell_masses = np.diff(dmatr.masses)
+    cell_masses = np.insert(cell_masses, 0, dmatr.masses[0])
+    for k in keys:
+        # check for nans
+        line = np.nan_to_num(getattr(dmatr, k), copy=True)
+        yields.append(sum(line*cell_masses))
+    print('Total Summed Mass: {:e}'.format(sum(yields)))
+    print('Last Mass Cell: {:e}'.format(dmatr.masses[-1]))
+    return dict(zip(keys, yields))
+
+
 def getMaximaPositions(dmatr):
     """returns cell-at-maximum for all properties in a profile."""
     pos = []
     keys = dmatr.bulkprops+dmatr.species
     for k in keys:
-        pos.append(np.argmax(getattr(dmatr, k)))
+        # check for nans
+        line = np.nan_to_num(getattr(dmatr, k), copy=True)
+        pos.append(np.argmax(line))
+        # pos.append(np.argmax(getattr(dmatr, k)))
     return dict(zip(keys, pos))
 
 

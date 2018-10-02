@@ -1,18 +1,93 @@
 """calculates cj velocities for a checkpoint."""
-from flashy.datahaul.hdf5yt import getLineout, wedge2d
+from flashy.datahaul.hdf5yt import getLineout, wedge2d, wedge3d
 from flashy.datahaul.hdfdirect import directMeta
 import flashy.utils as ut
 from .utils import h, m_e, np, c, kb, Avogadro
 from scipy.optimize import newton, minimize
 
 
-def speedHisto(fname):
-    """Calculate speeds within a wedge and build histograms based on mass fractions."""
-    # TDL: stubs, need to split to cover the whole hemisphere
+def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
+                   dimension=2, ref='x'):
+    """parallelizable wrapper for speedHisto."""
+    delta = 180.0/wedges
+    cuts = np.linspace(179.9, 0.1, wedges+1)-90  # slight offset to avoid division by zero.
+    wedges = list(zip(cuts, cuts[1:]))
+    start, stop = wedges[wedgenum]
+    if stop*start>0.0:
+        stop = -stop
+    else:
+        start = abs(start)
+        stop = abs(stop)
+    print(start, stop)
+    return speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9], 
+                      elevation=start, depth=stop, geom=geom, 
+                      dimension=dimension, ref=ref)
+
+
+def radialSpeeds(fname, elevation=5, depth=5, 
+                 geom='cartesian', dimension=2, ref='x', antipode=False):
+    if dimension==2:
+        rawd = wedge2d(fname, elevation, depth, fields=['x', 'y', 'z', 'velx', 'vely', 'velz'])
+        rs, vrs = [], []
+        for x, y, z, vx, vy, vz in zip(*rawd):
+            vec = np.array([x, y, z])
+            vel = np.array([vx, vy, vz])
+            r = np.sqrt(vec.dot(vec))
+            v = np.sqrt(vel.dot(vel))
+            rxv = np.cross(vec, vel)
+            normrxv = np.sqrt(rxv.dot(rxv))
+            angle = np.arcsin(normrxv/r/v)
+            vrad = v*np.cos(angle)
+            rs.append(r)
+            vrs.append(vrad)
+    elif dimension==3:
+        rawd = wedge3d(fname, elevation, depth, fields=['spherical_radius', 'velocity_spherical_radius'],
+                       reference=ref, antipode=antipode)
+        rs, vrs = rawd
+    else:
+        rawd, _ = getLineout(fname, fields=['velx'], geom=geom, species=False)
+        rs, vrs = rawd
+    return rs, vrs
+
+
+def speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9], 
+               elevation=5, depth=5, geom='cartesian',
+               dimension=2, ref='x', antipode=False):
+    """Calculate speeds within a wedge and return masses, sorted by ranges of species:
+    BBN: H He Li Be B  (only counts He)
+    CNO: C N O
+    IME: F Ne Na Mg Al Si P S Cl Al K Ca Sc Ti
+    IGE: V Cr Mn Fe Co Ni
     
-    elevation = 10
-    depth = 10
-    rawd, species = wedge2d(fname, elevation, depth, polar=False)
+    I'm fixing the histogram bin range so that one can mix wedges into a 
+    general hemispherical event histogram.
+    # default resolution: 100 km/s (Fink, 2010)
+    # default max velocity: a sixth of c.
+    
+    Args:
+        fname(str): filename.
+        resolution(float): bin size.
+        velrange(float list): historgram range.
+        elevation(float): equator-north pole degree.
+        depth(float): equator-south pole degree.
+        geom(str): specify geometry for 1d file.
+        dimension(int): specify file dimension.
+        ref(str): reference axis (3D only, see datahaul.hdf5yt.wedge3d).
+        antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).
+        
+    Returns:
+        np.array list: He, CNO, IME, IGE, bin limits.
+    
+    """
+    # split into wedges process each, then read outputs...
+    if dimension==2:
+        rawd, species = wedge2d(fname, elevation, depth)
+    elif dimension==3:
+        rawd, species = wedge3d(fname, elevation, depth, reference=ref, antipode=antipode)
+    else:
+        rawd, species = getLineout(fname, fields=['velx', 'vely', 'velz', 'cell_mass'], geom=geom)
+        rawd = rawd[1:]  # remove the radius column
+    
     offset = len(rawd)-len(species)
     
     vx2 = np.power(rawd[0][:],2)
@@ -30,9 +105,8 @@ def speedHisto(fname):
     speeds, massgrid = zip(*sortedcells)
     
     # get ranges for histogram bins
-    vmin, vmax = np.amin(speeds), np.amax(speeds)
-    binsize = 1e7  # 100 km/s bins (Fink, 2010)
-    binnum = int((vmax - vmin)/binsize)
+    vmin, vmax = velrange
+    binnum = int((vmax - vmin)/resolution)
     print("post.speedHisto: Velocity range: {:e} {:e}".format(vmin, vmax))
     print("post.speedHisto: Bins: {}".format(binnum))
     try:
@@ -45,8 +119,7 @@ def speedHisto(fname):
     ap13 = ['he4', 'c12', 'o16', 'ne20', 'mg24', 'si28', 's32', 
             'ar36', 'ca40', 'ti44', 'cr48', 'fe52', 'ni56' ]
     ige = [ 'cr48', 'fe52', 'ni56' ]
-    ime = [ 'ne20', 'mg24', 'si28', 's32', 
-            'ar36', 'ca40', 'ti44' ]
+    ime = [ 'ne20', 'mg24', 'si28', 's32', 'ar36', 'ca40', 'ti44' ]
     cno = [ 'c12', 'o16' ]
     iges, imes, cnos, he = np.zeros(len(bins)), np.zeros(len(bins)), np.zeros(len(bins)), np.zeros(len(bins))
 
@@ -56,14 +129,10 @@ def speedHisto(fname):
             weights = [0]
             start = 0
             for c in counts:
-                # get all the mass that reaches the bin
-                totalbinmass = sum([sum(m) for m in massgrid[start:start+c]])
                 # get the specific species mass in the bin
                 totalspmass = sum([m[i] for m in massgrid[start:start+c]])
                 # force-assign the value to the bin
-                if totalbinmass==0:
-                    totalbinmass = 1
-                weights.append(totalspmass/totalbinmass)
+                weights.append(totalspmass)
                 start+=c
             weights = np.array(weights)
             if species[i] in ige:

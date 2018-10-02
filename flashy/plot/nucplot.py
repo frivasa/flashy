@@ -128,25 +128,29 @@ def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38],
         for (t, x, y) in zip(tags, xs, ys):
             ax.text(x, y, t, fontsize=8, verticalalignment='center', 
                     horizontalalignment='right', color=clr)
-    #ax.set_ylabel('Z ($p^+$)', color=clr)
-    #ax.set_xlabel('N ($n^0$)', color=clr)
-    ax.set_ylabel('Proton Number', color=clr)
-    ax.set_xlabel('Neutron Number', color=clr)
+    ax.set_ylabel('Z ($p^+$)', color=clr)
+    ax.set_xlabel('N ($n^0$)', color=clr)
+#     ax.set_ylabel('Proton Number', color=clr)
+#     ax.set_xlabel('Neutron Number', color=clr)
     ax.set_ylim(z_range)
     ax.set_xlim(n_range)
-    #ax.xaxis.tick_top()
-    #ax.xaxis.set_label_position('top')
-    # remove spines/ticks
-    for side in ['bottom','right','top','left']:
-        ax.spines[side].set_visible(False)
-    ax.set_xticks([]) # labels 
-    ax.set_yticks([])
-    ax.arrow(0, 12, 0, 10, head_width=0.5, head_length=1, fc=clr, ec=clr)
-    ax.arrow(13, 0, 10, 0, head_width=0.5, head_length=1, fc=clr, ec=clr)
-    #ax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
-    #ax.yaxis.set_minor_formatter(StrMethodFormatter(''))
-    #ax.xaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
-    #ax.xaxis.set_minor_formatter(StrMethodFormatter(''))
+    # numbered axes
+#     ax.xaxis.tick_top()
+#     ax.xaxis.set_label_position('top')
+    
+    # remove spines/ticks (arrow and named axes)
+#     for side in ['bottom','right','top','left']:
+#         ax.spines[side].set_visible(False)
+#     ax.set_xticks([]) # labels 
+#     ax.set_yticks([])
+#     ax.arrow(0, 12, 0, 10, head_width=0.5, head_length=1, fc=clr, ec=clr)
+#     ax.arrow(13, 0, 10, 0, head_width=0.5, head_length=1, fc=clr, ec=clr)
+    
+    # numbered axes
+    ax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
+    ax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+    ax.xaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
+    ax.xaxis.set_minor_formatter(StrMethodFormatter(''))
     return mainsquare
 
 

@@ -9,7 +9,8 @@ import operator
 from PIL import Image
 import imageio
 _cdxfolder = "cdx"
-_FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
+# _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
+_FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/subsetFLASH/FLASH4.4"  # new flash
 _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
 _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
 
@@ -58,7 +59,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     else:
         dimstr = "-3d -nxb={} -nyb={} -nzb={}".format(*nbs)
     
-    cstub = 'python2 {}/bin/setup.py {} -auto '\
+    cstub = 'cd {} \n ./setup {} -auto '\
             '-objdir="{}" {} -geometry={} -maxblocks={} '
     comm = cstub.format(_FLASH_DIR, module, path,
                         dimstr, geometry, maxbl)
@@ -71,9 +72,15 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
     print(comm)
-    p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
-    out, err = p.communicate(input=comm.encode())
-    exitcode = p.returncode
+    print("**************************************************************"\
+          "**************************************************************"
+          "\nFLASH uses a preprocessing bash script to set an env_var so "\
+          "popen doesn't work. Please run the above commands by hand.\n"\
+          "**************************************************************"\
+          "**************************************************************")
+    #p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
+    #out, err = p.communicate(input=comm.encode())
+    #exitcode = p.returncode
     print('generated run name {}'.format(name))
     # copy parameter varying script
     try:
@@ -82,7 +89,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         print('copied iterator')
     except:
         print('bash iterator not found, skipping.')
-    return comm, exitcode
+    return comm  #, exitcode, out, err
 
 
 def getFileList(folder, glob='plt', fullpath=False):

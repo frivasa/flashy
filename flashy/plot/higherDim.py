@@ -21,15 +21,31 @@ _ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
 # _ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
 # _ytcmap = palettable.cmocean.diverging.Delta_20_r.mpl_colors
 _ytcmap = palettable.cmocean.diverging.Balance_20.mpl_colors
-_ytcmap = palettable.cmocean.sequential.Amp_20.mpl_colors
+# _ytcmap = palettable.cmocean.sequential.Amp_20.mpl_colors
 cols = [tuple([list(x),1]) for x in _ytcmap]
 cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
 # cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
 setcmap = yt.make_colormap(cols, name='custom')
 
 # yt plotting functions
-def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1e9):
-    """Makes a slice at zcut"""
+def planeSlice(fname, field, lims, zcut=0.0, linear=False, 
+               batch=False, width=1.1e9, point=[]):
+    """Makes a slice at zcut
+    
+    Args:
+        name(str): filename to extract data from.
+        field(str): field to plot.
+        lims(float list): field range.
+        zcut(float): 3rd dimension cut depth.
+        linear(bool): logscale toggle.
+        batch(bool): toggle return figure or write to file.
+        width(float): total side size of plot
+        point(float list): specify a position to mark in the plot.
+    
+    Returns:
+        mpl.figure or None
+    
+    """
     ds = yt.load(fname)
     p = yt.SlicePlot(ds, 'z', field, center=[0, 0, zcut])
     p.set_width((width, width))
@@ -41,8 +57,8 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
                     share_all=False, cbar_location="right",
                     cbar_mode="each", cbar_size="5%", cbar_pad="0%")
     im, cax = plotFRB(grid[0], grid.cbar_axes[0], 
-                      np.transpose(p.frb[field]), 
-                      lims, top=False)
+                      np.transpose(p.frb[field]),  # transpose aligns axes names to data.
+                      lims)
     im.axes.tick_params(axis='x', top=True)
     im.axes.annotate("Time: {:.5f} s".format(float(ds.current_time)),
                      xy=(0.75, 0.05), xycoords='axes fraction', 
@@ -50,9 +66,12 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
     im.axes.annotate("Z: {:.4e} cm".format(zcut),
                      xy=(0.10, 0.05), xycoords='axes fraction', 
                      textcoords='axes fraction')
-    if show:
-        return fig
-    else:
+    if point.any():
+        print(point, point[::-1])
+        im.axes.annotate("x",
+                         xy=point[::-1], xycoords='data', 
+                         textcoords='data')
+    if batch:
         num = ds.parameter_filename[-5:]
         otpf, _ = os.path.split(ds.fullpath)
         tag = 'slices{}'.format(num)
@@ -68,10 +87,13 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False, show=False, width=1.1
         plt.savefig(savp)
         plt.close(fig)
         print("Wrote: {}".format(savp))
-
+        return None
+    else:
+        return fig
+    
 
 def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9,
-           botfield='temperature', blims=[3e7, 2e9], lintop=False,  show=False,
+           botfield='temperature', blims=[3e7, 2e9], lintop=False,  batch=False,
            linbot=False, name=''):
     """Plots 2 properties for a hemisphere 2d cut as a joined sphere."""
     ds = yt.load(fname)
@@ -104,9 +126,7 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
                           xy=(0.75, -0.25), xycoords='axes fraction', 
                           textcoords='axes fraction')
     # fig.tight_layout()
-    if show:
-        return fig
-    else:
+    if batch:
         num = ds.parameter_filename[-5:]
         otpf, _ = os.path.split(ds.fullpath)
         if name:
@@ -125,31 +145,25 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
         plt.savefig(savp, bbox_inches='tight')
         plt.close(fig)
         print("Wrote: {}".format(savp))
-
-
-def get_frb(fname, field, zcut=0.0, width=3e9, turn=False):
-    """TODO: swtich to new method, this one is dead
-    returns frb with required field."""
-    ds = yt.load(fname)
-#     p = yt.SlicePlot(ds, 'z', [field])
-    p = yt.SlicePlot(ds, 'z', field, center=[0, 0, zcut])
-    
-    p.set_width((width, width))
-    p.set_cmap(field, 'custom')
-    p.set_axes_unit('cm')
-    
-    #p.set_width((width, 2*width))
-    #p.set_center((width*0.5, 0.0))
-    #p.set_origin(("center", "left", "domain"))
-    p.set_axes_unit('cm')
-    if turn:
-        return np.transpose(p.frb[field])
     else:
-        return p.frb[field]
+        return fig
 
 
 def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
-    """draw frb to a given axesgrid."""
+    """draw frb to a given axesgrid.
+    
+    Args:
+        gridAx(mpl.axes): axes to plot into.
+        cbgAx(mpl.cbar): colorbar to set.
+        imArr(np.array): data to plot.
+        lims(float list): colorbar range.
+        top(bool): tick removal for bifold plots.
+        linear(bool): logscale toggle.
+        
+    Returns:
+        mpl.axes, mpl.cbar
+    
+    """
     unit = imArr.units
     field = imArr.info['field']
     yl, yr = imArr.info['ylim']
@@ -209,7 +223,7 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         fname (str): filename to plot.
         mhead (bool): mark the position of the matchhead.
         grids (bool): overplot the grid structure.
-        show (bool): return figure (true) or save to file (false)
+        batch (bool): if true save figure to file instead of returning it.
         fields (list of str): list of named fields to plot.
         linear (bool): set linear or log scale(false).
         mins (list of float): minima of scale for each field.
@@ -332,4 +346,24 @@ def flashSpeeds(fname, thresh=1e-6, filetag='speeds', batch=False,
         plt.savefig(name, format='png')
         plt.close(fig)
         print("Wrote: {}".format(name))
+
+### Deprecated ###
+def get_frb(fname, field, zcut=0.0, width=3e9, turn=False):
+    """TODO: swtich to new method, this one is dead
+    returns frb with required field."""
+    ds = yt.load(fname)
+#     p = yt.SlicePlot(ds, 'z', [field])
+    p = yt.SlicePlot(ds, 'z', field, center=[0, 0, zcut])
     
+    p.set_width((width, width))
+    p.set_cmap(field, 'custom')
+    p.set_axes_unit('cm')
+    
+    #p.set_width((width, 2*width))
+    #p.set_center((width*0.5, 0.0))
+    #p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    if turn:
+        return np.transpose(p.frb[field])
+    else:
+        return p.frb[field]

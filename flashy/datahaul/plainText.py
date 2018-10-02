@@ -75,7 +75,7 @@ class dataMatrix(object):
             return super().__setattr__(rname, value)
         if rname not in self.__dict__:
 #             if bulk:
-            if any(char.isdigit() for char in rname):
+            if any(char.isdigit() for char in rname) or len(rname)==1:
                 self.__dict__['species'].append(rname)
             else:
 #             else:
@@ -217,9 +217,18 @@ def spliceProfs(left, right):
     return dataMatrix([keys, dblock])
         
 
-def snipProf(orig, cut, byM=False, left=True, keys=[]):
+def snipProf(orig, cut, byM=False, left=True):
     """ cuts a profile, returning a standalone profile obj for 
     conv: center is 0, edge is -1.
+    
+    Args:
+        orig(dataMatrix): dMatrix object to cut.
+        cut(float): cut coordinate.
+        byM(bool): specify cut is by mass coordinate.
+        left(bool): return data at the left/right of the cut.
+        
+    Returns:
+        (dataMatrix): new dMatrix object.
     
     """
     abscissa = orig.masses if byM else orig.radius
