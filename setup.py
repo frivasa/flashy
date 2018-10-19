@@ -7,5 +7,5 @@ setup(name='flashy',
       author='Fernando Rivas',
       author_email='rivas.aguilera@gmail.com',
       license='MIT',
-      #packages=find_packages(),
+      packages=find_packages(exclude=['docs']),
       zip_safe=False)
