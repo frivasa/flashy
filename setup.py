@@ -8,4 +8,5 @@ setup(name='flashy',
       author_email='rivas.aguilera@gmail.com',
       license='MIT',
       packages=find_packages(exclude=['docs']),
+      package_dir={'':'flashy'}
       zip_safe=False)
