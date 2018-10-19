@@ -164,7 +164,11 @@ class parameterGroup(object):
 
     def vuvuzela(self):
         """Sound the horn of ERROR."""
-        dkeys = [z[0] for z in self.defaults.items() if len(str(z[1]['value']))>0]
+        try:
+            dkeys = [z[0] for z in self.defaults.items() if len(str(z[1]['value']))>0]
+        except TypeError:
+            raise Exception('Parsing Error: this is due to set parameters '\
+                  'which do not exist in params_setup (e.g.: Xnet vs ap13)')
         geom = self.defaults.geometry
         if self.meta['geometry']!=geom['value']:
             print("BZZZZZZZZZZZZ: GEOMETRY DOESN'T MATCH: "\

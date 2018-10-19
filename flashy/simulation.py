@@ -37,6 +37,8 @@ class simulation(object):
         # qsub output parsing (.o files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
+#         print(self.otpfiles)
+        # treat files as overwriting addenda to the timesteps
         if self.otpfiles:
             for f in self.otpfiles:
                 self.addOtp(f)
@@ -118,7 +120,8 @@ class simulation(object):
         info.append('Achieved timesteps: {}'.format(len(self.steps)))
         info.append('Tstep sizes (s): min {:e} max {:e} mean {:e}'.format(*self.getAvgTstep()))
         info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
-        info.append('IRL timestep (s): {:e}'.format(self.irlstep.seconds))
+        #info.append('IRL timestep (s): {:e}'.format(self.irlstep.seconds))
+        info.append('IRL timestep (hh:mm:ss): {}'.format(self.irlstep))
         limblks = np.max(self.getStepProp('blocks'))
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints: {}'.format(len(self.checkpoints)))
@@ -283,8 +286,12 @@ def readOtp(filename):
                     ns.append(int(n)-1)
                     slowp.append([float(x) for x in l[a+1:b].split(',')])
                     dth, dtb = l.split()[-2:]
-                    dthydro.append(float(dth))
-                    dtburn.append(float(dtb))
+                    if len(dth)<=1:  # | 2.922E-04 line so there's no dtb
+                        dthydro.append(float(dtb))
+                        dtburn.append(1.0)
+                    else:
+                        dthydro.append(float(dth))
+                        dtburn.append(float(dtb))
         return ns, slowp, dthydro, dtburn
 
 

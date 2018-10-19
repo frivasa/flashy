@@ -1,0 +1,260 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>flashy.datahaul.helmholtz &#8212; flashy 0.0.4 documentation</title>
+    <link rel="stylesheet" href="../../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flashy.datahaul.helmholtz</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">helmholtz</span>
+<span class="kn">import</span> <span class="nn">flashy.datahaul.hdf5yt</span> <span class="k">as</span> <span class="nn">reader</span>
+<span class="kn">from</span> <span class="nn">flashy.utils</span> <span class="k">import</span> <span class="n">np</span>
+<span class="kn">from</span> <span class="nn">flashy.post</span> <span class="k">import</span> <span class="n">getRayleighVelocities</span>
+<span class="kn">from</span> <span class="nn">flashy.nuclear</span> <span class="k">import</span> <span class="n">convXmass2Abun</span>
+
+<span class="c1"># external starkiller/Helmholtz package wrappers</span>
+<div class="viewcode-block" id="getTemps"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.getTemps">[docs]</a><span class="k">def</span> <span class="nf">getTemps</span><span class="p">(</span><span class="n">rhos</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">returnObj</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">trojan</span> <span class="o">=</span> <span class="n">wrapVector</span><span class="p">(</span><span class="n">rhos</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">helmholtz</span><span class="o">.</span><span class="n">helmeos_DP</span><span class="p">(</span><span class="o">*</span><span class="n">trojan</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">returnObj</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sol</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sol</span><span class="o">.</span><span class="n">temp</span></div>
+
+
+<div class="viewcode-block" id="getPres"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.getPres">[docs]</a><span class="k">def</span> <span class="nf">getPres</span><span class="p">(</span><span class="n">rhos</span><span class="p">,</span> <span class="n">temps</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">returnObj</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="n">trojan</span> <span class="o">=</span> <span class="n">wrapVector</span><span class="p">(</span><span class="n">rhos</span><span class="p">,</span> <span class="n">temps</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+    <span class="n">sol</span> <span class="o">=</span> <span class="n">helmholtz</span><span class="o">.</span><span class="n">helmeos</span><span class="p">(</span><span class="o">*</span><span class="n">trojan</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">returnObj</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sol</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">sol</span><span class="o">.</span><span class="n">ptot</span></div>
+
+
+<div class="viewcode-block" id="getExtHelmCJ"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.getExtHelmCJ">[docs]</a><span class="k">def</span> <span class="nf">getExtHelmCJ</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="s1">&#39;spherical&#39;</span><span class="p">):</span>
+    <span class="n">fi</span><span class="p">,</span> <span class="n">ai</span><span class="p">,</span> <span class="n">fo</span><span class="p">,</span> <span class="n">ao</span><span class="p">,</span> <span class="n">cjdat</span> <span class="o">=</span> <span class="n">buildHelmTrojan</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="n">geom</span><span class="p">)</span>
+    <span class="c1"># crank the abomination inwards</span>
+    <span class="c1">#ri = adiabat(fi, ai, 0.0)</span>
+    <span class="n">ri</span> <span class="o">=</span> <span class="n">cj_cond</span><span class="p">(</span><span class="n">fi</span><span class="p">,</span> <span class="n">ai</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ri</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">vcji</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">vcji</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">fi</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">ri</span><span class="o">.</span><span class="n">ptot</span><span class="o">-</span><span class="n">fi</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="n">fi</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mf">1.0</span><span class="o">/</span><span class="n">ri</span><span class="o">.</span><span class="n">den</span><span class="p">))</span>
+    <span class="c1">#rcj, pcj = res.den, res.ptot</span>
+    <span class="c1"># crank the abomination outwards</span>
+    <span class="c1">#ro = adiabat(fo, ao, 0.0)</span>
+    <span class="n">ro</span> <span class="o">=</span> <span class="n">cj_cond</span><span class="p">(</span><span class="n">fo</span><span class="p">,</span> <span class="n">ao</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ro</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">vcjo</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">vcjo</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">fo</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="n">ro</span><span class="o">.</span><span class="n">ptot</span><span class="o">-</span><span class="n">fo</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="n">fo</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="mf">1.0</span><span class="o">/</span><span class="n">ro</span><span class="o">.</span><span class="n">den</span><span class="p">))</span>
+    <span class="c1">#rcj, pcj = res.den, res.ptot</span>
+    <span class="c1"># cjdat are my cj values ( xin, xout, cjin, cjout, time, xmatch )</span>
+    <span class="k">return</span> <span class="n">vcji</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">vcjo</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">cjdat</span></div>
+
+
+<div class="viewcode-block" id="wrapVector"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.wrapVector">[docs]</a><span class="k">def</span> <span class="nf">wrapVector</span><span class="p">(</span><span class="n">rho</span><span class="p">,</span> <span class="n">var</span><span class="p">,</span> <span class="n">xmass</span><span class="p">,</span> <span class="n">species</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; </span>
+<span class="sd">    Wrapper for J.Schwab&#39;s Helmholtz python module, which is </span>
+<span class="sd">    itself also one for Timmes&#39; Helmholtz EoS.</span>
+<span class="sd">    Checks rho for length and comparison so that it can be </span>
+<span class="sd">    used for single points.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        rho(float): query density.</span>
+<span class="sd">        var(float): auxilliary thermodynamic variable (T, P, S or E(int)).</span>
+<span class="sd">        xmass(float): query mass fractions.</span>
+<span class="sd">        species(str): query nuclide list.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (trojan): [[rho/s], [var/s], [abar/s], [zbar/s]]</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">pnts</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rho</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span> <span class="o">=</span> <span class="n">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmass</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[[</span><span class="n">rho</span><span class="p">],</span> <span class="p">[</span><span class="n">var</span><span class="p">],</span> <span class="p">[</span><span class="n">abar</span><span class="p">],</span> <span class="p">[</span><span class="n">zbar</span><span class="p">]]</span>
+    <span class="n">allp</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">pnts</span><span class="p">):</span>
+        <span class="n">_</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span> <span class="o">=</span> <span class="n">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmass</span><span class="p">[</span><span class="n">p</span><span class="p">])</span>
+        <span class="n">allp</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">rho</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">var</span><span class="p">[</span><span class="n">p</span><span class="p">],</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span><span class="p">))</span>
+    <span class="n">vr</span><span class="p">,</span> <span class="n">vv</span><span class="p">,</span> <span class="n">va</span><span class="p">,</span> <span class="n">vz</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">allp</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">vr</span><span class="p">,</span> <span class="n">vv</span><span class="p">,</span> <span class="n">va</span><span class="p">,</span> <span class="n">vz</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="cj_cond"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.cj_cond">[docs]</a><span class="k">def</span> <span class="nf">cj_cond</span><span class="p">(</span><span class="n">fuel</span><span class="p">,</span> <span class="n">ash</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate Cj velocity from Helmholtz Eos calculation</span>
+<span class="sd">    fits density for a set temperature</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fuel (trojan): [[pressure, eint], [rho], [temp], [abar], [zbar]]</span>
+<span class="sd">        ash (trojan): [[pressure, eint], [rho], [temp], [abar], [zbar]]</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="n">itmax</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">comprho</span> <span class="o">=</span> <span class="mf">1e10</span>
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">itmax</span><span class="p">):</span>
+        <span class="c1">#res = adiabat(fuel, ash, q)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">helmholtz</span><span class="o">.</span><span class="n">helmeos</span><span class="p">(</span><span class="o">*</span><span class="n">ash</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">res</span><span class="o">.</span><span class="n">den</span> <span class="o">=</span> <span class="n">fuel</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">+</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">ptot</span><span class="o">-</span><span class="n">fuel</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">/</span><span class="p">(</span><span class="n">res</span><span class="o">.</span><span class="n">gam1</span><span class="o">*</span><span class="n">res</span><span class="o">.</span><span class="n">ptot</span><span class="p">))</span>
+        <span class="c1">#print res.den, type(res.den[0])</span>
+        <span class="n">dden</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">den</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">comprho</span>
+        
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dden</span><span class="p">)</span><span class="o">&lt;</span><span class="n">tol</span><span class="o">*</span><span class="n">res</span><span class="o">.</span><span class="n">den</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span>
+        <span class="k">elif</span> <span class="n">res</span><span class="o">==-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ash</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">den</span>
+            <span class="n">comprho</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">den</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="adiabat"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.adiabat">[docs]</a><span class="k">def</span> <span class="nf">adiabat</span><span class="p">(</span><span class="n">fuel</span><span class="p">,</span> <span class="n">ash</span><span class="p">,</span> <span class="n">q</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Hack-feeding data to helmholtz:</span>
+<span class="sd">    fuel/ash = [[pressure, eint], [rho], [temp], [abar], [zbar]]</span>
+<span class="sd">    </span>
+<span class="sd">    fits a temperature to a hugoniot curve</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># q value -- we need the change in molar fractions</span>
+    <span class="c1"># call ener_gener_rate(eos_state_ash % xn(:)/aion(:) - eos_state_fuel % xn(:)/aion(:), q_burn)</span>
+    <span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-8</span>
+    <span class="n">itmax</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">itmax</span><span class="p">):</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">helmholtz</span><span class="o">.</span><span class="n">helmeos</span><span class="p">(</span><span class="o">*</span><span class="n">ash</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="n">aux</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span><span class="o">/</span><span class="n">fuel</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">res</span><span class="o">.</span><span class="n">den</span><span class="p">)</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">fuel</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">q</span> <span class="o">-</span> <span class="n">res</span><span class="o">.</span><span class="n">etot</span> <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">fuel</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">res</span><span class="o">.</span><span class="n">ptot</span><span class="p">)</span><span class="o">*</span><span class="n">aux</span>
+        <span class="n">dfdT</span> <span class="o">=</span> <span class="o">-</span><span class="n">res</span><span class="o">.</span><span class="n">det</span> <span class="o">+</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">res</span><span class="o">.</span><span class="n">dpt</span><span class="o">*</span><span class="n">aux</span>
+        <span class="n">dT</span> <span class="o">=</span> <span class="o">-</span><span class="n">f</span><span class="o">/</span><span class="n">dfdT</span>
+        <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">dT</span><span class="p">)</span><span class="o">&lt;</span><span class="n">tol</span><span class="o">*</span><span class="n">res</span><span class="o">.</span><span class="n">temp</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">res</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ash</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ash</span><span class="p">[</span><span class="mi">2</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">dT</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="buildHelmTrojan"><a class="viewcode-back" href="../../../flashy.datahaul.html#flashy.datahaul.helmholtz.buildHelmTrojan">[docs]</a><span class="k">def</span> <span class="nf">buildHelmTrojan</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="s1">&#39;spherical&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Frankensteinian bridge between flash checkpoints and </span>
+<span class="sd">    J.Schwab&#39;s Helmholtz python module. </span>
+<span class="sd">    Joined inward/outward and spewing cj data to avoid </span>
+<span class="sd">    calling yt more than once.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filename.</span>
+<span class="sd">        offset(int): zone offset from shock.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">props</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;dens&#39;</span><span class="p">,</span> <span class="s1">&#39;temp&#39;</span><span class="p">,</span> <span class="s1">&#39;pres&#39;</span><span class="p">,</span> <span class="s1">&#39;eint&#39;</span><span class="p">]</span>
+    <span class="n">nprops</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">props</span><span class="p">)</span>
+    <span class="n">data</span><span class="p">,</span> <span class="n">species</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">getLineout</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">props</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="n">geom</span><span class="p">)</span>
+    <span class="n">nspecs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
+    <span class="n">xin</span><span class="p">,</span> <span class="n">xout</span><span class="p">,</span> <span class="n">cjin</span><span class="p">,</span> <span class="n">cjout</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">xmatch</span> <span class="o">=</span> <span class="n">getRayleighVelocities</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    <span class="c1"># get fuel and ash for outward shock</span>
+    <span class="c1"># xin/xout == ray @ len([x for x in ray[&#39;r&#39;][rsort] if x&lt;xout])</span>
+    <span class="n">inw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">x</span><span class="o">&lt;</span><span class="n">xout</span><span class="p">])</span><span class="o">+</span><span class="n">offset</span>
+    <span class="n">ouw</span> <span class="o">=</span> <span class="n">inw</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">offset</span>
+    <span class="n">inv</span><span class="p">,</span> <span class="n">ouv</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nprops</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">inv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">inw</span><span class="p">])</span>
+        <span class="n">ouv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">ouw</span><span class="p">])</span>
+    <span class="n">xmin</span><span class="p">,</span> <span class="n">xmou</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nprops</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">nprops</span><span class="o">+</span><span class="mi">1</span><span class="o">+</span><span class="n">nspecs</span><span class="p">):</span>
+        <span class="n">xmin</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">inw</span><span class="p">])</span>
+        <span class="n">xmou</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">ouw</span><span class="p">])</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span> <span class="o">=</span> <span class="n">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmin</span><span class="p">)</span>
+    <span class="c1"># [pressure, eint], [rho], [temp], [abar], [zbar]]</span>
+    <span class="n">fuelo</span> <span class="o">=</span> <span class="p">[[</span><span class="n">inv</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">inv</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">inv</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">inv</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">abar</span><span class="p">],</span> <span class="p">[</span><span class="n">zbar</span><span class="p">]]</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span> <span class="o">=</span> <span class="n">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmou</span><span class="p">)</span>
+    <span class="n">asho</span> <span class="o">=</span> <span class="p">[[</span><span class="n">ouv</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">ouv</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">ouv</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">ouv</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">abar</span><span class="p">],</span> <span class="p">[</span><span class="n">zbar</span><span class="p">]]</span>
+    
+    <span class="c1"># get fuel and ash for inward shock</span>
+    <span class="n">inw</span> <span class="o">=</span> <span class="nb">len</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">x</span><span class="o">&lt;</span><span class="n">xin</span><span class="p">])</span> <span class="o">-</span> <span class="n">offset</span>
+    <span class="n">ouw</span> <span class="o">=</span> <span class="n">inw</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="n">offset</span>
+    <span class="n">inv</span><span class="p">,</span> <span class="n">ouv</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">nprops</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">inv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">inw</span><span class="p">])</span>
+        <span class="n">ouv</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">ouw</span><span class="p">])</span>
+    <span class="n">xmin</span><span class="p">,</span> <span class="n">xmou</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nprops</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">nprops</span><span class="o">+</span><span class="mi">1</span><span class="o">+</span><span class="n">nspecs</span><span class="p">):</span>
+        <span class="n">xmin</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">inw</span><span class="p">])</span>
+        <span class="n">xmou</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">ouw</span><span class="p">])</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span> <span class="o">=</span> <span class="n">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmin</span><span class="p">)</span>
+    <span class="n">fueli</span> <span class="o">=</span> <span class="p">[[</span><span class="n">inv</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">inv</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">inv</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">inv</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">abar</span><span class="p">],</span> <span class="p">[</span><span class="n">zbar</span><span class="p">]]</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span> <span class="o">=</span> <span class="n">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmou</span><span class="p">)</span>
+    <span class="n">ashi</span> <span class="o">=</span> <span class="p">[[</span><span class="n">ouv</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="n">ouv</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">ouv</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">ouv</span><span class="p">[</span><span class="mi">1</span><span class="p">]],</span> <span class="p">[</span><span class="n">abar</span><span class="p">],</span> <span class="p">[</span><span class="n">zbar</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">fueli</span><span class="p">,</span> <span class="n">ashi</span><span class="p">,</span> <span class="n">fuelo</span><span class="p">,</span> <span class="n">asho</span><span class="p">,</span> <span class="p">[</span><span class="n">xin</span><span class="p">,</span> <span class="n">xout</span><span class="p">,</span> <span class="n">cjin</span><span class="p">,</span> <span class="n">cjout</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">xmatch</span><span class="p">]</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Fernando Rivas.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.4.
+    </div>
+  </body>
+</html>

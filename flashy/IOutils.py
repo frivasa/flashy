@@ -71,24 +71,27 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
             kwstr+=' {}={}'.format(k,v)
     #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
+    print('\nGenerated run name: {}\n'.format(name))
     print(comm)
-    print("**************************************************************"\
-          "**************************************************************"
-          "\nFLASH uses a preprocessing bash script to set an env_var so "\
-          "popen doesn't work. Please run the above commands by hand.\n"\
-          "**************************************************************"\
-          "**************************************************************")
     #p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
     #out, err = p.communicate(input=comm.encode())
     #exitcode = p.returncode
-    print('generated run name {}'.format(name))
+    
     # copy parameter varying script
     try:
         iterpath = os.path.join(_AUX_DIR, '07.miscellaneous/bash/iterator')
-        shutil.copy2(iterpath, destination)
-        print('copied iterator')
+#         shutil.copy2(iterpath, destination)
+#         print('copied iterator')
+        print('cp {} {}/.'.format(iterpath, destination))
     except:
         print('bash iterator not found, skipping.')
+    
+    print("************************************************************"\
+          "************************************************************"
+          "\nFLASH uses a preprocessing bash script to set an env_var so "\
+          "popen doesn't work. Please run the above commands by hand.\n"\
+          "************************************************************"\
+          "************************************************************")
     return comm  #, exitcode, out, err
 
 

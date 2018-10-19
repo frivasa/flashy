@@ -11,7 +11,7 @@ _parameter_keys = [ 'integer runtime parameters', 'integer scalars',
 
 
 def getUNK(file, srcnames=True):
-    """returns fields and species foudn in a hdf5 file.
+    """returns fields and species found in a hdf5 file.
     (species is any unk with a number, plus (n, d, t))
     
     Args:
@@ -74,7 +74,7 @@ def getPardict(file):
 
 
 def directMeta(file):
-    """probes file, returning main properties of it.
+    """probes file, returning the main properties of it.
     
     Args:
         file(str): path to file.

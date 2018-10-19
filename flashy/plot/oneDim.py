@@ -63,7 +63,6 @@ def fetchData(fname, direction, fields=[]):
     if len(direction)>(pars['dimensionality']-1):
         print("WARN: Direction doesn't match dimensionality: {}".format(pars['dimensionality']))
     keys = ['radius']
-    # print(pars['geometry'])  # REMOVE
     if fields:
         ad, allsp = getLineout(fname, geom=pars['geometry'], fields=fields,
                                direction=direction, srcnames=False)
@@ -218,8 +217,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], yrange=[0.0, 0.0],
     
     """
     time, pars, paths, prof = fetchData(fname, direction)
-    fig = plotDMatMerged(prof, byM=byM, 
-                         thresh=thresh, xrange=xrange)
+    fig = plotDMatMerged(prof, byM=byM, thresh=thresh, xrange=xrange)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
                     xy=(0.0, 0.0), xytext=(0.82, 0.10), size=12,
@@ -478,6 +476,9 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True, alpha=1.0):
     fig = plt.figure()
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
+    # DEBUG
+#     print(len(prof.species))
+#     print(prof.t3)
     keys = sortNuclides(prof.species)
     ncol = 4
     labelspace = -0.1
@@ -611,9 +612,9 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     offset = yeax.get_yaxis().get_offset_text()
     offset.set_visible(False)
     yeax.set_ylim(0.1, 1.2)
-#     yeax.get_yticklabels()[1].set_visible(False)
-#     print(yeax.get_yticklabels())
-#     yeax.get_yticklabels()[0].set_visible(False)
+    # yeax.get_yticklabels()[1].set_visible(False)
+    # print(yeax.get_yticklabels())
+    # yeax.get_yticklabels()[0].set_visible(False)
     # temps
     tdax = yeax.twinx()
     # get fermi temperatures through the lineout

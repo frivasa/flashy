@@ -1,0 +1,514 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>flashy.post &#8212; flashy 0.0.4 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flashy.post</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;calculates cj velocities for a checkpoint.&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">flashy.datahaul.hdf5yt</span> <span class="k">import</span> <span class="n">getLineout</span><span class="p">,</span> <span class="n">wedge2d</span><span class="p">,</span> <span class="n">wedge3d</span>
+<span class="kn">from</span> <span class="nn">flashy.datahaul.hdfdirect</span> <span class="k">import</span> <span class="n">directMeta</span>
+<span class="kn">import</span> <span class="nn">flashy.utils</span> <span class="k">as</span> <span class="nn">ut</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="k">import</span> <span class="n">h</span><span class="p">,</span> <span class="n">m_e</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">kb</span><span class="p">,</span> <span class="n">Avogadro</span>
+<span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="k">import</span> <span class="n">newton</span><span class="p">,</span> <span class="n">minimize</span>
+
+
+<div class="viewcode-block" id="par_speedHisto"><a class="viewcode-back" href="../../flashy.html#flashy.post.par_speedHisto">[docs]</a><span class="k">def</span> <span class="nf">par_speedHisto</span><span class="p">(</span><span class="n">wedgenum</span><span class="p">,</span> <span class="n">wedges</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">fname</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="s1">&#39;cartesian&#39;</span><span class="p">,</span>
+                   <span class="n">dimension</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">ref</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;parallelizable wrapper for speedHisto.&quot;&quot;&quot;</span>
+    <span class="n">delta</span> <span class="o">=</span> <span class="mf">180.0</span><span class="o">/</span><span class="n">wedges</span>
+    <span class="n">cuts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mf">179.9</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="n">wedges</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">-</span><span class="mi">90</span>  <span class="c1"># slight offset to avoid division by zero.</span>
+    <span class="n">wedges</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">cuts</span><span class="p">,</span> <span class="n">cuts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">stop</span> <span class="o">=</span> <span class="n">wedges</span><span class="p">[</span><span class="n">wedgenum</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">stop</span><span class="o">*</span><span class="n">start</span><span class="o">&gt;</span><span class="mf">0.0</span><span class="p">:</span>
+        <span class="n">stop</span> <span class="o">=</span> <span class="o">-</span><span class="n">stop</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">start</span><span class="p">)</span>
+        <span class="n">stop</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">stop</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">stop</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">speedHisto</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="mf">1e7</span><span class="p">,</span> <span class="n">velrange</span><span class="o">=</span><span class="p">[</span><span class="mf">1e9</span><span class="p">,</span> <span class="mf">5e9</span><span class="p">],</span> 
+                      <span class="n">elevation</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="n">stop</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span> 
+                      <span class="n">dimension</span><span class="o">=</span><span class="n">dimension</span><span class="p">,</span> <span class="n">ref</span><span class="o">=</span><span class="n">ref</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="radialSpeeds"><a class="viewcode-back" href="../../flashy.html#flashy.post.radialSpeeds">[docs]</a><span class="k">def</span> <span class="nf">radialSpeeds</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">elevation</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> 
+                 <span class="n">geom</span><span class="o">=</span><span class="s1">&#39;cartesian&#39;</span><span class="p">,</span> <span class="n">dimension</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">ref</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">antipode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">dimension</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+        <span class="n">rawd</span> <span class="o">=</span> <span class="n">wedge2d</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">elevation</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="s1">&#39;z&#39;</span><span class="p">,</span> <span class="s1">&#39;velx&#39;</span><span class="p">,</span> <span class="s1">&#39;vely&#39;</span><span class="p">,</span> <span class="s1">&#39;velz&#39;</span><span class="p">])</span>
+        <span class="n">rs</span><span class="p">,</span> <span class="n">vrs</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">vx</span><span class="p">,</span> <span class="n">vy</span><span class="p">,</span> <span class="n">vz</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">rawd</span><span class="p">):</span>
+            <span class="n">vec</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">])</span>
+            <span class="n">vel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">vx</span><span class="p">,</span> <span class="n">vy</span><span class="p">,</span> <span class="n">vz</span><span class="p">])</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vec</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vec</span><span class="p">))</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">vel</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">vel</span><span class="p">))</span>
+            <span class="n">rxv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">vec</span><span class="p">,</span> <span class="n">vel</span><span class="p">)</span>
+            <span class="n">normrxv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">rxv</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rxv</span><span class="p">))</span>
+            <span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arcsin</span><span class="p">(</span><span class="n">normrxv</span><span class="o">/</span><span class="n">r</span><span class="o">/</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">vrad</span> <span class="o">=</span> <span class="n">v</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+            <span class="n">rs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+            <span class="n">vrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vrad</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">dimension</span><span class="o">==</span><span class="mi">3</span><span class="p">:</span>
+        <span class="n">rawd</span> <span class="o">=</span> <span class="n">wedge3d</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">elevation</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;spherical_radius&#39;</span><span class="p">,</span> <span class="s1">&#39;velocity_spherical_radius&#39;</span><span class="p">],</span>
+                       <span class="n">reference</span><span class="o">=</span><span class="n">ref</span><span class="p">,</span> <span class="n">antipode</span><span class="o">=</span><span class="n">antipode</span><span class="p">)</span>
+        <span class="n">rs</span><span class="p">,</span> <span class="n">vrs</span> <span class="o">=</span> <span class="n">rawd</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rawd</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">getLineout</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;velx&#39;</span><span class="p">],</span> <span class="n">geom</span><span class="o">=</span><span class="n">geom</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">rs</span><span class="p">,</span> <span class="n">vrs</span> <span class="o">=</span> <span class="n">rawd</span>
+    <span class="k">return</span> <span class="n">rs</span><span class="p">,</span> <span class="n">vrs</span></div>
+
+
+<div class="viewcode-block" id="speedHisto"><a class="viewcode-back" href="../../flashy.html#flashy.post.speedHisto">[docs]</a><span class="k">def</span> <span class="nf">speedHisto</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">resolution</span><span class="o">=</span><span class="mf">1e7</span><span class="p">,</span> <span class="n">velrange</span><span class="o">=</span><span class="p">[</span><span class="mf">1e9</span><span class="p">,</span> <span class="mf">5e9</span><span class="p">],</span> 
+               <span class="n">elevation</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">depth</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="s1">&#39;cartesian&#39;</span><span class="p">,</span>
+               <span class="n">dimension</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">ref</span><span class="o">=</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">antipode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate speeds within a wedge and return masses, sorted by ranges of species:</span>
+<span class="sd">    BBN: H He Li Be B  (only counts He)</span>
+<span class="sd">    CNO: C N O</span>
+<span class="sd">    IME: F Ne Na Mg Al Si P S Cl Al K Ca Sc Ti</span>
+<span class="sd">    IGE: V Cr Mn Fe Co Ni</span>
+<span class="sd">    </span>
+<span class="sd">    I&#39;m fixing the histogram bin range so that one can mix wedges into a </span>
+<span class="sd">    general hemispherical event histogram.</span>
+<span class="sd">    # default resolution: 100 km/s (Fink, 2010)</span>
+<span class="sd">    # default max velocity: a sixth of c.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filename.</span>
+<span class="sd">        resolution(float): bin size.</span>
+<span class="sd">        velrange(float list): historgram range.</span>
+<span class="sd">        elevation(float): equator-north pole degree.</span>
+<span class="sd">        depth(float): equator-south pole degree.</span>
+<span class="sd">        geom(str): specify geometry for 1d file.</span>
+<span class="sd">        dimension(int): specify file dimension.</span>
+<span class="sd">        ref(str): reference axis (3D only, see datahaul.hdf5yt.wedge3d).</span>
+<span class="sd">        antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        np.array list: He, CNO, IME, IGE, bin limits.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># split into wedges process each, then read outputs...</span>
+    <span class="k">if</span> <span class="n">dimension</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+        <span class="n">rawd</span><span class="p">,</span> <span class="n">species</span> <span class="o">=</span> <span class="n">wedge2d</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">elevation</span><span class="p">,</span> <span class="n">depth</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">dimension</span><span class="o">==</span><span class="mi">3</span><span class="p">:</span>
+        <span class="n">rawd</span><span class="p">,</span> <span class="n">species</span> <span class="o">=</span> <span class="n">wedge3d</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">elevation</span><span class="p">,</span> <span class="n">depth</span><span class="p">,</span> <span class="n">reference</span><span class="o">=</span><span class="n">ref</span><span class="p">,</span> <span class="n">antipode</span><span class="o">=</span><span class="n">antipode</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rawd</span><span class="p">,</span> <span class="n">species</span> <span class="o">=</span> <span class="n">getLineout</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;velx&#39;</span><span class="p">,</span> <span class="s1">&#39;vely&#39;</span><span class="p">,</span> <span class="s1">&#39;velz&#39;</span><span class="p">,</span> <span class="s1">&#39;cell_mass&#39;</span><span class="p">],</span> <span class="n">geom</span><span class="o">=</span><span class="n">geom</span><span class="p">)</span>
+        <span class="n">rawd</span> <span class="o">=</span> <span class="n">rawd</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>  <span class="c1"># remove the radius column</span>
+    
+    <span class="n">offset</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rawd</span><span class="p">)</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)</span>
+    
+    <span class="n">vx2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">rawd</span><span class="p">[</span><span class="mi">0</span><span class="p">][:],</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">vy2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">rawd</span><span class="p">[</span><span class="mi">1</span><span class="p">][:],</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">vz2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">rawd</span><span class="p">[</span><span class="mi">2</span><span class="p">][:],</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">arg</span> <span class="o">=</span> <span class="n">vx2</span><span class="o">+</span><span class="n">vy2</span><span class="o">+</span><span class="n">vz2</span>
+    <span class="n">speeds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+
+    <span class="n">celltpls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">rawd</span><span class="p">[</span><span class="mi">0</span><span class="p">])):</span>
+        <span class="n">masses</span> <span class="o">=</span> <span class="p">[</span><span class="n">rawd</span><span class="p">[</span><span class="n">j</span><span class="p">][</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">rawd</span><span class="p">[</span><span class="mi">3</span><span class="p">][</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">offset</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)</span><span class="o">+</span><span class="n">offset</span><span class="p">)]</span>
+        <span class="n">celltpls</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">speeds</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">masses</span><span class="p">))</span>
+    
+    <span class="n">sortedcells</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">celltpls</span><span class="p">)</span>
+    <span class="n">speeds</span><span class="p">,</span> <span class="n">massgrid</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">sortedcells</span><span class="p">)</span>
+    
+    <span class="c1"># get ranges for histogram bins</span>
+    <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="n">velrange</span>
+    <span class="n">binnum</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">vmax</span> <span class="o">-</span> <span class="n">vmin</span><span class="p">)</span><span class="o">/</span><span class="n">resolution</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;post.speedHisto: Velocity range: </span><span class="si">{:e}</span><span class="s2"> </span><span class="si">{:e}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;post.speedHisto: Bins: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">binnum</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">counts</span><span class="p">,</span> <span class="n">bins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span><span class="n">speeds</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">binnum</span><span class="p">))</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;post.speedHisto: zero velocity range. try a more evolved checkpoint.&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="c1"># sort by species type and reduce to ap13 species only for now</span>
+    <span class="n">ap13</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;he4&#39;</span><span class="p">,</span> <span class="s1">&#39;c12&#39;</span><span class="p">,</span> <span class="s1">&#39;o16&#39;</span><span class="p">,</span> <span class="s1">&#39;ne20&#39;</span><span class="p">,</span> <span class="s1">&#39;mg24&#39;</span><span class="p">,</span> <span class="s1">&#39;si28&#39;</span><span class="p">,</span> <span class="s1">&#39;s32&#39;</span><span class="p">,</span> 
+            <span class="s1">&#39;ar36&#39;</span><span class="p">,</span> <span class="s1">&#39;ca40&#39;</span><span class="p">,</span> <span class="s1">&#39;ti44&#39;</span><span class="p">,</span> <span class="s1">&#39;cr48&#39;</span><span class="p">,</span> <span class="s1">&#39;fe52&#39;</span><span class="p">,</span> <span class="s1">&#39;ni56&#39;</span> <span class="p">]</span>
+    <span class="n">ige</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;cr48&#39;</span><span class="p">,</span> <span class="s1">&#39;fe52&#39;</span><span class="p">,</span> <span class="s1">&#39;ni56&#39;</span> <span class="p">]</span>
+    <span class="n">ime</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;ne20&#39;</span><span class="p">,</span> <span class="s1">&#39;mg24&#39;</span><span class="p">,</span> <span class="s1">&#39;si28&#39;</span><span class="p">,</span> <span class="s1">&#39;s32&#39;</span><span class="p">,</span> <span class="s1">&#39;ar36&#39;</span><span class="p">,</span> <span class="s1">&#39;ca40&#39;</span><span class="p">,</span> <span class="s1">&#39;ti44&#39;</span> <span class="p">]</span>
+    <span class="n">cno</span> <span class="o">=</span> <span class="p">[</span> <span class="s1">&#39;c12&#39;</span><span class="p">,</span> <span class="s1">&#39;o16&#39;</span> <span class="p">]</span>
+    <span class="n">iges</span><span class="p">,</span> <span class="n">imes</span><span class="p">,</span> <span class="n">cnos</span><span class="p">,</span> <span class="n">he</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bins</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bins</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bins</span><span class="p">)),</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">bins</span><span class="p">))</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">species</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ap13</span><span class="p">:</span>  <span class="c1"># main species filter</span>
+            <span class="c1"># print(&#39;Plotting {}&#39;.format(species[i]))</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">counts</span><span class="p">:</span>
+                <span class="c1"># get the specific species mass in the bin</span>
+                <span class="n">totalspmass</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">m</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">massgrid</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">start</span><span class="o">+</span><span class="n">c</span><span class="p">]])</span>
+                <span class="c1"># force-assign the value to the bin</span>
+                <span class="n">weights</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">totalspmass</span><span class="p">)</span>
+                <span class="n">start</span><span class="o">+=</span><span class="n">c</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ige</span><span class="p">:</span>
+                <span class="n">iges</span><span class="o">+=</span><span class="n">weights</span>
+            <span class="k">elif</span> <span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="n">ime</span><span class="p">:</span>
+                <span class="n">imes</span><span class="o">+=</span><span class="n">weights</span>
+            <span class="k">elif</span> <span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="ow">in</span> <span class="n">cno</span><span class="p">:</span>
+                <span class="n">cnos</span><span class="o">+=</span><span class="n">weights</span>
+            <span class="k">elif</span> <span class="n">species</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">==</span><span class="s1">&#39;he4&#39;</span><span class="p">:</span>
+                <span class="n">he</span><span class="o">+=</span><span class="n">weights</span>
+    <span class="c1">#         mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=weights, </span>
+    <span class="c1">#                                          histtype=&#39;step&#39;, log=True, label=species[i])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">continue</span>
+    <span class="k">return</span> <span class="n">he</span><span class="p">,</span> <span class="n">cnos</span><span class="p">,</span> <span class="n">imes</span><span class="p">,</span> <span class="n">iges</span><span class="p">,</span> <span class="n">bins</span></div>
+
+
+<div class="viewcode-block" id="getFittedVelocities"><a class="viewcode-back" href="../../flashy.html#flashy.post.getFittedVelocities">[docs]</a><span class="k">def</span> <span class="nf">getFittedVelocities</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Analyze a filename, extracting shock position, time, and calculating </span>
+<span class="sd">    cj speed in both ends of the shock.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filepath.</span>
+<span class="sd">        **kwargs: arguments for lineout(geometry, direction, etc.).</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (list of float): xin, cjin, xout, cjout, time, matchhead position.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">cjin</span><span class="p">,</span> <span class="n">pmi</span><span class="p">,</span> <span class="n">pm</span><span class="p">,</span> <span class="n">time</span> <span class="o">=</span> <span class="n">getNewtonCJ</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">inward</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">cjout</span><span class="p">,</span> <span class="n">pmo</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">getNewtonCJ</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">inward</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pmi</span><span class="p">,</span> <span class="n">cjin</span><span class="p">,</span> <span class="n">pmo</span><span class="p">,</span> <span class="n">cjout</span><span class="p">,</span> <span class="n">pm</span><span class="p">,</span> <span class="n">time</span></div>
+
+
+<div class="viewcode-block" id="getRayleighVelocities"><a class="viewcode-back" href="../../flashy.html#flashy.post.getRayleighVelocities">[docs]</a><span class="k">def</span> <span class="nf">getRayleighVelocities</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="sd">&quot;&quot;&quot;Returns positions of the shock, and both inner an outer rayleigh line velocities joining </span>
+<span class="sd">    both sides of the shocked cell.</span>
+<span class="sd">    (xin, xout, cjin, cjout, float(ray.ds.current_time), ray.ds.parameters[&#39;x_match&#39;])</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<span class="c1">#     fields = [&#39;sound_speed&#39;, &#39;density&#39;, &#39;pressure&#39;]</span>
+<span class="c1">#     data, _ = reader.getLineout(fname, fields=fields, species=False, geom=geom)</span>
+<span class="c1">#     time, params, _, _, _ = reader.getMeta(fname)</span>
+<span class="c1">#     rad, cs, dens, pres = data[0], data[1], data[2], data[3]</span>
+    
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;sound_speed&#39;</span><span class="p">,</span> <span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">]</span>
+    <span class="n">time</span><span class="p">,</span> <span class="n">pars</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">paths</span> <span class="o">=</span> <span class="n">directMeta</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span><span class="o">&gt;</span><span class="p">(</span><span class="n">pars</span><span class="p">[</span><span class="s1">&#39;dimensionality&#39;</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Direction doesn&#39;t match dimensionality: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pars</span><span class="p">[</span><span class="s1">&#39;dimensionality&#39;</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">getLineout</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="n">direction</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="n">pars</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">])</span>
+    <span class="c1">#time, params, _, _, _ = directMeta(fname)</span>
+    <span class="n">rad</span><span class="p">,</span> <span class="n">cs</span><span class="p">,</span> <span class="n">dens</span><span class="p">,</span> <span class="n">pres</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+    
+    <span class="c1"># this fails for x_match = y_match = z_match = 0.0</span>
+    <span class="n">linepos</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">estimateMatch</span><span class="p">(</span><span class="n">direction</span><span class="p">,</span> <span class="n">pars</span><span class="p">,</span> <span class="n">vvv</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1"># print(linepos)</span>
+    <span class="n">shockin</span><span class="p">,</span> <span class="n">shockout</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">locateShock</span><span class="p">(</span><span class="n">rad</span><span class="p">,</span> <span class="n">cs</span><span class="p">,</span> <span class="n">linepos</span><span class="p">,</span> <span class="n">vvv</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="c1">#     shockin, shockout = ut.locateShock(rad, cs, pars[&#39;x_match&#39;], vvv=False)</span>
+    
+    <span class="n">xin</span><span class="p">,</span> <span class="n">xout</span> <span class="o">=</span> <span class="n">rad</span><span class="p">[</span><span class="n">shockin</span><span class="p">],</span> <span class="n">rad</span><span class="p">[</span><span class="n">shockout</span><span class="p">]</span>
+    <span class="n">cjin</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">roughCJ</span><span class="p">(</span><span class="n">dens</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">shockin</span><span class="p">)</span>
+    <span class="n">cjout</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">roughCJ</span><span class="p">(</span><span class="n">dens</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">shockout</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">xin</span><span class="p">,</span> <span class="n">xout</span><span class="p">,</span> <span class="n">cjin</span><span class="p">,</span> <span class="n">cjout</span><span class="p">,</span> <span class="n">time</span><span class="p">,</span> <span class="n">pars</span><span class="p">[</span><span class="s1">&#39;x_match&#39;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="getNewtonCJ"><a class="viewcode-back" href="../../flashy.html#flashy.post.getNewtonCJ">[docs]</a><span class="k">def</span> <span class="nf">getNewtonCJ</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">inward</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Calculate CJ velocity for a file.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filepath.</span>
+<span class="sd">        inward(bool): toggle for inward/outward bound shock.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float tuple): specific volume, pressure, CJVelocity, matchhead position, time.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1">#print(&#39;check newtonCJ&#39;)</span>
+    <span class="n">pos</span><span class="p">,</span> <span class="n">dens</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">gamc</span><span class="p">,</span> <span class="n">cjest</span><span class="p">,</span> <span class="n">pm</span><span class="p">,</span> <span class="n">time</span> <span class="o">=</span> <span class="n">getShockConditions</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">addvar</span><span class="o">=</span><span class="s1">&#39;gamc&#39;</span><span class="p">,</span> 
+                                                                <span class="n">inward</span><span class="o">=</span><span class="n">inward</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="c1"># set bulk properties</span>
+    <span class="n">fv</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fg</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">dens</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">pres</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">gamc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">av</span><span class="p">,</span> <span class="n">ap</span><span class="p">,</span> <span class="n">ag</span> <span class="o">=</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">dens</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pres</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">gamc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">cj</span> <span class="o">=</span> <span class="n">newtonCJ</span><span class="p">(</span><span class="n">cjest</span><span class="p">,</span> <span class="n">fv</span><span class="p">,</span> <span class="n">fp</span><span class="p">,</span> <span class="n">fg</span><span class="p">,</span> <span class="n">av</span><span class="p">,</span> <span class="n">ap</span><span class="p">,</span> <span class="n">ag</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="c1">#print(&#39;getNewt error&#39;)</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">cj</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">cjest</span>
+    <span class="k">return</span> <span class="n">v</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">cj</span><span class="p">,</span> <span class="n">pos</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">pm</span><span class="p">,</span> <span class="n">time</span></div>
+
+
+<div class="viewcode-block" id="newtonCJ"><a class="viewcode-back" href="../../flashy.html#flashy.post.newtonCJ">[docs]</a><span class="k">def</span> <span class="nf">newtonCJ</span><span class="p">(</span><span class="n">cjest</span><span class="p">,</span> <span class="n">fuelv</span><span class="p">,</span> <span class="n">fuelp</span><span class="p">,</span> <span class="n">fgam</span><span class="p">,</span> <span class="n">ashv</span><span class="p">,</span> <span class="n">ashp</span><span class="p">,</span> <span class="n">agam</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;fits CJ velocity to a pair of states by varying the speed of the rayleigh line.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        cjest(float): starting estimate for velocity.</span>
+<span class="sd">        fuelv(float): fuel state specific volume.</span>
+<span class="sd">        fuelp(float): fuel state pressure.</span>
+<span class="sd">        fgam(float): fuel state sp. heat ratio.</span>
+<span class="sd">        ashv(float): ash state specific volume.</span>
+<span class="sd">        ashp(float): ash state pressure.</span>
+<span class="sd">        agam(float): ash state sp. heat ratio.</span>
+<span class="sd">        width(float): fitting sp. volume range for minimizing function.</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float tuple): specific volume, pressure, CJVelocity.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">miniu</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">fun</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">diffHRupper</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="n">fuelp</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="n">fuelv</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="n">fgam</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="n">agam</span><span class="p">,</span> 
+                     <span class="n">pr</span><span class="o">=</span><span class="n">ashp</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="n">ashv</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">[</span><span class="n">ashv</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">width</span><span class="p">),</span> <span class="n">ashv</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">+</span><span class="n">width</span><span class="p">)]),</span> 
+                     <span class="n">x0</span><span class="o">=</span><span class="n">cjest</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">)</span>
+    <span class="n">minil</span> <span class="o">=</span> <span class="n">minimize</span><span class="p">(</span><span class="n">fun</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">diffHRlower</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="n">fuelp</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="n">fuelv</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="n">fgam</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="n">agam</span><span class="p">,</span> 
+                     <span class="n">pr</span><span class="o">=</span><span class="n">ashp</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="n">ashv</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">[</span><span class="n">ashv</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">width</span><span class="p">),</span> <span class="n">ashv</span><span class="o">*</span><span class="p">(</span><span class="mf">1.0</span><span class="o">+</span><span class="n">width</span><span class="p">)]),</span> 
+                     <span class="n">x0</span><span class="o">=</span><span class="n">cjest</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">)</span>
+    <span class="n">cjposu</span><span class="p">,</span> <span class="n">cjspdu</span> <span class="o">=</span> <span class="n">miniu</span><span class="o">.</span><span class="n">fun</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">miniu</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">cjposl</span><span class="p">,</span> <span class="n">cjspdl</span> <span class="o">=</span> <span class="n">minil</span><span class="o">.</span><span class="n">fun</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">minil</span><span class="o">.</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">cjpos</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">cjposu</span><span class="o">+</span><span class="n">cjposl</span><span class="p">)</span>
+    <span class="n">cjpres</span> <span class="o">=</span> <span class="n">shockhugoniot</span><span class="p">(</span><span class="n">cjpos</span><span class="p">,</span> <span class="n">p1</span><span class="o">=</span><span class="n">fuelp</span><span class="p">,</span> <span class="n">v1</span><span class="o">=</span><span class="n">fuelv</span><span class="p">,</span> <span class="n">g1</span><span class="o">=</span><span class="n">fgam</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">agam</span><span class="p">)</span>
+    <span class="n">cjspd</span> <span class="o">=</span> <span class="n">rayleighSpeed</span><span class="p">(</span><span class="n">ashp</span><span class="p">,</span> <span class="n">ashv</span><span class="p">,</span> <span class="n">cjpres</span><span class="p">,</span> <span class="n">cjpos</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">cjpos</span><span class="p">,</span> <span class="n">cjpres</span><span class="p">,</span> <span class="n">cjspd</span></div>
+
+
+<div class="viewcode-block" id="getShockConditions"><a class="viewcode-back" href="../../flashy.html#flashy.post.getShockConditions">[docs]</a><span class="k">def</span> <span class="nf">getShockConditions</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">inward</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">addvar</span><span class="o">=</span><span class="s1">&#39;temp&#39;</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="p">[]):</span>
+    <span class="sd">&quot;&quot;&quot;Returns bulk conditions at both sides of shock.</span>
+<span class="sd">    Conditions are sorted so that output has the form: [ash, shock, fuel]</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        fname(str): filepath</span>
+<span class="sd">        inward(bool): toggle for inward/outward bound shock.</span>
+<span class="sd">        addvar(float): extra variable to get from lineout.</span>
+<span class="sd">        **kwargs: arguments for lineout (direction, geometry, etc.)</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (list): radii of states.</span>
+<span class="sd">        (list): densities of states.</span>
+<span class="sd">        (list): pressures of states.</span>
+<span class="sd">        (list): addvar at each state.</span>
+<span class="sd">            (float): direct Rayleigh speed for the ash state.</span>
+<span class="sd">        (float): match head position</span>
+<span class="sd">        (float): timestamp of file.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;sound_speed&#39;</span><span class="p">,</span> <span class="s1">&#39;density&#39;</span><span class="p">,</span> <span class="s1">&#39;pressure&#39;</span><span class="p">,</span> <span class="n">addvar</span><span class="p">]</span>
+    <span class="n">time</span><span class="p">,</span> <span class="n">pars</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">paths</span> <span class="o">=</span> <span class="n">directMeta</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span><span class="o">&gt;</span><span class="p">(</span><span class="n">pars</span><span class="p">[</span><span class="s1">&#39;dimensionality&#39;</span><span class="p">]</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Direction doesn&#39;t match dimensionality: </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">pars</span><span class="p">[</span><span class="s1">&#39;dimensionality&#39;</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">getLineout</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span> <span class="n">species</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">direction</span><span class="o">=</span><span class="n">direction</span><span class="p">,</span> <span class="n">geom</span><span class="o">=</span><span class="n">pars</span><span class="p">[</span><span class="s1">&#39;geometry&#39;</span><span class="p">])</span>
+    <span class="c1">#time, params, _, _, _ = directMeta(fname)</span>
+    <span class="n">rad</span><span class="p">,</span> <span class="n">cs</span><span class="p">,</span> <span class="n">dens</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">data</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span>
+    
+    <span class="c1"># this fails for x_match = y_match = z_match = 0.0</span>
+    <span class="n">linepos</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">estimateMatch</span><span class="p">(</span><span class="n">direction</span><span class="p">,</span> <span class="n">pars</span><span class="p">,</span> <span class="n">vvv</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1">#print(linepos)</span>
+    <span class="n">shockin</span><span class="p">,</span> <span class="n">shockout</span> <span class="o">=</span> <span class="n">ut</span><span class="o">.</span><span class="n">locateShock</span><span class="p">(</span><span class="n">rad</span><span class="p">,</span> <span class="n">cs</span><span class="p">,</span> <span class="n">linepos</span><span class="p">,</span> <span class="n">vvv</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1">#print(&#39;check shockConditions&#39;)</span>
+    <span class="k">if</span> <span class="n">inward</span><span class="p">:</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">shockin</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">ind</span> <span class="o">=</span> <span class="n">shockout</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="c1"># directly calculate the rayleigh speed joining both points</span>
+    <span class="n">cjest</span> <span class="o">=</span> <span class="n">rayleighSpeed</span><span class="p">(</span><span class="n">pres</span><span class="p">[</span><span class="n">ind</span><span class="o">+</span><span class="n">offset</span><span class="p">],</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">dens</span><span class="p">[</span><span class="n">ind</span><span class="o">+</span><span class="n">offset</span><span class="p">],</span> 
+                          <span class="n">pres</span><span class="p">[</span><span class="n">ind</span><span class="o">-</span><span class="n">offset</span><span class="p">],</span> <span class="mf">1.0</span><span class="o">/</span><span class="n">dens</span><span class="p">[</span><span class="n">ind</span><span class="o">-</span><span class="n">offset</span><span class="p">])</span>
+    <span class="n">pos</span> <span class="o">=</span> <span class="p">[</span><span class="n">rad</span><span class="p">[</span><span class="n">ind</span><span class="o">-</span><span class="n">offset</span><span class="p">],</span> <span class="n">rad</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">rad</span><span class="p">[</span><span class="n">ind</span><span class="o">+</span><span class="n">offset</span><span class="p">]]</span>
+    <span class="n">condd</span> <span class="o">=</span> <span class="p">[</span><span class="n">dens</span><span class="p">[</span><span class="n">ind</span><span class="o">-</span><span class="n">offset</span><span class="p">],</span> <span class="n">dens</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">dens</span><span class="p">[</span><span class="n">ind</span><span class="o">+</span><span class="n">offset</span><span class="p">]]</span>
+    <span class="n">condp</span> <span class="o">=</span> <span class="p">[</span><span class="n">pres</span><span class="p">[</span><span class="n">ind</span><span class="o">-</span><span class="n">offset</span><span class="p">],</span> <span class="n">pres</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">pres</span><span class="p">[</span><span class="n">ind</span><span class="o">+</span><span class="n">offset</span><span class="p">]]</span>
+    <span class="n">xvar</span> <span class="o">=</span>  <span class="p">[</span><span class="n">var</span><span class="p">[</span><span class="n">ind</span><span class="o">-</span><span class="n">offset</span><span class="p">],</span> <span class="n">var</span><span class="p">[</span><span class="n">ind</span><span class="p">],</span> <span class="n">var</span><span class="p">[</span><span class="n">ind</span><span class="o">+</span><span class="n">offset</span><span class="p">]]</span>
+    <span class="k">return</span> <span class="n">pos</span><span class="p">,</span> <span class="n">condd</span><span class="p">,</span> <span class="n">condp</span><span class="p">,</span> <span class="n">xvar</span><span class="p">,</span> <span class="n">cjest</span><span class="p">,</span> <span class="n">linepos</span><span class="p">,</span> <span class="n">time</span></div>
+
+
+<div class="viewcode-block" id="nonRelFermi"><a class="viewcode-back" href="../../flashy.html#flashy.post.nonRelFermi">[docs]</a><span class="k">def</span> <span class="nf">nonRelFermi</span><span class="p">(</span><span class="n">dens</span><span class="p">,</span> <span class="n">ye</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Completely degenerate, non-relativistic Fermi energy.</span>
+<span class="sd">    E_f = (hbar^2/(2m_e))(3pi^(2/3))(N_a \rho Y_e)^(2/3)</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        dens(float): input density.</span>
+<span class="sd">        ye(float): electron fraction.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float)</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">par1</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mf">0.5</span><span class="o">*</span><span class="n">h</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span> <span class="mf">2.0</span><span class="p">)</span><span class="o">/</span><span class="n">m_e</span>
+    <span class="n">par2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mf">3.0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="mf">2.0</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">par3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">Avogadro</span><span class="o">*</span><span class="n">dens</span><span class="o">*</span><span class="n">ye</span><span class="p">,</span> <span class="mf">2.0</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">par1</span><span class="o">*</span><span class="n">par2</span><span class="o">*</span><span class="n">par3</span></div>
+
+
+<div class="viewcode-block" id="extRelFermi"><a class="viewcode-back" href="../../flashy.html#flashy.post.extRelFermi">[docs]</a><span class="k">def</span> <span class="nf">extRelFermi</span><span class="p">(</span><span class="n">dens</span><span class="p">,</span> <span class="n">ye</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Completely degenerate, extreme-relativistic Fermi energy.</span>
+<span class="sd">    E_f = hbar(3/8pi)^(1/3)(N_a \rho Y_e)^(1/3)</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        dens(float): input density.</span>
+<span class="sd">        ye(float): electron fraction.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float)</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">par1</span> <span class="o">=</span> <span class="n">h</span>
+    <span class="n">par2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mf">3.0</span><span class="o">/</span><span class="mf">8.0</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">,</span><span class="mf">1.0</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">par3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">Avogadro</span><span class="o">*</span><span class="n">dens</span><span class="o">*</span><span class="n">ye</span><span class="p">,</span> <span class="mf">1.0</span><span class="o">/</span><span class="mi">3</span><span class="p">)</span>
+    <span class="c1">#print(par1, par2, par3)</span>
+    <span class="k">return</span> <span class="n">par1</span><span class="o">*</span><span class="n">par2</span><span class="o">*</span><span class="n">par3</span></div>
+
+
+<div class="viewcode-block" id="isotherm"><a class="viewcode-back" href="../../flashy.html#flashy.post.isotherm">[docs]</a><span class="k">def</span> <span class="nf">isotherm</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">p0</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">v0</span><span class="o">=</span><span class="mf">0.02</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate isoterm pressure passing through (p0, v0)</span>
+<span class="sd">    at v.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        v(float): input specific volume.</span>
+<span class="sd">        p0(float): fixed pressure.</span>
+<span class="sd">        v0(float): fixed sp. volume.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float)</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">v0</span><span class="o">*</span><span class="n">p0</span><span class="o">/</span><span class="n">v</span></div>
+
+
+<div class="viewcode-block" id="adiabat"><a class="viewcode-back" href="../../flashy.html#flashy.post.adiabat">[docs]</a><span class="k">def</span> <span class="nf">adiabat</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">p0</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">v0</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mf">1.666</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;calculate adiabat pressure passing through (p0, v0)</span>
+<span class="sd">    at v, with gamma.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        v(float): input specific volume.</span>
+<span class="sd">        p0(float): fixed pressure.</span>
+<span class="sd">        v0(float): fixed specific volume.</span>
+<span class="sd">        gamma(float): fixed sp. heat ratio.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (float)</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">p0</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">v0</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span>
+    <span class="n">denom</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">gamma</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">num</span><span class="o">/</span><span class="n">denom</span></div>
+
+
+<div class="viewcode-block" id="rayleighSpeed"><a class="viewcode-back" href="../../flashy.html#flashy.post.rayleighSpeed">[docs]</a><span class="k">def</span> <span class="nf">rayleighSpeed</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">v1</span><span class="p">,</span> <span class="n">p2</span><span class="p">,</span> <span class="n">v2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns Rayleigh line speed for a pair of points&quot;&quot;&quot;</span>
+    <span class="n">nom</span> <span class="o">=</span> <span class="n">p2</span><span class="o">-</span><span class="n">p1</span>
+    <span class="n">denom</span> <span class="o">=</span> <span class="n">v1</span><span class="o">-</span><span class="n">v2</span>
+    <span class="k">if</span> <span class="n">denom</span> <span class="o">&lt;</span><span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;Negative specific volume difference: dP </span><span class="si">{:.2e}</span><span class="s1"> dnu </span><span class="si">{:.2e}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">nom</span><span class="p">,</span> <span class="n">denom</span><span class="p">))</span>
+        <span class="n">denom</span> <span class="o">=</span> <span class="mf">1.0</span>
+    <span class="k">return</span> <span class="n">v2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">nom</span><span class="o">/</span><span class="n">denom</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="shockhugoniot"><a class="viewcode-back" href="../../flashy.html#flashy.post.shockhugoniot">[docs]</a><span class="k">def</span> <span class="nf">shockhugoniot</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span> <span class="n">p1</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">v1</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">g1</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns the huigoniot adiabat pressure corresponding to a </span>
+<span class="sd">    given specific volume while passing through a set point (v1,p1).&quot;&quot;&quot;</span>
+    <span class="n">g1fac</span> <span class="o">=</span> <span class="n">g1</span><span class="o">*</span><span class="n">v1</span><span class="o">/</span><span class="p">(</span><span class="n">g1</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">g2fac</span> <span class="o">=</span> <span class="n">g2</span><span class="o">*</span><span class="n">v2</span><span class="o">/</span><span class="p">(</span><span class="n">g2</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">v1</span><span class="o">+</span><span class="n">v2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">p1</span><span class="o">*</span><span class="p">(</span><span class="n">g1fac</span><span class="o">-</span><span class="n">var</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">g2fac</span><span class="o">-</span><span class="n">var</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rayleigh"><a class="viewcode-back" href="../../flashy.html#flashy.post.rayleigh">[docs]</a><span class="k">def</span> <span class="nf">rayleigh</span><span class="p">(</span><span class="n">v2</span><span class="p">,</span> <span class="n">p1</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">v1</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="mf">1e5</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns the Rayleigh line pressure for a line crossing (v1,p1).&quot;&quot;&quot;</span>
+    <span class="n">sq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="n">speed</span><span class="o">/</span><span class="n">v1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">fac</span> <span class="o">=</span> <span class="n">sq</span><span class="o">*</span><span class="p">(</span><span class="n">v1</span><span class="o">-</span><span class="n">v2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">p1</span><span class="o">+</span> <span class="n">fac</span></div>
+
+
+<div class="viewcode-block" id="diff"><a class="viewcode-back" href="../../flashy.html#flashy.post.diff">[docs]</a><span class="k">def</span> <span class="nf">diff</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="mf">1e22</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span><span class="n">speed</span><span class="o">=</span><span class="mf">2.4e10</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;yields the difference between the hugoniot adiabat and a rayleigh line,</span>
+<span class="sd">    both passing through (v1, p1)&quot;&quot;&quot;</span>
+    <span class="n">hug</span> <span class="o">=</span> <span class="n">shockhugoniot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">p1</span><span class="o">=</span><span class="n">ph</span><span class="p">,</span> <span class="n">v1</span><span class="o">=</span><span class="n">vh</span><span class="p">,</span> <span class="n">g1</span><span class="o">=</span><span class="n">gh1</span><span class="p">,</span> <span class="n">g2</span><span class="o">=</span><span class="n">gh2</span><span class="p">)</span>
+    <span class="n">ray</span> <span class="o">=</span> <span class="n">rayleigh</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">p1</span><span class="o">=</span><span class="n">pr</span><span class="p">,</span> <span class="n">v1</span><span class="o">=</span><span class="n">vr</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="n">speed</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">abs</span><span class="p">(</span><span class="n">ray</span><span class="p">)</span><span class="o">-</span> <span class="nb">abs</span><span class="p">(</span><span class="n">hug</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="customFormatter"><a class="viewcode-back" href="../../flashy.html#flashy.post.customFormatter">[docs]</a><span class="k">def</span> <span class="nf">customFormatter</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span> <span class="n">prec</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;create a mpl formatter which factors labels by 10^factor </span>
+<span class="sd">    for clearer axes labels.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">fstr</span> <span class="o">=</span> <span class="s1">&#39;{:</span><span class="si">{width}</span><span class="s1">.</span><span class="si">{prec}</span><span class="s1">f}&#39;</span>
+    <span class="n">exp</span> <span class="o">=</span> <span class="mf">10.0</span><span class="o">**</span><span class="n">factor</span>
+    <span class="k">return</span> <span class="n">FuncFormatter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">pos</span><span class="p">:</span><span class="n">fstr</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">x</span><span class="o">/</span><span class="n">exp</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span> <span class="n">prec</span><span class="o">=</span><span class="n">prec</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="diffHRupper"><a class="viewcode-back" href="../../flashy.html#flashy.post.diffHRupper">[docs]</a><span class="k">def</span> <span class="nf">diffHRupper</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="mf">1e22</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">[</span><span class="mf">0.04</span><span class="p">,</span> <span class="mf">0.08</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;minimizes hugoniot adiabat - rayleigh line difference, starting near a strong detonation.</span>
+<span class="sd">    (starting from the &quot;top&quot;).&quot;&quot;&quot;</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">newton</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="n">ph</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="n">vh</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="n">gh1</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="n">gh2</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="n">pr</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="n">vr</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="n">sp</span><span class="p">),</span> <span class="n">x0</span><span class="o">=</span><span class="n">env</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-14</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">w</span></div>
+
+
+<div class="viewcode-block" id="diffHRlower"><a class="viewcode-back" href="../../flashy.html#flashy.post.diffHRlower">[docs]</a><span class="k">def</span> <span class="nf">diffHRlower</span><span class="p">(</span><span class="n">sp</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="mf">1e23</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="mf">1.6666</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="mf">1e22</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="p">[</span><span class="mf">0.04</span><span class="p">,</span> <span class="mf">0.08</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;minimizes hugoniot adiabat - rayleigh line difference, starting near a weak detonation.</span>
+<span class="sd">    (starting from the &quot;bottom&quot;).&quot;&quot;&quot;</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">newton</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ph</span><span class="o">=</span><span class="n">ph</span><span class="p">,</span> <span class="n">vh</span><span class="o">=</span><span class="n">vh</span><span class="p">,</span> <span class="n">gh1</span><span class="o">=</span><span class="n">gh1</span><span class="p">,</span> <span class="n">gh2</span><span class="o">=</span><span class="n">gh2</span><span class="p">,</span> <span class="n">pr</span><span class="o">=</span><span class="n">pr</span><span class="p">,</span> <span class="n">vr</span><span class="o">=</span><span class="n">vr</span><span class="p">,</span> <span class="n">speed</span><span class="o">=</span><span class="n">sp</span><span class="p">),</span> <span class="n">x0</span><span class="o">=</span><span class="n">env</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">tol</span><span class="o">=</span><span class="mf">1e-10</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">s</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Fernando Rivas.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.4.
+    </div>
+  </body>
+</html>

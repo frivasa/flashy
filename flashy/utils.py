@@ -213,7 +213,7 @@ def cart2sph(x, y, z):
 
 
 def percentDiff(x1, y1, x2, y2):
-    """returns the percentage difference between two abscissas 
+    """returns the percentage difference between two ordinates 
     subject to the x range of the first via interpolation.
     
     Args:
@@ -227,13 +227,23 @@ def percentDiff(x1, y1, x2, y2):
     
     """
     jake = np.interp(x1, x2, y2)
-    diffs = np.array([j/y1-1.0 for (y1, j) in zip(y1, jake)])
-    return 100*diffs
+    diffs = np.array([abs(j)/abs(y1)-1.0 for (y1, j) in zip(y1, jake)])
+    return 100*np.nan_to_num(diffs)
 
 
 def getUnit(bulkname):
     """simple cgs unit dictionary for bulk properties."""
-    return {'temperature':'$K$', 'pressure':'$\\frac{dyne}{cm^2}$'}[bulkname.lower()]
+    units = {
+        'temperature':'$K$', 
+        'pressure':'$\\frac{dyne}{cm^2}$',
+        'enuc':'$\\frac{erg}{cm^3t}$',
+        'eint':'$\\frac{erg}{cm^3}$'
+    }
+    try:
+        tag = units[bulkname.lower()]
+    except KeyError:
+        tag = '-'
+    return tag
 
 
 def x2clog(x, cmin=1e-5, cmax=1.0):

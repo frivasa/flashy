@@ -1,0 +1,571 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>flashy.datahaul package &#8212; flashy 0.0.4 documentation</title>
+    <link rel="stylesheet" href="_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="flashy.plot package" href="flashy.plot.html" />
+    <link rel="prev" title="flashy package" href="flashy.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="flashy.plot.html" title="flashy.plot package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="flashy.html" title="flashy package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="flashy.html" accesskey="U">flashy package</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="flashy-datahaul-package">
+<h1>flashy.datahaul package<a class="headerlink" href="#flashy-datahaul-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-flashy.datahaul.hdf5yt">
+<span id="flashy-datahaul-hdf5yt-module"></span><h2>flashy.datahaul.hdf5yt module<a class="headerlink" href="#module-flashy.datahaul.hdf5yt" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getExtrema">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>fname, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#getExtrema"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.getExtrema" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns a list of tuples with extrema for given fields(flist).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fname</strong> (<em>str</em>) – filename to probe.</li>
+<li><strong>flist</strong> (<em>list of str</em>) – fields to query.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">list of paired extrema [min max] for each field queried.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(list of np.arrays)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getFields">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getFields</code><span class="sig-paren">(</span><em>flist</em>, <em>srcnames=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#getFields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.getFields" title="Permalink to this definition">¶</a></dt>
+<dd><p>filters flash checkpoint field list, extracting species found
+in the checkpoint (including named exceptions, see source).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>flist</strong> (<em>tuple list</em>) – ds.derived_field_list from yt.</li>
+<li><strong>srcnames</strong> (<em>bool</em>) – return original names for species (n, d, t).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">field names in checkpoint.
+species (list of str): nuclide codes as in checkpoint.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">fields (list of str)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getLineout">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getLineout</code><span class="sig-paren">(</span><em>fname, fields=['density', 'temperature', 'pressure'], species=True, radius=500000000000.0, geom='cartesian', direction=[], srcnames=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#getLineout"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.getLineout" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a np.array with radius, dens, temp, pres and species specified.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fname</strong> (<em>str</em>) – filename to extract data from.</li>
+<li><strong>species</strong> (<em>bool</em>) – toggle nuclide data.</li>
+<li><strong>radius</strong> (<em>float</em>) – reach of lineout.</li>
+<li><strong>geom</strong> (<em>str</em>) – geometry ([‘cartesian’], ‘spherical’).</li>
+<li><strong>direction</strong> (<em>list of float</em>) – angles of lineout.
+takes x/(x,z) as normals for 2D/3D.
+also sets dimensionality.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">matrix with fields as columns.
+species (list of str): names of species in the checkpoint.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">dblock (numpy array)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getMeta">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getMeta</code><span class="sig-paren">(</span><em>fname</em>, <em>print_stats=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#getMeta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.getMeta" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns metadata from checkpoint and yt-dereived fields.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>fname</strong> (<em>str</em>) – filename to check.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">simtime of checkpoint.
+(dict): flash.par dictionary.
+(list of str): fields in checkpoint.
+(list of str): species in checkpoint.
+(list of str): fullpath, filename of checkpoint.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(float)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getYields">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getYields</code><span class="sig-paren">(</span><em>fname</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#getYields"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.getYields" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns time, summed masses and species in a flash otp file.
+all units are msun or cgs.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>fname</strong> (<em>str</em>) – filename to inspect.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">time (float) [s],
+species names: (list of str),
+masses: (float list) [msun]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.wedge2d">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">wedge2d</code><span class="sig-paren">(</span><em>fname</em>, <em>elevation</em>, <em>depth</em>, <em>fields=[]</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#wedge2d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.wedge2d" title="Permalink to this definition">¶</a></dt>
+<dd><p>cut a wedge in a 2d rectangular domain to perform velocity
+vs mass fraction measurements.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fname</strong> (<em>str</em>) – file name</li>
+<li><strong>elevation</strong> (<em>float</em>) – equator-north pole wedge angle.</li>
+<li><strong>depth</strong> (<em>float</em>) – equator-south pole wedge angle.</li>
+<li><strong>fields</strong> (<em>str list</em>) – override default fields.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">raw data, [species list].</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(tuple of np.arrays)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.wedge3d">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">wedge3d</code><span class="sig-paren">(</span><em>chkp</em>, <em>elevation</em>, <em>depth</em>, <em>reference='x'</em>, <em>fields=[]</em>, <em>antipode=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/hdf5yt.html#wedge3d"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.hdf5yt.wedge3d" title="Permalink to this definition">¶</a></dt>
+<dd><p>cut a wedge in a 3d rectangular domain to perform velocity
+vs mass fraction measurements.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>fname</strong> (<em>str</em>) – file name</li>
+<li><strong>elevation</strong> (<em>float</em>) – equator-north pole wedge angle.</li>
+<li><strong>depth</strong> (<em>float</em>) – equator-south pole wedge angle.</li>
+<li><strong>reference</strong> (<em>str</em>) – equinox reference for the equator.</li>
+<li><strong>fields</strong> (<em>str list</em>) – override default fields.</li>
+<li><strong>antipode</strong> (<em>bool</em>) – invert selection, antipodal wedge.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">raw data sorted by field.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(tuple of np.arrays)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul.helmholtz">
+<span id="flashy-datahaul-helmholtz-module"></span><h2>flashy.datahaul.helmholtz module<a class="headerlink" href="#module-flashy.datahaul.helmholtz" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.adiabat">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">adiabat</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em>, <em>q</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#adiabat"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.adiabat" title="Permalink to this definition">¶</a></dt>
+<dd><p>Hack-feeding data to helmholtz:
+fuel/ash = [[pressure, eint], [rho], [temp], [abar], [zbar]]</p>
+<p>fits a temperature to a hugoniot curve</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.buildHelmTrojan">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">buildHelmTrojan</code><span class="sig-paren">(</span><em>fname</em>, <em>offset=1</em>, <em>geom='spherical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#buildHelmTrojan"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.buildHelmTrojan" title="Permalink to this definition">¶</a></dt>
+<dd><p>Frankensteinian bridge between flash checkpoints and
+J.Schwab’s Helmholtz python module.
+Joined inward/outward and spewing cj data to avoid
+calling yt more than once.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fname</strong> (<em>str</em>) – filename.</li>
+<li><strong>offset</strong> (<em>int</em>) – zone offset from shock.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.cj_cond">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">cj_cond</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#cj_cond"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.cj_cond" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculate Cj velocity from Helmholtz Eos calculation
+fits density for a set temperature</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>fuel</strong> (<em>trojan</em>) – [[pressure, eint], [rho], [temp], [abar], [zbar]]</li>
+<li><strong>ash</strong> (<em>trojan</em>) – [[pressure, eint], [rho], [temp], [abar], [zbar]]</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.getExtHelmCJ">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getExtHelmCJ</code><span class="sig-paren">(</span><em>fname</em>, <em>geom='spherical'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#getExtHelmCJ"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.getExtHelmCJ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.getPres">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getPres</code><span class="sig-paren">(</span><em>rhos</em>, <em>temps</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#getPres"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.getPres" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.getTemps">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getTemps</code><span class="sig-paren">(</span><em>rhos</em>, <em>pres</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#getTemps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.getTemps" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.wrapVector">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">wrapVector</code><span class="sig-paren">(</span><em>rho</em>, <em>var</em>, <em>xmass</em>, <em>species</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/helmholtz.html#wrapVector"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.helmholtz.wrapVector" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wrapper for J.Schwab’s Helmholtz python module, which is
+itself also one for Timmes’ Helmholtz EoS.
+Checks rho for length and comparison so that it can be
+used for single points.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>rho</strong> (<em>float</em>) – query density.</li>
+<li><strong>var</strong> (<em>float</em>) – auxilliary thermodynamic variable (T, P, S or E(int)).</li>
+<li><strong>xmass</strong> (<em>float</em>) – query mass fractions.</li>
+<li><strong>species</strong> (<em>str</em>) – query nuclide list.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">[[rho/s], [var/s], [abar/s], [zbar/s]]</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(trojan)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul.plainText">
+<span id="flashy-datahaul-plaintext-module"></span><h2>flashy.datahaul.plainText module<a class="headerlink" href="#module-flashy.datahaul.plainText" title="Permalink to this headline">¶</a></h2>
+<p>module for handling plain text 1D profiles sorted in columns and with structure:
+# col names
+length of data(rows int)
+&lt;data block&gt;
+# comments or anything</p>
+<dl class="function">
+<dt id="flashy.datahaul.plainText.chopFile">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">chopFile</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#chopFile"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.chopFile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns header names and a data matrix from a file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>filename</strong> (<em>str</em>) – file path.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">lowercase header names.
+(np.array): data matrix of shape (coords, properties)</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">(list)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="flashy.datahaul.plainText.dataMatrix">
+<em class="property">class </em><code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">dataMatrix</code><span class="sig-paren">(</span><em>filename</em>, <em>comment=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#dataMatrix"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>object for interacting with columned data in a plain text file.
+format for file is strict at the start since it uses np.genfromtxt to handle
+the data block. after row 3 any comment is allowed (# marked).
+Essential columns: radius and density.
+Anything with a number becomes a species.</p>
+<p># col names
+length of data(rows int)
+&lt;data block&gt;
+# comments or anything</p>
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.checkbulkprops">
+<code class="descname">checkbulkprops</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#dataMatrix.checkbulkprops"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.checkbulkprops" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.classn">
+<code class="descname">classn</code><em class="property"> = ['species', 'data', 'filekeys', 'bulkprops', 'meta']</em><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.classn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.dnames">
+<code class="descname">dnames</code><em class="property"> = ['density', 'rho', 'dens']</em><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.dnames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.mnames">
+<code class="descname">mnames</code><em class="property"> = ['masses', 'm', 'mass']</em><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.mnames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.pnames">
+<code class="descname">pnames</code><em class="property"> = ['pressure', 'pres']</em><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.pnames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.printMeta">
+<code class="descname">printMeta</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#dataMatrix.printMeta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.printMeta" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.rnames">
+<code class="descname">rnames</code><em class="property"> = ['radius', 'r', 'rad']</em><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.rnames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.setMeta">
+<code class="descname">setMeta</code><span class="sig-paren">(</span><em>comment=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#dataMatrix.setMeta"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.setMeta" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.tnames">
+<code class="descname">tnames</code><em class="property"> = ['temperature', 'temp']</em><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.tnames" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.writeProf">
+<code class="descname">writeProf</code><span class="sig-paren">(</span><em>output</em>, <em>subset=[]</em>, <em>autotag=False</em>, <em>Xthresh=1e-15</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#dataMatrix.writeProf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.dataMatrix.writeProf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write profile to file
+bug: ndarray ninja breaks formatting (np.array([float]))</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ouput</strong> (<em>str</em>) – otp filename.</li>
+<li><strong>subset</strong> (<em>list</em>) – write a subset of keys to file.</li>
+<li><strong>autotag</strong> (<em>bool</em>) – setup name based on the profile (WDs)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.multiIndex">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">multiIndex</code><span class="sig-paren">(</span><em>names</em>, <em>keys</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#multiIndex"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.multiIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>returns the index of a key with multiple probable names in a
+list. (assumes such key only happens once)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.snipProf">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">snipProf</code><span class="sig-paren">(</span><em>orig</em>, <em>cut</em>, <em>byM=False</em>, <em>left=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#snipProf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.snipProf" title="Permalink to this definition">¶</a></dt>
+<dd><p>cuts a profile, returning a new profile obj.
+conv: center is 0, edge is -1.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>orig</strong> (<a class="reference internal" href="source/flashy.datahaul.html#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – dMatrix object to cut.</li>
+<li><strong>cut</strong> (<em>float</em>) – cut coordinate.</li>
+<li><strong>byM</strong> (<em>bool</em>) – specify cut is by mass coordinate.</li>
+<li><strong>left</strong> (<em>bool</em>) – return data at the left/right of the cut.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">new dMatrix object.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(<a class="reference internal" href="source/flashy.datahaul.html#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix">dataMatrix</a>)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.spliceProfs">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">spliceProfs</code><span class="sig-paren">(</span><em>left</em>, <em>right</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/datahaul/plainText.html#spliceProfs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#flashy.datahaul.plainText.spliceProfs" title="Permalink to this definition">¶</a></dt>
+<dd><p>joins profiles at ends, ‘right’ takes precedence on overlap.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>left</strong> (<a class="reference internal" href="source/flashy.datahaul.html#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – innermost profile.</li>
+<li><strong>right</strong> (<a class="reference internal" href="source/flashy.datahaul.html#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – outermost profile.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">spliced profile.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last">(<a class="reference internal" href="source/flashy.datahaul.html#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix">dataMatrix</a>)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-flashy.datahaul" title="Permalink to this headline">¶</a></h2>
+<p>Main data extracting module.
+This should be the only module that imports yt, so that it can be replaced by any checkpoint/mesh reader.
+Data/tag packing will be monstruous for now, to fit better with higher plotting functions.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">flashy.datahaul package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-flashy.datahaul.hdf5yt">flashy.datahaul.hdf5yt module</a></li>
+<li><a class="reference internal" href="#module-flashy.datahaul.helmholtz">flashy.datahaul.helmholtz module</a></li>
+<li><a class="reference internal" href="#module-flashy.datahaul.plainText">flashy.datahaul.plainText module</a></li>
+<li><a class="reference internal" href="#module-flashy.datahaul">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="flashy.html"
+                        title="previous chapter">flashy package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="flashy.plot.html"
+                        title="next chapter">flashy.plot package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/flashy.datahaul.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="flashy.plot.html" title="flashy.plot package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="flashy.html" title="flashy package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="flashy.html" >flashy package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Fernando Rivas.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.4.
+    </div>
+  </body>
+</html>

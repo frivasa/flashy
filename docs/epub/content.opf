@@ -12,8 +12,8 @@
     <dc:publisher>unknown</dc:publisher>
     <dc:rights>2018, Fernando Rivas</dc:rights>
     <dc:identifier id="unknown">unknown</dc:identifier>
-    <dc:date>2018-06-06T03:56:23Z</dc:date>
-    <meta property="dcterms:modified">2018-06-06T03:56:23Z</meta>
+    <dc:date>2018-10-18T19:52:44Z</dc:date>
+    <meta property="dcterms:modified">2018-10-18T19:52:44Z</meta>
     <meta property="ibooks:version"></meta>
     <meta property="ibooks:specified-fonts">true</meta>
     <meta property="ibooks:binding">true</meta>
@@ -62,6 +62,11 @@
     <item id="epub-37" href="_static/pygments.css" media-type="text/css" />
     <item id="epub-38" href="_static/up-pressed.png" media-type="image/png" />
     <item id="epub-39" href="_static/up.png" media-type="image/png" />
+    <item id="epub-40" href="source/flashy.datahaul.xhtml" media-type="application/xhtml+xml" />
+    <item id="epub-41" href="source/flashy.plot.xhtml" media-type="application/xhtml+xml" />
+    <item id="epub-42" href="source/flashy.wdprofiles.xhtml" media-type="application/xhtml+xml" />
+    <item id="epub-43" href="source/flashy.xhtml" media-type="application/xhtml+xml" />
+    <item id="epub-44" href="source/modules.xhtml" media-type="application/xhtml+xml" />
   </manifest>
   <spine toc="ncx" page-progression-direction="ltr">
     <itemref idref="epub-5" />
@@ -88,6 +93,11 @@
     <itemref idref="epub-21" linear="no" />
     <itemref idref="epub-22" linear="no" />
     <itemref idref="epub-23" linear="no" />
+    <itemref idref="epub-40" linear="no" />
+    <itemref idref="epub-41" linear="no" />
+    <itemref idref="epub-42" linear="no" />
+    <itemref idref="epub-43" linear="no" />
+    <itemref idref="epub-44" linear="no" />
   </spine>
   <guide>
     <reference type="toc" title="Table of Contents" href="index.xhtml" />

@@ -18,11 +18,11 @@
 
 <span class="sd">TDL: apply min dens criteria.</span>
 <span class="sd">&quot;&quot;&quot;</span>
-<span class="kn">from</span> <span class="nn">flashy.utils</span> <span class="k">import</span> <span class="n">msol</span><span class="p">,</span> <span class="n">rsol</span><span class="p">,</span> <span class="n">G</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">m_e</span><span class="p">,</span> <span class="n">Avogadro</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">kb</span>
-<span class="kn">from</span> <span class="nn">flashy.nuclear</span> <span class="k">import</span> <span class="n">convXmass2Abun</span>
-<span class="kn">from</span> <span class="nn">flashy.datahaul.plainText</span> <span class="k">import</span> <span class="n">dataMatrix</span>
-<span class="kn">from</span> <span class="nn">flashy.datahaul.helmholtz</span> <span class="k">import</span> <span class="n">getTemps</span>
-<span class="kn">from</span> <span class="nn">flashy.post</span> <span class="k">import</span> <span class="n">nonRelFermi</span>
+<span class="kn">from</span> <span class="nn">..utils</span> <span class="k">import</span> <span class="n">msol</span><span class="p">,</span> <span class="n">rsol</span><span class="p">,</span> <span class="n">G</span><span class="p">,</span> <span class="n">c</span><span class="p">,</span> <span class="n">h</span><span class="p">,</span> <span class="n">m_e</span><span class="p">,</span> <span class="n">Avogadro</span><span class="p">,</span> <span class="n">np</span><span class="p">,</span> <span class="n">kb</span>
+<span class="kn">from</span> <span class="nn">..nuclear</span> <span class="k">import</span> <span class="n">convXmass2Abun</span>
+<span class="kn">from</span> <span class="nn">..datahaul.plainText</span> <span class="k">import</span> <span class="n">dataMatrix</span>
+<span class="kn">from</span> <span class="nn">..datahaul.helmholtz</span> <span class="k">import</span> <span class="n">getTemps</span>
+<span class="kn">from</span> <span class="nn">..post</span> <span class="k">import</span> <span class="n">nonRelFermi</span>
 <span class="c1"># Giant Hammer</span>
 <span class="kn">from</span> <span class="nn">scipy.integrate</span> <span class="k">import</span> <span class="n">solve_ivp</span>
 <span class="c1"># Tools for micromanagement</span>
@@ -30,16 +30,20 @@
 <span class="c1"># mercury = RK45(derv, rads[0], [ms[0], ps[0]], rads[2], max_step=100)</span>
 
 
-<div class="viewcode-block" id="buildFermiHelmhotz"><a class="viewcode-back" href="../../../flashy.wdprofiles.xhtml#flashy.wdprofiles.coldFermi.buildFermiHelmhotz">[docs]</a><span class="k">def</span> <span class="nf">buildFermiHelmhotz</span><span class="p">(</span><span class="n">denc</span><span class="p">,</span> <span class="n">xmass</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">pdens</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<div class="viewcode-block" id="buildFermiHelmhotz"><a class="viewcode-back" href="../../../flashy.wdprofiles.xhtml#flashy.wdprofiles.coldFermi.buildFermiHelmhotz">[docs]</a><span class="k">def</span> <span class="nf">buildFermiHelmhotz</span><span class="p">(</span><span class="n">denc</span><span class="p">,</span> <span class="n">xmass</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">pdens</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">hack</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;Solves an IVP for a completely degenerate Fermi gas under hydrostatic equilibrium,</span>
 <span class="sd">    then uses a Helmholtz EoS to assign a temperature value to the profile (this is somewhat</span>
 <span class="sd">    wrong but better than guessing or putting an average).</span>
+<span class="sd">    WARN: for high densities (over 1e8), helmholtz temp breaks </span>
+<span class="sd">    (reaches minimum 1e4 K and &#39;bounces&#39;).</span>
+<span class="sd">    WARN: pdens maxes around 600 points, beyond that the helmholtz package breaks.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        denc(float): initial central density.</span>
 <span class="sd">        xmass(float list): mass fractions for the used species.</span>
 <span class="sd">        species(str list): nuclide code for each species.</span>
 <span class="sd">        pdens(int): force a set number of points in the output (WARNING: runs ivp twice).</span>
+<span class="sd">        hack(bool): avoid helmholtz temperature and return a &#39;weighted&#39; fermi temperature.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        (dataMatrix): tabbable profile object.</span>
@@ -49,7 +53,10 @@
     <span class="n">ye</span> <span class="o">=</span> <span class="n">zbar</span><span class="o">/</span><span class="n">abar</span>
     <span class="n">r</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">p</span> <span class="o">=</span> <span class="n">buildFermiProfile</span><span class="p">(</span><span class="n">denc</span><span class="p">,</span> <span class="n">ye</span><span class="o">=</span><span class="n">ye</span><span class="p">,</span> <span class="n">pdens</span><span class="o">=</span><span class="n">pdens</span><span class="p">)</span>
     <span class="n">tH</span> <span class="o">=</span> <span class="n">getTemps</span><span class="p">([</span><span class="n">d</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">]],</span> <span class="p">[</span><span class="n">xmass</span><span class="p">],</span> <span class="n">species</span><span class="p">)</span>
-    <span class="n">t</span> <span class="o">=</span> <span class="p">[</span><span class="n">nonRelFermi</span><span class="p">(</span><span class="n">de</span><span class="p">)</span><span class="o">/</span><span class="n">kb</span><span class="o">/</span><span class="n">tH</span> <span class="k">for</span> <span class="n">de</span> <span class="ow">in</span> <span class="n">d</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">hack</span><span class="p">:</span> 
+        <span class="n">t</span> <span class="o">=</span> <span class="p">[</span><span class="n">nonRelFermi</span><span class="p">(</span><span class="n">de</span><span class="p">)</span><span class="o">/</span><span class="n">kb</span><span class="o">/</span><span class="n">tH</span> <span class="k">for</span> <span class="n">de</span> <span class="ow">in</span> <span class="n">d</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">getTemps</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span><span class="o">*</span><span class="p">[</span><span class="n">xmass</span><span class="p">],</span> <span class="n">species</span><span class="p">)</span>
     <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="s1">&#39;dens&#39;</span><span class="p">,</span> <span class="s1">&#39;pres&#39;</span><span class="p">,</span> <span class="s1">&#39;temp&#39;</span><span class="p">]</span>
     <span class="n">datablock</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">r</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="n">t</span><span class="p">])</span>
     <span class="n">mult</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>

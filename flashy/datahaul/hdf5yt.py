@@ -46,7 +46,8 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=Tru
     _, sps = getFields(ds.field_list)
     if species:
         for s in sps:
-            dblock = np.vstack((dblock, ray[s][rs].value))
+            # force ('flash', s) to ensure it retireves the checkpoint data instead of a yt variable.
+            dblock = np.vstack((dblock, ray[('flash', "{}".format(s))][rs].value))
     _, sps = getFields(ds.field_list, srcnames=srcnames)
     return dblock, sps
 
@@ -65,8 +66,8 @@ def getFields(flist, srcnames=True):
     
     """
     fields, species = [], []
-    exceptions = ['n', 'd', 't' ]
-    parsedvals = ['n1', 'd2', 't3']
+    exceptions = ['n', 'p', 'd', 't' ]
+    parsedvals = ['n1', 'p1', 'd2', 't3']
     for (t, field) in flist:
         if any(char.isdigit() for char in field):
             species.append(field)
@@ -84,7 +85,7 @@ def getFields(flist, srcnames=True):
 
 
 def getMeta(fname, print_stats=False):
-    """returns metadata from checkpoint
+    """returns metadata from checkpoint and yt-dereived fields.
     
     Args:
         fname(str): filename to check.

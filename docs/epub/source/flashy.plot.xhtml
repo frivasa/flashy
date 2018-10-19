@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>flashy.plot package</title>
+    <link rel="stylesheet" href="../_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="flashy-plot-package">
+<h1>flashy.plot package</h1>
+<div class="section" id="submodules">
+<h2>Submodules</h2>
+</div>
+<div class="section" id="module-flashy.plot.globals">
+<span id="flashy-plot-globals-module"></span><h2>flashy.plot.globals module</h2>
+<dl class="function">
+<dt id="flashy.plot.globals.customFormatter">
+<code class="descclassname">flashy.plot.globals.</code><code class="descname">customFormatter</code><span class="sig-paren">(</span><em>factor</em>, <em>prec=1</em>, <em>width=2</em><span class="sig-paren">)</span></dt>
+<dd><p>create a mpl formatter whith specialized format
+for plotting labels:
+width(prec) x 10^factor.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.plot.higherDim">
+<span id="flashy-plot-higherdim-module"></span><h2>flashy.plot.higherDim module</h2>
+<dl class="function">
+<dt id="flashy.plot.higherDim.bifold">
+<code class="descclassname">flashy.plot.higherDim.</code><code class="descname">bifold</code><span class="sig-paren">(</span><em>fname, mhead=True, topfield='density', tlims=[0.1, 40000000.0], width=1100000000.0, botfield='temperature', blims=[30000000.0, 2000000000.0], lintop=False, batch=False, linbot=False, name=''</em><span class="sig-paren">)</span></dt>
+<dd><p>Plots 2 properties for a hemisphere 2d cut as a joined sphere.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.higherDim.flashSpeeds">
+<code class="descclassname">flashy.plot.higherDim.</code><code class="descname">flashSpeeds</code><span class="sig-paren">(</span><em>fname</em>, <em>thresh=1e-06</em>, <em>filetag='speeds'</em>, <em>batch=False</em>, <em>byM=True</em>, <em>direction=[]</em>, <em>plotall=False</em><span class="sig-paren">)</span></dt>
+<dd><p>Plot species distribution in ‘speed’ space for a set wedge in the domain.
+ATM the wedge is fixed at a polar angle of 0-45 degrees at 90 degrees azimuth.
+TDL: variable wedge angle.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – path of file.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – threshold for species fraction.</p></li>
+<li><p><strong>filetag</strong> (<em>str</em>) – prefix for batch mode.</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – skips returning figure, saving it to a structured directory instead.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – plot by mass instead of radius.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl figure) or (None)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.higherDim.get_frb">
+<code class="descclassname">flashy.plot.higherDim.</code><code class="descname">get_frb</code><span class="sig-paren">(</span><em>fname</em>, <em>field</em>, <em>zcut=0.0</em>, <em>width=3000000000.0</em>, <em>turn=False</em><span class="sig-paren">)</span></dt>
+<dd><p>TODO: swtich to new method, this one is dead
+returns frb with required field.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.higherDim.mainProps">
+<code class="descclassname">flashy.plot.higherDim.</code><code class="descname">mainProps</code><span class="sig-paren">(</span><em>fname, mhead=True, grids=False, batch=False, frame=1000000000.0, fields=['density', 'pressure', 'temperature'], linear=False, mins=[1.0, 1e+18, 10000000.0], maxs=[60000000.0, 3e+25, 8000000000.0]</em><span class="sig-paren">)</span></dt>
+<dd><p>Plots the list of fields specified in yt.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – filename to plot.</p></li>
+<li><p><strong>mhead</strong> (<em>bool</em>) – mark the position of the matchhead.</p></li>
+<li><p><strong>grids</strong> (<em>bool</em>) – overplot the grid structure.</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – if true save figure to file instead of returning it.</p></li>
+<li><p><strong>fields</strong> (<em>list of str</em>) – list of named fields to plot.</p></li>
+<li><p><strong>linear</strong> (<em>bool</em>) – set linear or log scale(false).</p></li>
+<li><p><strong>mins</strong> (<em>list of float</em>) – minima of scale for each field.</p></li>
+<li><p><strong>maxs</strong> (<em>list of float</em>) – maxima of scale for each field.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.higherDim.planeSlice">
+<code class="descclassname">flashy.plot.higherDim.</code><code class="descname">planeSlice</code><span class="sig-paren">(</span><em>fname</em>, <em>field</em>, <em>lims</em>, <em>zcut=0.0</em>, <em>linear=False</em>, <em>batch=False</em>, <em>width=1100000000.0</em>, <em>point=[]</em><span class="sig-paren">)</span></dt>
+<dd><p>Makes a slice at zcut</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – filename to extract data from.</p></li>
+<li><p><strong>field</strong> (<em>str</em>) – field to plot.</p></li>
+<li><p><strong>lims</strong> (<em>float list</em>) – field range.</p></li>
+<li><p><strong>zcut</strong> (<em>float</em>) – 3rd dimension cut depth.</p></li>
+<li><p><strong>linear</strong> (<em>bool</em>) – logscale toggle.</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – toggle return figure or write to file.</p></li>
+<li><p><strong>width</strong> (<em>float</em>) – total side size of plot</p></li>
+<li><p><strong>point</strong> (<em>float list</em>) – specify a position to mark in the plot.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>mpl.figure or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.higherDim.plotFRB">
+<code class="descclassname">flashy.plot.higherDim.</code><code class="descname">plotFRB</code><span class="sig-paren">(</span><em>gridAx</em>, <em>cbgAx</em>, <em>imArr</em>, <em>lims</em>, <em>top=True</em>, <em>linear=False</em><span class="sig-paren">)</span></dt>
+<dd><p>draw frb to a given axesgrid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gridAx</strong> (<em>mpl.axes</em>) – axes to plot into.</p></li>
+<li><p><strong>cbgAx</strong> (<em>mpl.cbar</em>) – colorbar to set.</p></li>
+<li><p><strong>imArr</strong> (<em>np.array</em>) – data to plot.</p></li>
+<li><p><strong>lims</strong> (<em>float list</em>) – colorbar range.</p></li>
+<li><p><strong>top</strong> (<em>bool</em>) – tick removal for bifold plots.</p></li>
+<li><p><strong>linear</strong> (<em>bool</em>) – logscale toggle.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>mpl.axes, mpl.cbar</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.plot.nucplot">
+<span id="flashy-plot-nucplot-module"></span><h2>flashy.plot.nucplot module</h2>
+<dl class="function">
+<dt id="flashy.plot.nucplot.doYouBelieveInMagic">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">doYouBelieveInMagic</code><span class="sig-paren">(</span><em>ax</em>, <em>color='brown'</em><span class="sig-paren">)</span></dt>
+<dd><p>Draws a magical grid of stability (?)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.getNuclideGridNames">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">getNuclideGridNames</code><span class="sig-paren">(</span><em>names</em>, <em>zs</em>, <em>ns</em><span class="sig-paren">)</span></dt>
+<dd><p>Retuns tags and positions for a nuclide grid.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.nuclideYields">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">nuclideYields</code><span class="sig-paren">(</span><em>files</em>, <em>tags</em><span class="sig-paren">)</span></dt>
+<dd><p>plot mass fractions for each nuclide in a yield file.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.plotAbun">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">plotAbun</code><span class="sig-paren">(</span><em>ax</em>, <em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em>, <em>label='W7'</em>, <em>color='black'</em>, <em>tagspecies=False</em><span class="sig-paren">)</span></dt>
+<dd><p>draws abundances vs atomic number, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.plotIsoMasses">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">plotIsoMasses</code><span class="sig-paren">(</span><em>ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], notag=False</em><span class="sig-paren">)</span></dt>
+<dd><p>draws isotopic masses vs atomic mass, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.plotNuclideGrid">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">plotNuclideGrid</code><span class="sig-paren">(</span><em>ax, species, xmass=[], z_range=[-0.5, 35], n_range=[-0.5, 38], boxsize=1.0, cmmin=1e-05, cmmax=1.0, cmap='Blues', log=False, addtags=True, invert=False</em><span class="sig-paren">)</span></dt>
+<dd><p>plots a list of species on a grid.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.plotPfac">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">plotPfac</code><span class="sig-paren">(</span><em>ax</em>, <em>querym</em>, <em>refname='/lustre/atlas/proj-shared/csc198/frivas/02.flashy/flashy/../data/suncomp/AGSS09.comp'</em>, <em>label='Sun vs Ref'</em>, <em>norm='Si'</em>, <em>offset=6</em>, <em>reftype='solar'</em>, <em>tagspecies=False</em><span class="sig-paren">)</span></dt>
+<dd><p>draws abundquery/abundref from a massdict and a filename,
+types of reference are ‘solar’(for solar composition) and ‘yield’ (for other sims)
+returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.plotReacNet">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">plotReacNet</code><span class="sig-paren">(</span><em>ax</em>, <em>sunet</em>, <em>matr_shape</em>, <em>forcedZ=0</em>, <em>step=6</em>, <em>xoffset=1</em>, <em>cmap='Blues'</em><span class="sig-paren">)</span></dt>
+<dd><p>plots a reaction network based on default files at cdx/Network/netname</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.productionFactor">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">productionFactor</code><span class="sig-paren">(</span><em>yieldfiles</em>, <em>tag='Sim vs X'</em>, <em>norm='Si'</em>, <em>offset=6</em><span class="sig-paren">)</span></dt>
+<dd><p>plots profuction factors for comparable species in a pair of yields, or vs solar compositon
+for a single file.
+yieldfiles = [input, reference]</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.speciesGrid">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">speciesGrid</code><span class="sig-paren">(</span><em>ax</em>, <em>spcodes</em>, <em>yoffset=5.0</em><span class="sig-paren">)</span></dt>
+<dd><p>draws a grid of the specified species on target ax.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.nucplot.speciesYields">
+<code class="descclassname">flashy.plot.nucplot.</code><code class="descname">speciesYields</code><span class="sig-paren">(</span><em>yieldfiles</em>, <em>tags=[]</em>, <em>norm='Si'</em>, <em>offset=6</em><span class="sig-paren">)</span></dt>
+<dd><p>plots abundances for a list of files or a single file vs solar composition.</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.plot.oneDim">
+<span id="flashy-plot-onedim-module"></span><h2>flashy.plot.oneDim module</h2>
+<dl class="function">
+<dt id="flashy.plot.oneDim.PARsimProfile">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">PARsimProfile</code><span class="sig-paren">(</span><em>fname, simfolder='', thresh=0.0001, xrange=[0.0, 0.0], filetag='metaprof', batch=False, byM=False, direction=[], meta=False</em><span class="sig-paren">)</span></dt>
+<dd><p>bloated method for IPP.
+WARN: slowest pos will not match for non x-axis directions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – path to checkpoint file.</p></li>
+<li><p><strong>simfolder</strong> (<em>str</em>) – simulation run metadata folder.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – species threshold.</p></li>
+<li><p><strong>xrange</strong> (<em>float list</em>) – abscissa range for all plots.</p></li>
+<li><p><strong>filetag</strong> (<em>str</em>) – prefix for output files (if any).</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – write file instead of returning figure.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – plot by mass coordinate instead of radius.</p></li>
+<li><p><strong>direction</strong> (<em>str list</em>) – polar angle and azimuth of profile ray.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl figure) or (None)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.fetchData">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">fetchData</code><span class="sig-paren">(</span><em>fname</em>, <em>direction</em>, <em>fields=[]</em><span class="sig-paren">)</span></dt>
+<dd><p>builds a profile dataMatrix and retrieves metadata from a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – filename.</p></li>
+<li><p><strong>direction</strong> (<em>float list</em>) – spherical angles for lineout (polar angle and azimuth).</p></li>
+<li><p><strong>fields</strong> (<em>str list</em>) – specify field to extract (optional).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>timestamp for the file.
+(dict): parameter dictionary for the checkpoint.
+(str list): filesystem paths for the file.
+(dataMatrix): block of data for plotting.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.flashDegeneracy">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">flashDegeneracy</code><span class="sig-paren">(</span><em>fname, thresh=1e-06, filetag='deg', batch=False, byM=True, direction=[], xrange=[0.0, 0.0]</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.flashProfile">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">flashProfile</code><span class="sig-paren">(</span><em>fname, thresh=1e-06, xrange=[0.0, 0.0], yrange=[0.0, 0.0], filetag='prof', batch=False, byM=True, direction=[]</em><span class="sig-paren">)</span></dt>
+<dd><p>Plot bulk properties and species in a chekpoint through a ray.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – path of file.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – threshold for species fraction.</p></li>
+<li><p><strong>xrange</strong> (<em>float list</em>) – abscissa range.</p></li>
+<li><p><strong>filetag</strong> (<em>str</em>) – prefix for batch mode.</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – skips returning figure, saving it to a structured directory instead.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – plot by mass instead of radius.</p></li>
+<li><p><strong>direction</strong> (<em>float list</em>) – list of spherical angles (alt, azimuth), empty for 1D.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl figure) or (None)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.flashSpecies">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">flashSpecies</code><span class="sig-paren">(</span><em>fname, thresh=1e-06, filetag='spec', batch=False, xrange=[0.0, 0.0], byM=True, direction=[], vmax=4000000000.0, plotall=False</em><span class="sig-paren">)</span></dt>
+<dd><p>Plot species and aggregated masses in a chekpoint through a ray.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – path of file.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – threshold for species fraction and mass yields.</p></li>
+<li><p><strong>filetag</strong> (<em>str</em>) – prefix for batch mode.</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – skips returning figure, saving it to a structured directory instead.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – plot by mass instead of radius.</p></li>
+<li><p><strong>direction</strong> (<em>float list</em>) – list of spherical angles (alt, azimuth), empty for 1D.</p></li>
+<li><p><strong>plotall</strong> (<em>bool</em>) – force plotting every species found.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl figure) or (None)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plainTprofile">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plainTprofile</code><span class="sig-paren">(</span><em>fname, thresh=0.0001, xrange=[0.0, 0.0], byM=True, merged=False</em><span class="sig-paren">)</span></dt>
+<dd><p>plots main properties of a plain text file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – filename of checkpoint.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</p></li>
+<li><p><strong>xrange</strong> (<em>list of float</em>) – if set, change the range of the plots.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – abundance plot xaxis (by Mass or by Radius).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plotDMat">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plotDMat</code><span class="sig-paren">(</span><em>prof, thresh=0.0001, xrange=[0.0, 0.0], byM=True</em><span class="sig-paren">)</span></dt>
+<dd><p>plots main properties of a profile object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prof</strong> (<a class="reference internal" href="flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – dataMatrix obj.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</p></li>
+<li><p><strong>xrange</strong> (<em>list of float</em>) – if set, change the range of the plots.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – abundance plot xaxis (by Mass or by Radius).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plotDMatMerged">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plotDMatMerged</code><span class="sig-paren">(</span><em>prof, thresh=0.0001, xrange=[0.0, 0.0], byM=True, alpha=1.0</em><span class="sig-paren">)</span></dt>
+<dd><p>plots main properties of a profile in only two axes, merging
+thermodynamic properties.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prof</strong> (<a class="reference internal" href="flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – dataMatrix obj.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</p></li>
+<li><p><strong>xrange</strong> (<em>list of float</em>) – if set, change the range of the plots.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – abundance plot xaxis (by Mass or by Radius).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plotDegen">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plotDegen</code><span class="sig-paren">(</span><em>prof, thresh=0.0001, xrange=[0.0, 0.0], byM=True</em><span class="sig-paren">)</span></dt>
+<dd><p>plots composition and degeneracy parameters for a lineout,
+namely Y_e and eta = T / T_fermi.
+eta near zero implies degeneracy,
+while eta &gt;&gt; 1 or negative implies non-degenerate matter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prof</strong> (<a class="reference internal" href="flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – dataMatrix obj.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – ymin for species fraction plot.</p></li>
+<li><p><strong>xrange</strong> (<em>list of float</em>) – if set, change the range of the plots.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – abundance plot xaxis (by Mass or by Radius).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl figure) or (None)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plotSpecies">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plotSpecies</code><span class="sig-paren">(</span><em>ax</em>, <em>dmatr</em>, <em>byMass=True</em>, <em>thresh=0.0001</em>, <em>plotall=False</em>, <em>alpha=1.0</em><span class="sig-paren">)</span></dt>
+<dd><p>draws species from a profile object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ax</strong> (<em>mpl.axes</em>) – axes instance to draw on.</p></li>
+<li><p><strong>dmatr</strong> (<a class="reference internal" href="flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – profile object to extract data.</p></li>
+<li><p><strong>byMass</strong> (<em>bool</em>) – plot by Mass or radius (toggle).</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – lower bound for plot.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.plotSpeedHistogram">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">plotSpeedHistogram</code><span class="sig-paren">(</span><em>fname</em>, <em>geom='cartesian'</em>, <em>dimension=2</em>, <em>ref='x'</em>, <em>antipode=False</em><span class="sig-paren">)</span></dt>
+<dd><p>Returns figure with speed vs mass fraction
+histogram for an equatorial slice (this is only a probe since it
+does not take the whole hemisphere).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fname</strong> (<em>str</em>) – file name.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl.figure)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.shockFollow">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">shockFollow</code><span class="sig-paren">(</span><em>fname</em>, <em>simfolder=''</em>, <em>thresh=0.0001</em>, <em>batch=False</em>, <em>byM=False</em>, <em>direction=[]</em>, <em>wakesize=100000000.0</em>, <em>inward=False</em><span class="sig-paren">)</span></dt>
+<dd><p>plot shock wake for a checkpoint.
+WARN: slowest pos will not match for non x-axis directions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – path to checkpoint file.</p></li>
+<li><p><strong>simfolder</strong> (<em>str</em>) – simulation run metadata folder.</p></li>
+<li><p><strong>thresh</strong> (<em>float</em>) – species threshold.</p></li>
+<li><p><strong>batch</strong> (<em>bool</em>) – write file instead of returning figure.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – plot by mass coordinate instead of radius.</p></li>
+<li><p><strong>direction</strong> (<em>str list</em>) – polar angle and azimuth of profile ray.</p></li>
+<li><p><strong>wakesize</strong> (<em>float</em>) – extent of plot in fraction of shock position.</p></li>
+<li><p><strong>inward</strong> (<em>bool</em>) – shock to follow.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(mpl figure) or (None)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.simplePlot">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">simplePlot</code><span class="sig-paren">(</span><em>ax</em>, <em>dmatr</em>, <em>absc</em>, <em>attr</em>, <em>log=True</em>, <em>**kwargs</em><span class="sig-paren">)</span></dt>
+<dd><p>draws a pair of properties from a profile object.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ax</strong> (<em>mpl.axes</em>) – axes instance to draw on.</p></li>
+<li><p><strong>dmatr</strong> (<a class="reference internal" href="flashy.datahaul.xhtml#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – profile object to extract data.</p></li>
+<li><p><strong>absc</strong> (<em>str</em>) – abscissa for the plot.</p></li>
+<li><p><strong>attr</strong> (<em>str</em>) – attribute to plot.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.oneDim.writeFig">
+<code class="descclassname">flashy.plot.oneDim.</code><code class="descname">writeFig</code><span class="sig-paren">(</span><em>fig</em>, <em>paths</em>, <em>filetag</em><span class="sig-paren">)</span></dt>
+<dd><p>writes figure to file according to folders in path.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fig</strong> (<em>mpl.figure</em>) – matplotlib object to store.</p></li>
+<li><p><strong>paths</strong> (<em>str list</em>) – output paths.</p></li>
+<li><p><strong>filetag</strong> (<em>str</em>) – preffix for output file.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>destination path of the file.
+(str): file suffix number.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.plot.simplot">
+<span id="flashy-plot-simplot-module"></span><h2>flashy.plot.simplot module</h2>
+<dl class="function">
+<dt id="flashy.plot.simplot.plotBlockUse">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotBlockUse</code><span class="sig-paren">(</span><em>sim</em><span class="sig-paren">)</span></dt>
+<dd><p>build a figure with requested blocks vs evolution time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotNetwork">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotNetwork</code><span class="sig-paren">(</span><em>sim</em>, <em>dpi=100</em><span class="sig-paren">)</span></dt>
+<dd><p>build a figure with enabled rates in a network.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotRayleighs">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotRayleighs</code><span class="sig-paren">(</span><em>sim</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotSlowCoords">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotSlowCoords</code><span class="sig-paren">(</span><em>sim</em><span class="sig-paren">)</span></dt>
+<dd><p>build a figure with the evolution of the slowest cell
+through time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotSpeciesGrid">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotSpeciesGrid</code><span class="sig-paren">(</span><em>sim</em><span class="sig-paren">)</span></dt>
+<dd><p>build a figure with nuclides included in a network.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotStats">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotStats</code><span class="sig-paren">(</span><em>sim</em><span class="sig-paren">)</span></dt>
+<dd><p>build a figure with energy components through evolution time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotTiming">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotTiming</code><span class="sig-paren">(</span><em>sim</em>, <em>depth=2</em>, <em>cut=0.01</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.plotTsteps">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">plotTsteps</code><span class="sig-paren">(</span><em>sim</em>, <em>burndtfactor=0.0</em><span class="sig-paren">)</span></dt>
+<dd><p>build a figure with timestep size vs evolution time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.plot.simplot.probeAtDepth">
+<code class="descclassname">flashy.plot.simplot.</code><code class="descname">probeAtDepth</code><span class="sig-paren">(</span><em>tree</em>, <em>stem</em>, <em>depth</em>, <em>value='percent'</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-flashy.plot">
+<span id="module-contents"></span><h2>Module contents</h2>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

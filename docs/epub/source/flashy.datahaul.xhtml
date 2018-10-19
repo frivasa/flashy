@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>flashy.datahaul package</title>
+    <link rel="stylesheet" href="../_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="flashy-datahaul-package">
+<h1>flashy.datahaul package</h1>
+<div class="section" id="submodules">
+<h2>Submodules</h2>
+</div>
+<div class="section" id="module-flashy.datahaul.hdf5yt">
+<span id="flashy-datahaul-hdf5yt-module"></span><h2>flashy.datahaul.hdf5yt module</h2>
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getExtrema">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getExtrema</code><span class="sig-paren">(</span><em>fname, flist=['density', 'temperature', 'pressure']</em><span class="sig-paren">)</span></dt>
+<dd><p>returns a list of tuples with extrema for given fields(flist).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – filename to probe.</p></li>
+<li><p><strong>flist</strong> (<em>list of str</em>) – fields to query.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>list of paired extrema [min max] for each field queried.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(list of np.arrays)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getFields">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getFields</code><span class="sig-paren">(</span><em>flist</em>, <em>srcnames=True</em><span class="sig-paren">)</span></dt>
+<dd><p>filters flash checkpoint field list, extracting species found
+in the checkpoint (including named exceptions, see source).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flist</strong> (<em>tuple list</em>) – ds.derived_field_list from yt.</p></li>
+<li><p><strong>srcnames</strong> (<em>bool</em>) – return original names for species (n, d, t).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>field names in checkpoint.
+species (list of str): nuclide codes as in checkpoint.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>fields (list of str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getLineout">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getLineout</code><span class="sig-paren">(</span><em>fname, fields=['density', 'temperature', 'pressure'], species=True, radius=500000000000.0, geom='cartesian', direction=[], srcnames=True</em><span class="sig-paren">)</span></dt>
+<dd><p>Returns a np.array with radius, dens, temp, pres and species specified.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – filename to extract data from.</p></li>
+<li><p><strong>species</strong> (<em>bool</em>) – toggle nuclide data.</p></li>
+<li><p><strong>radius</strong> (<em>float</em>) – reach of lineout.</p></li>
+<li><p><strong>geom</strong> (<em>str</em>) – geometry ([‘cartesian’], ‘spherical’).</p></li>
+<li><p><strong>direction</strong> (<em>list of float</em>) – angles of lineout.
+takes x/(x,z) as normals for 2D/3D.
+also sets dimensionality.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>matrix with fields as columns.
+species (list of str): names of species in the checkpoint.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dblock (numpy array)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getMeta">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getMeta</code><span class="sig-paren">(</span><em>fname</em>, <em>print_stats=False</em><span class="sig-paren">)</span></dt>
+<dd><p>returns metadata from checkpoint and yt-dereived fields.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fname</strong> (<em>str</em>) – filename to check.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>simtime of checkpoint.
+(dict): flash.par dictionary.
+(list of str): fields in checkpoint.
+(list of str): species in checkpoint.
+(list of str): fullpath, filename of checkpoint.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.getYields">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">getYields</code><span class="sig-paren">(</span><em>fname</em><span class="sig-paren">)</span></dt>
+<dd><p>returns time, summed masses and species in a flash otp file.
+all units are msun or cgs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>fname</strong> (<em>str</em>) – filename to inspect.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>time (float) [s],
+species names: (list of str),
+masses: (float list) [msun]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.wedge2d">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">wedge2d</code><span class="sig-paren">(</span><em>fname</em>, <em>elevation</em>, <em>depth</em>, <em>fields=[]</em><span class="sig-paren">)</span></dt>
+<dd><p>cut a wedge in a 2d rectangular domain to perform velocity
+vs mass fraction measurements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – file name</p></li>
+<li><p><strong>elevation</strong> (<em>float</em>) – equator-north pole wedge angle.</p></li>
+<li><p><strong>depth</strong> (<em>float</em>) – equator-south pole wedge angle.</p></li>
+<li><p><strong>fields</strong> (<em>str list</em>) – override default fields.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>raw data, [species list].</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of np.arrays)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdf5yt.wedge3d">
+<code class="descclassname">flashy.datahaul.hdf5yt.</code><code class="descname">wedge3d</code><span class="sig-paren">(</span><em>chkp</em>, <em>elevation</em>, <em>depth</em>, <em>reference='x'</em>, <em>fields=[]</em>, <em>antipode=False</em><span class="sig-paren">)</span></dt>
+<dd><p>cut a wedge in a 3d rectangular domain to perform velocity
+vs mass fraction measurements.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – file name</p></li>
+<li><p><strong>elevation</strong> (<em>float</em>) – equator-north pole wedge angle.</p></li>
+<li><p><strong>depth</strong> (<em>float</em>) – equator-south pole wedge angle.</p></li>
+<li><p><strong>reference</strong> (<em>str</em>) – equinox reference for the equator.</p></li>
+<li><p><strong>fields</strong> (<em>str list</em>) – override default fields.</p></li>
+<li><p><strong>antipode</strong> (<em>bool</em>) – invert selection, antipodal wedge.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>raw data sorted by field.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple of np.arrays)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul.hdfdirect">
+<span id="flashy-datahaul-hdfdirect-module"></span><h2>flashy.datahaul.hdfdirect module</h2>
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.decode">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">decode</code><span class="sig-paren">(</span><em>entry</em><span class="sig-paren">)</span></dt>
+<dd><p>Binary string to utf-8 decoder.
+Does not alter floats, ints, or bools.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>entry</strong> (<em>binary</em>) – binary string.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>unicode string.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.directMeta">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">directMeta</code><span class="sig-paren">(</span><em>file</em><span class="sig-paren">)</span></dt>
+<dd><p>probes file, returning the main properties of it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file</strong> (<em>str</em>) – path to file.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>timestamp of the file (simtime).
+(dict): parameter, value dictionary.
+(str list): field names.
+(str list): nuclide codes.
+(str list): path to folder and file itself.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(float)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.extractVariables">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">extractVariables</code><span class="sig-paren">(</span><em>source, destination, variables=['temp']</em><span class="sig-paren">)</span></dt>
+<dd><p>creates a new hdf5 FLASH file with a reduced set of variables.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> (<em>str</em>) – input filename.</p></li>
+<li><p><strong>destination</strong> (<em>str</em>) – output filename.</p></li>
+<li><p><strong>variables</strong> (<em>str list</em>) – list of named variables to extract.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.getPardict">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">getPardict</code><span class="sig-paren">(</span><em>file</em><span class="sig-paren">)</span></dt>
+<dd><p>returns every parameter found in a hdf5 file.
+(integer, string, logical, real)x(runtime parameters, scalars)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>file</strong> (<em>str</em>) – path to file.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>parameter, value dictionary.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(dict)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.getUNK">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">getUNK</code><span class="sig-paren">(</span><em>file</em>, <em>srcnames=True</em><span class="sig-paren">)</span></dt>
+<dd><p>returns fields and species found in a hdf5 file.
+(species is any unk with a number, plus (n, d, t))</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> (<em>str</em>) – path to file.</p></li>
+<li><p><strong>srcnames</strong> (<em>bool</em>) – return original names (else d &gt; H2)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>field names.
+(str list): nuclide codes.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(str list)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.switchGeometry">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">switchGeometry</code><span class="sig-paren">(</span><em>file</em>, <em>output</em>, <em>verbose=True</em><span class="sig-paren">)</span></dt>
+<dd><p>copies hdf5 file, changing the coordinate system name to
+cartesian for yt input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file</strong> (<em>str</em>) – input filename.</p></li>
+<li><p><strong>output</strong> (<em>str</em>) – output filename.</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – Report file creation.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.hdfdirect.turn2cartesian">
+<code class="descclassname">flashy.datahaul.hdfdirect.</code><code class="descname">turn2cartesian</code><span class="sig-paren">(</span><em>folder</em>, <em>prefix='all'</em>, <em>nowitness=False</em><span class="sig-paren">)</span></dt>
+<dd><p>Iterates over files within a folder, switching the geometry of
+hdf5 files found to cartesian.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder</strong> (<em>str</em>) – folder path.</p></li>
+<li><p><strong>prefix</strong> (<em>str</em>) – filter string (defaults to all files in the folder).</p></li>
+<li><p><strong>nowitness</strong> (<em>bool</em>) – remove non-modified files.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul.helmholtz">
+<span id="flashy-datahaul-helmholtz-module"></span><h2>flashy.datahaul.helmholtz module</h2>
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.adiabat">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">adiabat</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em>, <em>q</em><span class="sig-paren">)</span></dt>
+<dd><p>Hack-feeding data to helmholtz:
+fuel/ash = [[pressure, eint], [rho], [temp], [abar], [zbar]]</p>
+<p>fits a temperature to a hugoniot curve</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.buildHelmTrojan">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">buildHelmTrojan</code><span class="sig-paren">(</span><em>fname</em>, <em>offset=1</em>, <em>geom='spherical'</em><span class="sig-paren">)</span></dt>
+<dd><p>Frankensteinian bridge between flash checkpoints and
+J.Schwab’s Helmholtz python module.
+Joined inward/outward and spewing cj data to avoid
+calling yt more than once.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fname</strong> (<em>str</em>) – filename.</p></li>
+<li><p><strong>offset</strong> (<em>int</em>) – zone offset from shock.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.cj_cond">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">cj_cond</code><span class="sig-paren">(</span><em>fuel</em>, <em>ash</em><span class="sig-paren">)</span></dt>
+<dd><p>Calculate Cj velocity from Helmholtz Eos calculation
+fits density for a set temperature</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fuel</strong> (<em>trojan</em>) – [[pressure, eint], [rho], [temp], [abar], [zbar]]</p></li>
+<li><p><strong>ash</strong> (<em>trojan</em>) – [[pressure, eint], [rho], [temp], [abar], [zbar]]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.getExtHelmCJ">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getExtHelmCJ</code><span class="sig-paren">(</span><em>fname</em>, <em>geom='spherical'</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.getPres">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getPres</code><span class="sig-paren">(</span><em>rhos</em>, <em>temps</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.getTemps">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">getTemps</code><span class="sig-paren">(</span><em>rhos</em>, <em>pres</em>, <em>xmasses</em>, <em>species</em>, <em>returnObj=False</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.helmholtz.wrapVector">
+<code class="descclassname">flashy.datahaul.helmholtz.</code><code class="descname">wrapVector</code><span class="sig-paren">(</span><em>rho</em>, <em>var</em>, <em>xmass</em>, <em>species</em><span class="sig-paren">)</span></dt>
+<dd><p>Wrapper for J.Schwab’s Helmholtz python module, which is
+itself also one for Timmes’ Helmholtz EoS.
+Checks rho for length and comparison so that it can be
+used for single points.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rho</strong> (<em>float</em>) – query density.</p></li>
+<li><p><strong>var</strong> (<em>float</em>) – auxilliary thermodynamic variable (T, P, S or E(int)).</p></li>
+<li><p><strong>xmass</strong> (<em>float</em>) – query mass fractions.</p></li>
+<li><p><strong>species</strong> (<em>str</em>) – query nuclide list.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>[[rho/s], [var/s], [abar/s], [zbar/s]]</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(trojan)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul.plainText">
+<span id="flashy-datahaul-plaintext-module"></span><h2>flashy.datahaul.plainText module</h2>
+<p>module for handling plain text 1D profiles sorted in columns and with structure:
+# col names
+length of data(rows int)
+&lt;data block&gt;
+# comments or anything</p>
+<dl class="function">
+<dt id="flashy.datahaul.plainText.chopFile">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">chopFile</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span></dt>
+<dd><p>Returns header names and a data matrix from a file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>filename</strong> (<em>str</em>) – file path.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>lowercase header names.
+(np.array): data matrix of shape (coords, properties)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(list)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="class">
+<dt id="flashy.datahaul.plainText.dataMatrix">
+<em class="property">class </em><code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">dataMatrix</code><span class="sig-paren">(</span><em>filename</em>, <em>comment=''</em><span class="sig-paren">)</span></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>object for interacting with columned data in a plain text file.
+format for file is strict at the start since it uses np.genfromtxt to handle
+the data block. after row 3 any comment is allowed (# marked).
+Essential columns: radius and density.
+Anything with a number becomes a species.</p>
+<p># col names
+length of data(rows int)
+&lt;data block&gt;
+# comments or anything</p>
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.checkbulkprops">
+<code class="descname">checkbulkprops</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.classn">
+<code class="descname">classn</code><em class="property"> = ['species', 'data', 'filekeys', 'bulkprops', 'meta']</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.dnames">
+<code class="descname">dnames</code><em class="property"> = ['density', 'rho', 'dens']</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.mnames">
+<code class="descname">mnames</code><em class="property"> = ['masses', 'm', 'mass']</em></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.pnames">
+<code class="descname">pnames</code><em class="property"> = ['pressure', 'pres']</em></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.printMeta">
+<code class="descname">printMeta</code><span class="sig-paren">(</span><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.rnames">
+<code class="descname">rnames</code><em class="property"> = ['radius', 'r', 'rad']</em></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.setMeta">
+<code class="descname">setMeta</code><span class="sig-paren">(</span><em>comment=''</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="flashy.datahaul.plainText.dataMatrix.tnames">
+<code class="descname">tnames</code><em class="property"> = ['temperature', 'temp']</em></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.datahaul.plainText.dataMatrix.writeProf">
+<code class="descname">writeProf</code><span class="sig-paren">(</span><em>output</em>, <em>subset=[]</em>, <em>autotag=False</em>, <em>Xthresh=1e-15</em><span class="sig-paren">)</span></dt>
+<dd><p>Write profile to file
+bug: ndarray ninja breaks formatting (np.array([float]))</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ouput</strong> (<em>str</em>) – otp filename.</p></li>
+<li><p><strong>subset</strong> (<em>list</em>) – write a subset of keys to file.</p></li>
+<li><p><strong>autotag</strong> (<em>bool</em>) – setup name based on the profile (WDs)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.multiIndex">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">multiIndex</code><span class="sig-paren">(</span><em>names</em>, <em>keys</em><span class="sig-paren">)</span></dt>
+<dd><p>returns the index of a key with multiple probable names in a
+list. (assumes such key only happens once)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.snipProf">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">snipProf</code><span class="sig-paren">(</span><em>orig</em>, <em>cut</em>, <em>byM=False</em>, <em>left=True</em><span class="sig-paren">)</span></dt>
+<dd><p>cuts a profile, returning a new profile obj.
+conv: center is 0, edge is -1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>orig</strong> (<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – dMatrix object to cut.</p></li>
+<li><p><strong>cut</strong> (<em>float</em>) – cut coordinate.</p></li>
+<li><p><strong>byM</strong> (<em>bool</em>) – specify cut is by mass coordinate.</p></li>
+<li><p><strong>left</strong> (<em>bool</em>) – return data at the left/right of the cut.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>new dMatrix object.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix">dataMatrix</a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.datahaul.plainText.spliceProfs">
+<code class="descclassname">flashy.datahaul.plainText.</code><code class="descname">spliceProfs</code><span class="sig-paren">(</span><em>left</em>, <em>right</em><span class="sig-paren">)</span></dt>
+<dd><p>joins profiles at ends, ‘right’ takes precedence on overlap.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>left</strong> (<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – innermost profile.</p></li>
+<li><p><strong>right</strong> (<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix"><em>dataMatrix</em></a>) – outermost profile.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>spliced profile.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<a class="reference internal" href="#flashy.datahaul.plainText.dataMatrix" title="flashy.datahaul.plainText.dataMatrix">dataMatrix</a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.datahaul">
+<span id="module-contents"></span><h2>Module contents</h2>
+<p>Main data extracting module.
+This should be the only module that imports yt, so that it can be replaced by any checkpoint/mesh reader.
+Data/tag packing will be monstruous for now, to fit better with higher plotting functions.</p>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

@@ -60,6 +60,17 @@
 
 
 <div class="viewcode-block" id="getBearing"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.getBearing">[docs]</a><span class="k">def</span> <span class="nf">getBearing</span><span class="p">(</span><span class="n">angles</span><span class="p">,</span> <span class="n">geom</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns a parsed variable name and direction for a given </span>
+<span class="sd">    geometry and spherical angles (polar angle and azimuth).</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        angles(float list): polar and azimuthal angle (empty list for 1D).</span>
+<span class="sd">        geom(str): geometry string (cartesian, spherical, cylindrical).</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        (str, np.array): parsed direction name, cartesian direction.</span>
+<span class="sd">    </span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">angles</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">geom</span><span class="o">==</span><span class="s1">&#39;cartesian&#39;</span><span class="p">:</span>
             <span class="k">return</span> <span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span>
@@ -74,13 +85,23 @@
         <span class="n">angles</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="n">angles</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angles</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">y</span><span class="o">**</span><span class="mi">2</span><span class="o">-</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
-        <span class="k">return</span> <span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">])</span>
+        <span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">abs</span><span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="n">y</span><span class="o">**</span><span class="mi">2</span><span class="o">-</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">return</span> <span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">z</span><span class="p">)])</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;utils.getBearing: too many angles.&#39;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>   </div>
+        <span class="k">return</span> <span class="kc">None</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">])</span></div>
     <span class="c1"># spherical (r, theta, phi)</span>
     <span class="c1"># cartesian (x, y, z)</span>
+
+
+<div class="viewcode-block" id="rot"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.rot">[docs]</a><span class="k">def</span> <span class="nf">rot</span><span class="p">(</span><span class="n">ang</span><span class="p">,</span> <span class="n">ref</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Counterclockwise rotation matrix of &#39;ang&#39; in &#39;ref&#39;-axis (thumb direction).&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ref</span><span class="o">==</span><span class="s1">&#39;x&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">ang</span><span class="p">)],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">ang</span><span class="p">)]])</span>
+    <span class="k">elif</span> <span class="n">ref</span><span class="o">==</span><span class="s1">&#39;y&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">ang</span><span class="p">)],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">ang</span><span class="p">)]])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">ang</span><span class="p">),</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span></div>
 
 
 <div class="viewcode-block" id="roughCJ"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.roughCJ">[docs]</a><span class="k">def</span> <span class="nf">roughCJ</span><span class="p">(</span><span class="n">dens</span><span class="p">,</span> <span class="n">pres</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
@@ -193,8 +214,21 @@
     <span class="k">return</span> <span class="n">spx</span></div>
 
 
+<div class="viewcode-block" id="cart2sph"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.cart2sph">[docs]</a><span class="k">def</span> <span class="nf">cart2sph</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns radius, polar angle and azimuth for a vector.&quot;&quot;&quot;</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">y</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">z</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">==</span><span class="mf">0.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span>
+    <span class="k">if</span> <span class="n">x</span><span class="o">==</span><span class="mf">0.0</span><span class="p">:</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="mf">90.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arctan</span><span class="p">(</span><span class="n">y</span><span class="o">/</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">tht</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arccos</span><span class="p">(</span><span class="n">z</span><span class="o">/</span><span class="n">r</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">r</span><span class="p">,</span> <span class="n">tht</span><span class="p">,</span> <span class="n">phi</span></div>
+
+
 <div class="viewcode-block" id="percentDiff"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.percentDiff">[docs]</a><span class="k">def</span> <span class="nf">percentDiff</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">):</span>
-    <span class="sd">&quot;&quot;&quot;returns the percentage difference between two abscissas </span>
+    <span class="sd">&quot;&quot;&quot;returns the percentage difference between two ordinates </span>
 <span class="sd">    subject to the x range of the first via interpolation.</span>
 <span class="sd">    </span>
 <span class="sd">    Args:</span>
@@ -208,8 +242,23 @@
 <span class="sd">    </span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">jake</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">interp</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
-    <span class="n">diffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">j</span><span class="o">/</span><span class="n">y1</span><span class="o">-</span><span class="mf">1.0</span> <span class="k">for</span> <span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">jake</span><span class="p">)])</span>
-    <span class="k">return</span> <span class="mi">100</span><span class="o">*</span><span class="n">diffs</span></div>
+    <span class="n">diffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">abs</span><span class="p">(</span><span class="n">j</span><span class="p">)</span><span class="o">/</span><span class="nb">abs</span><span class="p">(</span><span class="n">y1</span><span class="p">)</span><span class="o">-</span><span class="mf">1.0</span> <span class="k">for</span> <span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">j</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">jake</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="mi">100</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">diffs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="getUnit"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.getUnit">[docs]</a><span class="k">def</span> <span class="nf">getUnit</span><span class="p">(</span><span class="n">bulkname</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;simple cgs unit dictionary for bulk properties.&quot;&quot;&quot;</span>
+    <span class="n">units</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;temperature&#39;</span><span class="p">:</span><span class="s1">&#39;$K$&#39;</span><span class="p">,</span> 
+        <span class="s1">&#39;pressure&#39;</span><span class="p">:</span><span class="s1">&#39;$</span><span class="se">\\</span><span class="s1">frac</span><span class="si">{dyne}</span><span class="s1">{cm^2}$&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;enuc&#39;</span><span class="p">:</span><span class="s1">&#39;$</span><span class="se">\\</span><span class="s1">frac</span><span class="si">{erg}</span><span class="s1">{cm^3t}$&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;eint&#39;</span><span class="p">:</span><span class="s1">&#39;$</span><span class="se">\\</span><span class="s1">frac</span><span class="si">{erg}</span><span class="s1">{cm^3}$&#39;</span>
+    <span class="p">}</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">units</span><span class="p">[</span><span class="n">bulkname</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+    <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="s1">&#39;-&#39;</span>
+    <span class="k">return</span> <span class="n">tag</span></div>
 
 
 <div class="viewcode-block" id="x2clog"><a class="viewcode-back" href="../../flashy.xhtml#flashy.utils.x2clog">[docs]</a><span class="k">def</span> <span class="nf">x2clog</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">cmin</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">cmax</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>

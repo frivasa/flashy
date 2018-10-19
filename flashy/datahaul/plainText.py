@@ -25,8 +25,8 @@ class dataMatrix(object):
     rnames = ['radius', 'r', 'rad']
     dnames = ['density', 'rho', 'dens']
     mnames = ['masses', 'm', 'mass']
-    tnames = ['temperature', 't', 'temp']
-    pnames = ['pressure', 'p', 'pres']
+    tnames = ['temperature', 'temp']
+    pnames = ['pressure', 'pres']
     
     classn = ['species', 'data', 'filekeys', 'bulkprops', 'meta']
     
@@ -218,7 +218,7 @@ def spliceProfs(left, right):
         
 
 def snipProf(orig, cut, byM=False, left=True):
-    """ cuts a profile, returning a standalone profile obj for 
+    """ cuts a profile, returning a new profile obj.
     conv: center is 0, edge is -1.
     
     Args:
@@ -234,7 +234,12 @@ def snipProf(orig, cut, byM=False, left=True):
     abscissa = orig.masses if byM else orig.radius
     npabs = np.array(abscissa)
     flow = operator.le(npabs, cut) if left else operator.ge(npabs, cut)
-    cells = np.where(flow)
+    if np.any(flow)==False:
+        print('Cut outside the profile, returning whole profile')
+        return orig
+    allcells = np.where(flow)
+    # remove edge cell 
+    cells = (allcells[0][:-1],) if left else (allcells[0][1:],)
     # start block with essential properties (all dmat have these 2).
     nra = orig.radius[cells]
     nde = orig.density[cells]
