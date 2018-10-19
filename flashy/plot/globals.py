@@ -49,7 +49,7 @@ cc = (cycler('linestyle', lines)*cycler('color', colors))
 mpl.rc('lines', linewidth=2, linestyle='-', marker=None)
 mpl.rc('font', family='monospace', size=12.0)
 mpl.rc('text', color='000000')
-mpl.rc('axes', linewidth=2, grid=False, titlepad=10.0, labelsize='large',
+mpl.rc('axes', linewidth=2, grid=False, labelsize='large',  # titlepad=10.0,  # this breaks RTD webhook
        axisbelow=False, autolimit_mode='data')  # round_numbers
 mpl.rc('axes.formatter', limits=(-1,1))
 mpl.rc('xtick', top=True, direction='in')
