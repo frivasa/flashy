@@ -162,4 +162,4 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 
-autodoc_mock_imports = ['yt', 'helmholtz', 'h5py', 'imageio']
+autodoc_mock_imports = ['yt', 'helmholtz', 'h5py', 'imageio', 'solve_ivp']
