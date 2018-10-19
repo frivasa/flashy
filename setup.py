@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(name='flashy',
       version='0.4',
@@ -7,5 +7,5 @@ setup(name='flashy',
       author='Fernando Rivas',
       author_email='rivas.aguilera@gmail.com',
       license='MIT',
-      packages=['flashy'],
+      packages=find_packages(),
       zip_safe=False)
