@@ -1,6 +1,11 @@
 flashy package
 ==============
 
+.. automodule:: flashy
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Subpackages
 -----------
 
@@ -13,67 +18,13 @@ Subpackages
 Submodules
 ----------
 
-flashy.IOutils module
----------------------
+.. toctree::
 
-.. automodule:: flashy.IOutils
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   flashy.IOutils
+   flashy.nuclear
+   flashy.paramSetup
+   flashy.post
+   flashy.profile_workshop
+   flashy.simulation
+   flashy.utils
 
-flashy.nuclear module
----------------------
-
-.. automodule:: flashy.nuclear
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-flashy.paramSetup module
-------------------------
-
-.. automodule:: flashy.paramSetup
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-flashy.post module
-------------------
-
-.. automodule:: flashy.post
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-flashy.profile\_workshop module
--------------------------------
-
-.. automodule:: flashy.profile_workshop
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-flashy.simulation module
-------------------------
-
-.. automodule:: flashy.simulation
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-flashy.utils module
--------------------
-
-.. automodule:: flashy.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: flashy
-    :members:
-    :undoc-members:
-    :show-inheritance:
