@@ -1,6 +1,6 @@
 from flashy.IOutils import os
 from flashy.utils import np
-
+import pkg_resources
 import matplotlib as mpl
 # backends for script/parallel ploting
 nonguis = [u'agg', u'cairo', u'gdk', u'pdf', u'pgf', u'ps', u'svg', u'template']
@@ -46,23 +46,26 @@ colors = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231',
 cc = (cycler('linestyle', lines)*cycler('color', colors))
 
 # styling
-mpl.rc('lines', linewidth=2, linestyle='-', marker=None)
-mpl.rc('font', family='monospace', size=12.0)
-mpl.rc('text', color='000000')
-mpl.rc('axes', linewidth=2, grid=False, labelsize='large', axisbelow=False )
-       # titlepad=10.0,  # these breaks RTD webhook
-       # autolimit_mode='data')  # round_numbers
-mpl.rc('axes.formatter', limits=(-1,1))
-mpl.rc('xtick', top=True, direction='in')
-mpl.rc('xtick.major', size=9, width=1.4, pad=7)
-mpl.rc('xtick.minor', size=5, width=1.0, pad=7)
-mpl.rc('ytick', right=True, direction='in')
-mpl.rc('ytick.major', size=9, width=1.4, pad=7)
-mpl.rc('ytick.minor', size=5, width=1.0, pad=7)
-mpl.rc('savefig', facecolor='ffffff', dpi=100, bbox='tight')
+style = pkg_resources.resource_filename('flashy', '../data/mplstyles/flashydef.mplsty')
+# mpl.rc('lines', linewidth=2, linestyle='-', marker=None)
+# mpl.rc('font', family='monospace', size=12.0)
+# mpl.rc('text', color='000000')
+# mpl.rc('axes', linewidth=2, grid=False, labelsize='large', axisbelow=False )
+#        # titlepad=10.0,  # these breaks RTD webhook
+#        # autolimit_mode='data')  # round_numbers
+# mpl.rc('axes.formatter', limits=(-1,1))
+# mpl.rc('xtick', top=True, direction='in')
+# mpl.rc('xtick.major', size=9, width=1.4, pad=7)
+# mpl.rc('xtick.minor', size=5, width=1.0, pad=7)
+# mpl.rc('ytick', right=True, direction='in')
+# mpl.rc('ytick.major', size=9, width=1.4, pad=7)
+# mpl.rc('ytick.minor', size=5, width=1.0, pad=7)
+# mpl.rc('savefig', facecolor='ffffff', dpi=100, bbox='tight')
+mpl.rc_file(style)
 mpl.rc('axes', prop_cycle=cc)
-mpl.rc('axes', facecolor='ffffff')
-mpl.rc('figure', facecolor='E7E0D6')
+
+# mpl.rc('axes', facecolor='ffffff')
+# mpl.rc('figure', facecolor='E7E0D6')
 
 # axes Formatter
 def customFormatter(factor, prec=1, width=2):

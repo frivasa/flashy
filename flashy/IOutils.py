@@ -8,6 +8,7 @@ import subprocess as subp
 import operator
 from PIL import Image
 import imageio
+
 _cdxfolder = "cdx"
 # _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
 _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/subsetFLASH/FLASH4.4"  # new flash
