@@ -1,0 +1,8 @@
+   3 formats:
+   4    - none
+   6 # Pip requirements
+   7 requirements_file: rtd.regs.txt
+   8 
+   9 # Build Container
+  10 build:
+  11    image: latest
