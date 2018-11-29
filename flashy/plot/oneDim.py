@@ -1,13 +1,13 @@
-from flashy.datahaul.hdf5yt import getLineout
-from flashy.datahaul.hdfdirect import directMeta
+from ..datahaul.hdf5yt import getLineout
+from ..datahaul.hdfdirect import directMeta
 import flashy.utils as ut
 from .globals import *
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
-from flashy.datahaul.plainText import dataMatrix
-from flashy.nuclear import sortNuclides, elemSplit, decayYield, getMus
-from flashy.simulation import simulation
-from flashy.post import nonRelFermi, extRelFermi, speedHisto
+from ..datahaul.plainText import dataMatrix
+from ..nuclear import sortNuclides, elemSplit, decayYield, getMus
+from ..simulation import simulation
+from ..post import nonRelFermi, extRelFermi, speedHisto
 from scipy.integrate import trapz
 
 
@@ -200,7 +200,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
 
 
 def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], yrange=[0.0, 0.0],
-                 filetag='prof', batch=False, byM=True, direction=[]):
+                 filetag='prof', batch=False, byM=True, direction=[], grid=False):
     """Plot bulk properties and species in a chekpoint through a ray.
     
     Args:
@@ -211,6 +211,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], yrange=[0.0, 0.0],
         batch(bool): skips returning figure, saving it to a structured directory instead.
         byM(bool): plot by mass instead of radius.
         direction(float list): list of spherical angles (alt, azimuth), empty for 1D.
+        grid(bool): add radial positions as a line grid.
     
     Returns:
         (mpl figure) or (None)
@@ -230,6 +231,9 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], yrange=[0.0, 0.0],
                         bbox=dict(boxstyle='round', fc='w', ec='k'))
     if sum(yrange) != 0.0:
         ax.set_ylim(yrange)
+    if grid:
+        for ax in fig.axes:
+            drawGrid(ax, prof.radius)
     if not batch:
         return fig
     else:
@@ -690,3 +694,9 @@ def simplePlot(ax, dmatr, absc, attr, log=True, **kwargs):
     l = plt.xlabel(absc.capitalize())
     l = plt.ylabel(attr.capitalize())
     return line
+
+def drawGrid(ax, gridpoints, alpha=0.6, color='salmon', lw=2.0):
+    """draws gridpoints as a line grid on an axes."""
+    print('Gridpoints: {}'.format(len(gridpoints)))
+    for r in gridpoints:
+        ax.axvline(r, alpha=alpha, color=color, lw=lw)

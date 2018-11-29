@@ -1,12 +1,11 @@
-from flashy.nuclear import \
+from ..nuclear import \
 splitSpecies, convertYield2Abundance, getMassFractions,\
 getAbundances, readSunComp, readYield, sortNuclides,\
 elemSplit, AGSS09, readIsotopicSolar
 from .globals import *
-import flashy.utils as ut
-from flashy.datahaul.hdfdirect import directMeta
+from ..datahaul.hdfdirect import directMeta
 from matplotlib.patches import Rectangle
-
+import flashy.utils as ut
 
 # class patchN(object):
 #     def legend_artist(self, legend, orig_handle, fontsize, handlebox):

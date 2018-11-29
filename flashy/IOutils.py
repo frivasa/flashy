@@ -11,8 +11,10 @@ import imageio
 
 _cdxfolder = "cdx"
 # _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
-_FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/subsetFLASH/FLASH4.4"  # new flash
-_AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
+_FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
+# _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/subsetFLASH/FLASH4.4"  # new flash
+#_AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
+_AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
 _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
 
 
@@ -215,11 +217,30 @@ def cpList(files, src, dst):
         shutil.copy('/'.join([src,f]), '/'.join([dst,f]))
 
 
-def writePBSscript(subfile, code, pbsins=[],
-                   time='12:00:00', nodes=1252, ompth=16, proj='', mail='', abe='abe'):
-    """PBS submit system file cooker.
-    builds a submit.pbs with a typical header, specifying walltime and nodes,
-    then adding slines of code below. Exports OMP_NUM_THREADS=ompth
+def getMachineSubJob(machine, proj, time, nodes, ompth, ddt, otpf, **kwargs):
+    """returns scheduler code and extension for submit file according 
+    to the specified queued machine.
+    
+    Args:
+        machine(str): machine name.
+        proj(str): project allocation code.
+        time(str): walltime request.
+        nodes(int): nodes to request.
+        ompth(int): omp thread number.
+        ddt(bool): enable arm forge connection.
+        otpf(str): output filename.
+        **kwargs: additional keywords for ad-hoc changes.
+    
+    """
+    if machine=='summit':
+        return summitBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs)
+    else:
+        return titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs)
+
+
+def titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs):
+    """Titan/PBS submit maker.
+    builds a submit.pbs with a typical header, specifying walltime and nodes.
     titan: aprun (-j1) -n 1 -d 16
     debug: -D (int)
     rhea: mpirun --map-by ppr:N:node:pe=Th or -n
@@ -228,38 +249,92 @@ def writePBSscript(subfile, code, pbsins=[],
     Titan: <125 nodes 2h, <312 nodes 6h...
     
     Args:
-        subfile(str): submit filename (also set as jobname)
-        code(str list): commands to insert in the file
-        pbsins(str list): extra PBS directives.
+        proj(str): project allocation code.
         time(str): walltime request.
         nodes(int): nodes to request.
         ompth(int): omp thread number.
-        proj(str): project code.
-        mail(str): notification e-mail.
+        ddt(bool): enable arm forge connection.
+        otpf(str): output filename.
+        **kwargs: additional keywords for ad-hoc changes.
     
     """
-    subHeader = []
-    subHeader.append('#!/bin/bash')
-    subHeader.append('#PBS -V')  # pass env vars to nodes
-    subHeader.append('#PBS -l gres=atlas1')
-    subHeader.append('#PBS -A {}'.format(proj))
-    subHeader.append('#PBS -l walltime={},nodes={}'.format(time, nodes))
-    subHeader.append('#PBS -N {}'.format(os.path.basename(subfile)[:-4]))
-    subHeader.append('#PBS -j oe')  # join err and otp
-    subScript = []
-    #subScript.append('echo Submitted from: $PBS_O_WORKDIR')
-    subScript.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
-    subScript.append('export CRAY_CUDA_MPS=1')
-    if mail:
-        subHeader.append('#PBS -M {}'.format(mail))
-        subHeader.append('#PBS -m {}'.format(abe))
-    if pbsins:
-        subHeader = subHeader + pbsins
-    subScript = subScript + code
+
+    schedlist = []
+    schedlist.append('#!/bin/bash')
+    schedlist.append('#PBS -V')  # pass env vars to nodes
+    schedlist.append('#PBS -l gres=atlas1')
+    schedlist.append('#PBS -A {}'.format(proj))
+    schedlist.append('#PBS -l walltime={},nodes={}'.format(time, nodes))
+    schedlist.append('#PBS -N {}'.format(os.path.basename(otpf)))
+    schedlist.append('#PBS -j oe')  # join err and otp
+    schedlist.append('#PBS -o {}'.format(otpf))
+    if kwargs.get('j1', False):
+        nodes*=2
+        ompth = 8
+        launcher = 'aprun -n{} -d{} -j1 ./flash4 &'.format(nodes, ompth)
+    else:
+        launcher = 'aprun -n{} -d{} ./flash4 &'.format(nodes, ompth)
+    if 'mail' in kwargs:
+        schedlist.append('#PBS -M {}'.format(kwargs['mail']))
+        schedlist.append('#PBS -m {}'.format(kwargs['abe']))
+    schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
+    return launcher, 'qsub', '.pbs', schedlist
+
+
+def summitBatch(proj, time, nodes, smt, ddt, otpf, **kwargs):
+    """Summit/BSUB submit maker.
+    builds a submit.lsf with a typical header, specifying walltime and nodes.
+    
+    Args:
+        proj(str): project allocation code.
+        time(str): walltime request.
+        nodes(int): nodes to request.
+        smt(int): omp/smt thread number.
+        ddt(bool): enable arm forge connection.
+        otpf(str): output filename.
+        **kwargs: additional keywords for ad-hoc changes.
+    
+    """
+    schedlist = []
+    # translate to BSUB
+    schedlist.append('#!/bin/bash')
+    schedlist.append('#BSUB -env all')  # pass env vars to nodes
+    # schedlist.append('#BSUB -l gres=atlas1')
+    schedlist.append('#BSUB -P {}'.format(proj))
+    schedlist.append('#BSUB -nnodes {}'.format(nodes))
+    schedlist.append('#BSUB -W {}'.format(time[:-3]))  # hh:mm without :ss
+    schedlist.append('#BSUB -J {}'.format(os.path.basename(otpf)))
+    schedlist.append('#BSUB -alloc_flags "gpumps smt{}"'.format(smt))
+    schedlist.append('#BSUB -N')
+    schedlist.append('#BSUB -o {}'.format(otpf))  # err and otp are joined by default
+    
+    # 2 node 7 core + GPU per task 4 threads
+    launcher = 'jsrun -n12 -g1 -a12 -c7 -bpacked:{} ./flash4 &'.format(smt)
+    #-n = "Resource set"[rs] as subdivisions of a node
+    #-a  MPI ranks/tasks per rs
+    #-c cpus per rs (physical, non-threaded)
+    #-g gpus per rs
+    #-b bind withing an rs [none, rs or packed number]
+    #-r rs per host=node
+    #-l latency priority (cpu-gpu gpu-cpu)
+    #-d launch distribution (task starting order)
+    schedlist.append('export OMP_NUM_THREADS={}'.format(smt))
+    return launcher, 'bsub', '.lsf', schedlist
+
+
+def writeSchedulerScript(subfile, code, schedcode):
+    """writes submit file.
+    
+    Args:
+        subfile(str): submit filename (also set as jobname)
+        code(str list): ordered commands for the file.
+        schedcode(str list): scheduler directives.
+    
+    """
     with open(subfile, 'w') as o:
-        o.write("\n".join(subHeader))
+        o.write("\n".join(schedcode))
         o.write("\n")
-        o.write("\n".join(subScript))
+        o.write("\n".join(code))
         o.write("\n")
 
 

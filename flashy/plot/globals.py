@@ -1,5 +1,5 @@
-from flashy.IOutils import os
-from flashy.utils import np
+from ..IOutils import os
+from ..utils import np
 import pkg_resources
 import matplotlib as mpl
 # backends for script/parallel ploting

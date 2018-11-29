@@ -7,7 +7,16 @@ from .wdprofiles.polytropes import buildPolytropicHelmholtz
 
 
 def goldenIdolShell(dmatr, shellmass):
-    """replaces composition to pure helium in a profile down to 'shellmass'"""
+    """replaces composition to pure helium in a profile down to 'shellmass'    
+    
+    Args:
+        dmatr(dataMatrix): starting profile.
+        shellmass(float): amount of mass to replace.
+
+    Returns:
+        (dataMatrix): shell profile obj.
+    
+    """
     shellc = np.where(dmatr.masses<(dmatr.masses[-1]-shellmass))[0][-1]
     shell = snipProf(dmatr, dmatr.radius[shellc], left=False)
     npnts = len(shell.radius)
@@ -52,8 +61,58 @@ def smudgeShell(dmatr, csp='he4'):
     return dmatr
 
 
+def fifty50Shell(dmatr, eps=1e-3, limdens=1e2):
+    """build a helium shell starting from the first point where C/O = 0.5, 
+    keeping bulk properties fixed out to the "real" helium/hydrogen shell.
+    This is done to ensure a high enough density for detonation and a 
+    smooth Abar transition at the core/shell interface 
+    (other species may skew the 5050 but they're 1e-1 smaller than C or O).
+    Physically, this should happen through accretion compressing helium
+    over the rho = 1e5 needed and ensuring a continuous transition in Abar 
+    from any surface C/O ratio.
+    
+    Args:
+        dmatr(dataMatrix): starting profile.
+        eps(float): tolerance for C/0 = 1 ratio.
+        limdens(float): density for shell cutoff.
+    
+    Returns:
+        (dataMatrix): shell profile obj.
+    
+    """
+    # find the 5050 pos starting from the middle outwards
+    for pos in range(int(0.5*len(dmatr.radius))):
+        ratio = dmatr.o16[pos]/dmatr.c12[pos]
+        if abs(ratio-1.0) < eps:
+            break
+    coreend = pos
+    cutRadius = dmatr.radius[pos]
+    envelope = snipProf(dmatr, cutRadius, left=False)
+    # wipe other species and pour the helium
+    npnts = len(envelope.radius)
+    for s in envelope.species:
+        setattr(envelope, s, np.zeros(npnts))
+    setattr(envelope, 'he4', np.ones(npnts))
+    # now trim the shell at a defined density
+    for pos in range(len(envelope.radius)):
+        if envelope.density[pos] < limdens:
+            break
+    shellend = pos
+    shell = snipProf(envelope, envelope.radius[pos], left=True)
+    return shell, coreend, shellend
+
+
 def polyShell(dmatr, cut, index=1.5):
-    """return a polytropic shell for a given wd, starting at 'cut' radius."""
+    """return a polytropic shell for a given wd, starting at 'cut' radius.
+        
+    Args:
+        dmatr(dataMatrix): reference profile.
+        cut(float): shell start radius .
+
+    Returns:
+        (dataMatrix): shell profile obj.
+    
+    """
     trimmed = snipProf(dmatr, cut)
     cr, cd, cp, ct, xmass, specs = getCond(trimmed, -1)
     # index = 3.0  # ultra-rel degenerate
@@ -96,7 +155,15 @@ def getCond(dmatr, where, verbose=True):
     
 
 def getSummedMasses(dmatr):
-    """Returns summed masses from all species in the profile."""
+    """Returns summed masses from all species in the profile.
+        
+    Args:
+        dmatr(dataMatrix): reference profile.
+
+    Returns:
+        (dict): {species: summed masses}.
+    
+    """
     yields = []
     keys = dmatr.species
     cell_masses = np.diff(dmatr.masses)
@@ -111,7 +178,15 @@ def getSummedMasses(dmatr):
 
 
 def getMaximaPositions(dmatr):
-    """returns cell-at-maximum for all properties in a profile."""
+    """returns cell-at-maximum for all properties in a profile.
+        
+    Args:
+        dmatr(dataMatrix): reference profile.
+
+    Returns:
+        (dict): {property/species: pos of maximum}.
+    
+    """
     pos = []
     keys = dmatr.bulkprops+dmatr.species
     for k in keys:
@@ -123,7 +198,15 @@ def getMaximaPositions(dmatr):
 
 
 def getMaxima(dmatr):
-    """returns dictionary with maximal values."""
+    """returns dictionary with maximal values.
+    
+    Args:
+        dmatr(dataMatrix): reference profile.
+        
+    Returns:
+        (dict): {property/species: maximum value}.
+    
+    """
     maxd = {}
     for (k, v) in getMaximaPositions(dmatr).items():
         maxd[k] = getattr(dmatr, k)[v]

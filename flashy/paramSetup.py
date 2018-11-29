@@ -1,5 +1,5 @@
 import pandas as pd
-from .IOutils import cl, np, fortParse, os, _cdxfolder, getTITANtime, writePBSscript
+from .IOutils import cl, np, fortParse, os, _cdxfolder, getTITANtime, getMachineSubJob, writeSchedulerScript
 from .utils import cart2sph
 _FLASHdefaults = 'setup_params'
 _otpfolder = 'chk'
@@ -194,6 +194,7 @@ class parameterGroup(object):
         nblocks = [getattr(self.defaults, k)['value'] for k in keys[0::step]]
         mins = [getattr(self.defaults, k)['value'] for k in keys[1::step]]
         maxs = [getattr(self.defaults, k)['value'] for k in keys[2::step]]
+        # print(mins, maxs, nblocks)
         return [float(n) for n in nblocks], [float(m) for m in mins], [float(m) for m in maxs]
     
     def probeSimulation(self, frac=0.4, forcePEs=0, verbose=True):
@@ -208,33 +209,33 @@ class parameterGroup(object):
             limblcks = np.power(2, (rmax-1))*float(nblocks[i])
             limcells = limblcks*cells[i]
             #minspan = span/limcells
-            sotp.append('{} span: {:2.4E}, resolution: {:2.4E}'.format(dname, span, span/limcells))
+            sotp.append('{} span: {:2.4E}, resolution: {:2.4E}, cpb: {}'.format(dname, span, span/limcells, cells[i]))
             #area*=span
             tblcks*=limblcks
             tcells*=limcells
-            # print(limblcks, limcells)
-        
         # mult(spans)/mult(nblocks)/mult(cells)/2^(ref-1)/2^(ref-1) = area of cell
         # ref 1 is nblocks, therefore ref-1
-
-        sotp.append('Max Refinement: {:0.0f}'.format(rmax))
+        # cells per block might change if blocks are rectangular (not cubes)
+        sotp.append('Max Blocks per PE: {:>12.0f}'.format(maxbl))
+        sotp.append('Max Refinement:{:>16.0f}'.format(rmax))
+        sotp.append('Max blocks/cells:{:>14.4E}/{:.4E}'.format(tblcks, tcells))
         #sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))  # this is not correct
-        sotp.append('Maximum cells: {:E}'.format(tcells))
-        sotp.append('Maximum Blocks: {:E}'.format(tblcks))
-        sotp.append('Max Blocks per PE: {:0.0f}'.format(maxbl))
+        
         if forcePEs:
             sotp.append('forced PEs: {:0.0f}'.format(forcePEs))
             nodes = forcePEs
         else:
             maxPEs = tblcks/maxbl
-            sotp.append('Maximum PEs: {:0.0f}'.format(maxPEs))
-            sotp.append('Optimistic alloc ({:.0%}): {:0.2f}'.format(frac, maxPEs*frac))
+            sotp.append('Maximum PEs: {:>18.0f}'.format(maxPEs))
+            sotp.append('Optimistic alloc ({:>4.0%}): {:>6.2f}'.format(frac, maxPEs*frac))
             nodes = int(maxPEs*frac)+1
         if verbose:
             print('\n'.join(sotp))
         return nodes, sotp
     
-    def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, multisub=True, prefix='', IOwindow=120):
+    def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, ddt=False,
+                      multisub=True, prefix='', IOwindow=120, 
+                      proj='csc198', machine='titan', **kwargs):
         """Probes the parameters, sets up required resources, and writes 
         necessary files based on a stringent structure.
         
@@ -242,9 +243,12 @@ class parameterGroup(object):
             frac(float): reduce allocation by frac.
             terse(bool): add descriptions to parameters in the par file.
             multisub(bool): activate iterator (see flashy.IOutils).
+            ddt(bool): enable arm-forge debugging connection.
             prefix(str): pass a prefix to runname generator.
             IOwindow(int): seconds to extract from walltime to write Checkpoints.
-            
+            proj(str): allocation project code.
+            machine(str): machine being used for batch submit.
+        
         """
         # sets otp_directory and runname key in meta
         self.generateRunName(prefix=prefix)
@@ -255,55 +259,57 @@ class parameterGroup(object):
         factrs = np.array([3600.0, 60.0, 1.0])
         seconds = sum(inputs*factrs) - IOwindow  # time for last checkpoint
         self.defaults.wall_clock_time_limit = int(seconds)
-
         # write parfiles in both cdx and otp folders 
         self.writeParfile(terse=terse)
         # write submit script at otp folder
         auxpath = '../{}/'.format(self.meta['runname'])
         outpath = os.path.join(self.meta['cdxpath'], auxpath)
-        subpath = os.path.join(outpath, '{}.pbs'.format(self.meta['runname']))
-        self.writeSubmit(subpath, nodes=nodes, time=time, j1=False, multisub=multisub)
-        return subpath
+        subpath = os.path.join(outpath, '{}'.format(self.meta['runname']))
+        scheduler, ext = self.writeSubmit(subpath, proj, machine=machine, nodes=nodes, 
+                                          time=time, multisub=multisub, ddt=ddt, **kwargs)
+        return '{} {}{}'.format(scheduler, subpath, ext)
     
-    def writeSubmit(self, submitpath, j1=False, time='02:00:00', 
-                    nodes=16, ompth=16, multisub=True):
+    def writeSubmit(self, submitpath, proj, machine='titan', time='02:00:00', nodes=16, ompth=16, 
+                    multisub=True, ddt=False, **kwargs):
         qsubfold, qsubname = os.path.split(submitpath)
         runf = os.path.abspath(self.meta['cdxpath'])
         otpf = self.defaults.output_directory['value']
         auxf = '../{}'.format(self.meta['runname'])
         code = []
         # move where the action is and get the corresponding flash.par
+        code.append('export CRAY_CUDA_MPS=1')
         code.append('cd {}'.format(runf))
         code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
+        # XXX: move this to machine-based func
+        # not sure if this still goes for alpine...
+        if self.meta['dimension'] > 1:
+            if nodes>512:  # hear the warnings, set limit to 512
+                code.append('lfs setstripe -c 512 {}'.format(os.path.join(otpf)))
+            else:
+                code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
+        launcher, scheduler, ext, schedulercode = getMachineSubJob(machine, proj, time, nodes, ompth, 
+                                                                   ddt, os.path.join(runf, auxf), **kwargs)
+        if ddt:
+            code.append('module load forge/18.3')  # specify version to latest
+            launcher = 'ddt --connect {}'.format(launcher)
+        otpname = submitpath + ext
+        code.append(launcher)
         if multisub:
             nendestimate = self.defaults.tmax['value']/self.defaults.checkpointFileIntervalTime['value']
             if nendestimate<1.0:
                 nendestimate = 10
             # export chaining arguments and apply iterator to set the file number
-            code.append('export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
-            code.append('export QSUBNAME={}'.format(qsubname))
-            code.append('bash iterator {} flash.par {}'.format(otpf, int(nendestimate)))
-            code.append('wait')
-        if self.meta['dimension'] > 1:
-            if nodes>512:  # heed the warnings, set limit to 512
-                code.append('lfs setstripe -c 512 {}'.format(os.path.join(otpf)))
-            else:
-                code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
-        if j1:
-            nodes*=2
-            ompth = 8
-            code.append('aprun -n{} -d{} -j1 ./flash4 &'.format(nodes, ompth))
-        else:
-            code.append('aprun -n{} -d{} ./flash4 &'.format(nodes, ompth))
-        if multisub:
+            code.insert(len(code)-1, 'export QSUBFOLD={}'.format(os.path.abspath(qsubfold)))
+            code.insert(len(code)-1, 'export QSUBNAME={}{}'.format(qsubname, ext))
+            code.insert(len(code)-1, 'bash iterator {} flash.par {}'.format(otpf, int(nendestimate)))
+            code.insert(len(code)-1, 'wait')
             code.append('wait')
             code.append('cd $QSUBFOLD')
-            code.append('qsub $QSUBNAME')
+            code.append('{} $QSUBNAME'.format(scheduler))
         code.append('wait')
-        pbsins = ['#PBS -o {}'.format(os.path.join(runf, auxf))]
-        writePBSscript(submitpath, code, pbsins=pbsins, time=time, nodes=nodes, ompth=ompth,
-                       proj='csc198', mail='rivas.aguilera@gmail.com',abe='a')
-        print('Wrote: {}'.format(submitpath))
+        writeSchedulerScript(otpname, code, schedulercode)
+        print('Wrote: {}'.format(otpname))
+        return scheduler, ext
         
     def generateRunName(self, prefix=''):
         if not prefix:
@@ -335,7 +341,7 @@ class parameterGroup(object):
 
     # qgrid-df methods, deprecated
     def readChanges(self, df):
-        # turn df to a simple dictionary
+        # turn df to a simple dictionary  DEPRECATED
         if 'comment' in df.columns:
             pars, values = list(df.index), list(df['value'])
             newpdict = dict(zip(pars, values))

@@ -110,23 +110,86 @@ class simulation(object):
             except IndexError:
                 continue
 
-    def quickLook(self):
+    def quickLook(self, refsimtime=0.1, refstep=100):
         """print a group of general information about the run."""
         nodes, info = self.pargroup.probeSimulation(verbose=False)
         # nodes from probe may change if a forced PE count is used,
         # that meta is lost so get PEs from log file (3rd row).
         nodes = int(self.header.split('\n')[2].split()[-1])
-        info[-1] = 'Nodes used: {}'.format(nodes)
-        info.append('Achieved timesteps: {}'.format(len(self.steps)))
-        info.append('Tstep sizes (s): min {:e} max {:e} mean {:e}'.format(*self.getAvgTstep()))
+        info[-1] = 'Nodes used: {:>19}'.format(nodes)
+        info.append('Achieved timesteps: {:>11}'.format(len(self.steps)))
+        info.append('Tstep sizes (s) [min/max(mean)]: {:e}/{:e} ({:>10e})'.format(*self.getAvgTstep()))
         info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
-        #info.append('IRL timestep (s): {:e}'.format(self.irlstep.seconds))
         info.append('IRL timestep (hh:mm:ss): {}'.format(self.irlstep))
         limblks = np.max(self.getStepProp('blocks'))
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
-        info.append('Checkpoints: {}'.format(len(self.checkpoints)))
-        info.append('Plotfiles: {}'.format(len(self.plotfiles)))
+        info.append('Checkpoints/Plotfiles: {}/{}'.format(len(self.checkpoints), len(self.plotfiles)))
+        # simulation figure of merit
+        info += self.getTfom(refsimtime)
+        info += self.getNfom(refstep)
         return '\n'.join(info)
+
+    def getTfom(self, refsimt, tol=1e-3):
+        """get a figure of merit for the simulation: 
+        for a given simtime, get irl step and steps achieved.
+        simtime is fixed, so:
+        ++ higher mean tstep
+        ++ more steps achieved
+        -- larger min max variation
+        """
+        N, simtime = self.time2step(refsimt)
+        simdelta = simtime-refsimt
+        if abs(simdelta) > tol:
+            return ["\n Reference simulation time not reached."]
+            #return 0, int(N), datetime.timedelta(0), datetime.timedelta(0)
+        tstamps = [step.tstamp for step in self.steps[:int(N)]]
+        start = tstamps[0]
+        tstamps.insert(0, start)
+        deltas = np.array([b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])])
+        totalwall = sum(deltas, datetime.timedelta(0))
+        irlstep = np.mean(deltas)
+        ts = self.getStepProp('dt')
+        breadth = ts[:int(N)]
+        factor = 1e5
+        avg = np.mean(breadth)  # order of 1e-5
+        tmin = np.min(breadth)
+        tmax = np.max(breadth)
+        delta = (tmin-tmax)
+        components = [delta*factor, avg*factor, N, factor*(simtime-refsimt)]
+        otp = []
+        otp.append('\nStats for {:.4f}s Simtime:'.format(refsimt))
+        otp.append('Reference steps achieved: {}'.format(int(N)))
+        otp.append('IRL timestep (to {}): {} '.format(int(N), irlstep))
+        otp.append('Walltime to reference: {}'.format(totalwall))
+        otp.append('Figure of Merit: {}'.format(int(sum(components))))
+        return otp
+     
+    def getNfom(self, refstep):
+        try:
+            simtime = self.steps[refstep].t
+        except IndexError:
+            return ["\n Reference simulation step not reached."]
+        tstamps = [step.tstamp for step in self.steps[:refstep]]
+        start = tstamps[0]
+        tstamps.insert(0, start)
+        deltas = np.array([b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])])
+        totalwall = sum(deltas, datetime.timedelta(0))
+        irlstep = np.mean(deltas)
+        ts = self.getStepProp('dt')
+        breadth = ts[:refstep]
+        factor = 1e5
+        avg = np.mean(breadth)  # order of 1e-5
+        tmin = np.min(breadth)
+        tmax = np.max(breadth)
+        delta = (tmin-tmax)
+        components = [delta*factor, avg*factor, refstep]
+        otp = []
+        otp.append('\nStats for {} Steps:'.format(refstep))
+        otp.append('Simtime reached: {:.4f}'.format(simtime))
+        otp.append('IRL timestep (to {:.4f}): {} '.format(simtime, irlstep))
+        otp.append('Walltime to reference: {}'.format(totalwall))
+        otp.append('Figure of Merit: {}'.format(int(sum(components))))
+        return otp
 
     def time2step(self, time):
         """returns step number correspoding to a given time."""
@@ -197,6 +260,7 @@ def readMeta(logfile, statsfile, tstepsigma=3.0):
     
     data = readStats(statsfile)
     for att in data.dtype.names:
+        # remove repeated steps detected in run.log from the stats data rows 
         purgedAtt = np.delete(data[att], skips)
         for step, p in zip(rsteps, purgedAtt):
             setattr(step, att, p)
