@@ -65,6 +65,7 @@ def getBearing(angles, geom):
         angles = np.radians(angles)
         y = np.sin(angles[0])
         x = np.sqrt(1.0-y**2)
+#         return 'r', np.array([x, y, 0.0])
         return 'radius', np.array([x, y, 0.0])
     elif len(angles)==2:
         angles = np.radians(angles)

@@ -77,3 +77,26 @@ def customFormatter(factor, prec=1, width=2):
     exp = 10.0**factor
     return FuncFormatter(lambda x, pos:fstr.format(x/exp, 
                          width=width, prec=prec))
+
+
+def writeFig(fig, paths, filetag):
+    """writes figure to file according to folders in path.
+    
+    Args:
+        fig(mpl.figure): matplotlib object to store.
+        paths(str list): output paths.
+        filetag(str): preffix for output file.
+        
+    Returns:
+        (str): destination path of the file.
+        (str): file suffix number.
+    
+    """
+    num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
+    dest = os.path.join(os.path.dirname(paths[0]), filetag)
+    name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+    os.makedirs(dest, exist_ok=True)  # bless you, p3
+    plt.savefig(name, format='png')
+    plt.close(fig)
+    print("Wrote: {}".format(name))
+    return dest, num

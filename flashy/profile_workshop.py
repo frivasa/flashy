@@ -6,18 +6,27 @@ from .wdprofiles.coldFermi import buildFermiHelmhotz
 from .wdprofiles.polytropes import buildPolytropicHelmholtz
 
 
-def goldenIdolShell(dmatr, shellmass):
-    """replaces composition to pure helium in a profile down to 'shellmass'    
+def goldenIdolShell(dmatr, limit, reference='rho'):
+    """replaces composition in a profile to pure helium from outer edge to   
+    limit. This can be a density or an amount of mass to turn to helium based 
+    of the reference key.
     
     Args:
         dmatr(dataMatrix): starting profile.
-        shellmass(float): amount of mass to replace.
-
+        limit(float): cutoff for replacing composition.
+        reference(str): cutoff reference ('rho' or 'mass').
+        
     Returns:
         (dataMatrix): shell profile obj.
-    
+
     """
-    shellc = np.where(dmatr.masses<(dmatr.masses[-1]-shellmass))[0][-1]
+    if reference=='mass':
+        shellc = np.where(dmatr.masses<(dmatr.masses[-1]-limit))[0][-1]
+    elif reference=='rho':
+        shellc = np.where(dmatr.density<limit)[0][0]
+    else:
+        print('profile_workshop.goldenIdolShell: invalid reference, use "rho" or "mass" ')
+        return -1
     shell = snipProf(dmatr, dmatr.radius[shellc], left=False)
     npnts = len(shell.radius)
     # wipe other species
@@ -195,6 +204,29 @@ def getMaximaPositions(dmatr):
         pos.append(np.argmax(line))
         # pos.append(np.argmax(getattr(dmatr, k)))
     return dict(zip(keys, pos))
+
+
+def getInterfacePosition(dmatr, species='he4'):
+    """returns interface array position for a species based on 
+    gradient > mean value.
+        
+    Args:
+        dmatr(dataMatrix): reference profile.
+        species(str): interface nuclide
+
+    Returns:
+        (int): position in the DataMatrix for the found interface.
+              (0 if species is not found)
+    
+    """
+    try:
+        spec_data = getattr(dmatr, species)
+    except AttributeError:
+        return 0
+    grad = np.gradient(spec_data)
+    mean = np.mean(grad)
+    deltapos = np.where(grad>mean)
+    return deltapos[0][-1]
 
 
 def getMaxima(dmatr):

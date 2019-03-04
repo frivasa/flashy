@@ -1,5 +1,5 @@
 import pandas as pd
-from .IOutils import cl, np, fortParse, os, _cdxfolder, getTITANtime, getMachineSubJob, writeSchedulerScript
+from .IOutils import cl, np, fortParse, os, _cdxfolder, getWalltime, getMachineSubJob, writeSchedulerScript
 from .utils import cart2sph
 _FLASHdefaults = 'setup_params'
 _otpfolder = 'chk'
@@ -111,7 +111,7 @@ class parameterGroup(object):
         else:
             return A
 
-    def getStyledTable(self, stylerprops={}, tableprops={}):
+    def getStyledTable(self, allpars=False, stylerprops={}, tableprops={}):
         #if not stylerprops:
         #    stylerprops = {'background-color':'#111111', 'color': '#dbe1ea'}
         #if not tableprops:
@@ -125,7 +125,7 @@ class parameterGroup(object):
             A = self.tabulate()
             return A.style
         else:
-            A = self.tabulate(allpars=True)
+            A = self.tabulate(allpars=allpars)
             S = A.style
             #S.set_properties(**stylerprops)
             #S.set_table_styles([tableprops])
@@ -234,7 +234,7 @@ class parameterGroup(object):
         return nodes, sotp
     
     def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, ddt=False,
-                      multisub=True, prefix='', IOwindow=120, 
+                      multisub=True, prefix='', IOwindow=120, forceWallT='',
                       proj='csc198', machine='titan', **kwargs):
         """Probes the parameters, sets up required resources, and writes 
         necessary files based on a stringent structure.
@@ -248,13 +248,18 @@ class parameterGroup(object):
             IOwindow(int): seconds to extract from walltime to write Checkpoints.
             proj(str): allocation project code.
             machine(str): machine being used for batch submit.
+            forcePEs(int): force a number of nodes.
+            forceWallT(str): force a walltime (hh:mm:ss).
         
         """
         # sets otp_directory and runname key in meta
         self.generateRunName(prefix=prefix)
         # estimate allocation
         nodes, _ = self.probeSimulation(frac=frac,  forcePEs=forcePEs)
-        time = getTITANtime(nodes)
+        if forceWallT:
+            time = forceWallT
+        else:
+            time = getWalltime(nodes, machine=machine)
         inputs = np.array([float(x) for x in time.split(':')])
         factrs = np.array([3600.0, 60.0, 1.0])
         seconds = sum(inputs*factrs) - IOwindow  # time for last checkpoint
@@ -277,10 +282,8 @@ class parameterGroup(object):
         auxf = '../{}'.format(self.meta['runname'])
         code = []
         # move where the action is and get the corresponding flash.par
-        code.append('export CRAY_CUDA_MPS=1')
         code.append('cd {}'.format(runf))
         code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
-        # XXX: move this to machine-based func
         # not sure if this still goes for alpine...
         if self.meta['dimension'] > 1:
             if nodes>512:  # hear the warnings, set limit to 512
@@ -289,6 +292,7 @@ class parameterGroup(object):
                 code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
         launcher, scheduler, ext, schedulercode = getMachineSubJob(machine, proj, time, nodes, ompth, 
                                                                    ddt, os.path.join(runf, auxf), **kwargs)
+        print(os.path.join(runf, auxf))
         if ddt:
             code.append('module load forge/18.3')  # specify version to latest
             launcher = 'ddt --connect {}'.format(launcher)

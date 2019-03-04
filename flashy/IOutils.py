@@ -10,13 +10,13 @@ from PIL import Image
 import imageio
 
 _cdxfolder = "cdx"
-# _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
-_FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
-# _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/subsetFLASH/FLASH4.4"  # new flash
-#_AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
-_AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
+if os.environ['HOSTTYPE']=='powerpc64le':  # summit has POWER arch
+    _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
+    _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
+else:
+    _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
+    _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
 _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
-
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
                geometry='cylindrical', maxbl=500):
@@ -233,7 +233,7 @@ def getMachineSubJob(machine, proj, time, nodes, ompth, ddt, otpf, **kwargs):
     
     """
     if machine=='summit':
-        return summitBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs)
+        return summitBatch(proj, time, nodes, ddt, otpf, **kwargs)
     else:
         return titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs)
 
@@ -241,8 +241,6 @@ def getMachineSubJob(machine, proj, time, nodes, ompth, ddt, otpf, **kwargs):
 def titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs):
     """Titan/PBS submit maker.
     builds a submit.pbs with a typical header, specifying walltime and nodes.
-    titan: aprun (-j1) -n 1 -d 16
-    debug: -D (int)
     rhea: mpirun --map-by ppr:N:node:pe=Th or -n
     debug: --display-map / --report-bindings
     Rhea max: 48 hours on 16 nodes (2x8 core p/node: -np 256)
@@ -278,10 +276,11 @@ def titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs):
         schedlist.append('#PBS -M {}'.format(kwargs['mail']))
         schedlist.append('#PBS -m {}'.format(kwargs['abe']))
     schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
+    schedlist.append('export CRAY_CUDA_MPS=1')
     return launcher, 'qsub', '.pbs', schedlist
 
 
-def summitBatch(proj, time, nodes, smt, ddt, otpf, **kwargs):
+def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
     """Summit/BSUB submit maker.
     builds a submit.lsf with a typical header, specifying walltime and nodes.
     
@@ -295,6 +294,13 @@ def summitBatch(proj, time, nodes, smt, ddt, otpf, **kwargs):
         **kwargs: additional keywords for ad-hoc changes.
     
     """
+    Ncores = 42
+    Ngpu = 6
+    defs = {'RSpN': 6, 'mpipRS': 1}
+    cpRS = int(Ncores/defs['RSpN'])
+    cpmpi = int(cpRS/defs['mpipRS'])
+    gpupRS = int(Ngpu/defs['RSpN'])
+    RS = nodes*defs['RSpN']
     schedlist = []
     # translate to BSUB
     schedlist.append('#!/bin/bash')
@@ -304,12 +310,26 @@ def summitBatch(proj, time, nodes, smt, ddt, otpf, **kwargs):
     schedlist.append('#BSUB -nnodes {}'.format(nodes))
     schedlist.append('#BSUB -W {}'.format(time[:-3]))  # hh:mm without :ss
     schedlist.append('#BSUB -J {}'.format(os.path.basename(otpf)))
-    schedlist.append('#BSUB -alloc_flags "gpumps smt{}"'.format(smt))
+    if 'smt' in kwargs:
+        ompth = cpRS/defs['mpipRS']*kwargs['smt']
+        schedlist.append('#BSUB -alloc_flags "gpumps smt{}"'.format(smt))
+    else:
+        ompth = cpRS/defs['mpipRS']*4
+        schedlist.append('#BSUB -alloc_flags "gpumps smt4"')
     schedlist.append('#BSUB -N')
-    schedlist.append('#BSUB -o {}'.format(otpf))  # err and otp are joined by default
-    
+    # schedlist.append('#BSUB -outdir {}'.format(otpf))  # LSB_OUTDIR
+    schedlist.append('#BSUB -o {}/{}.o%J'.format(otpf, os.path.basename(otpf)))
+    schedlist.append('#BSUB -e {}/{}.e%J'.format(otpf, os.path.basename(otpf)))
+    if 'mail' in kwargs:
+        schedlist.append('#BSUB -u {}'.format(kwargs['mail']))
+    else:
+        schedlist.append('#BSUB -u rivas.aguilera@gmail.com')
+    # count nodes from bash NNODES=$(($(cat $LSB_DJOB_HOSTFILE | uniq | wc -l)-1))
     # 2 node 7 core + GPU per task 4 threads
-    launcher = 'jsrun -n12 -g1 -a12 -c7 -bpacked:{} ./flash4 &'.format(smt)
+    #launcher = 'stdbuff -o0 jsrun --exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash4 &'
+    launcher = 'stdbuf -o0 jsrun '  # --exit_on_error > Must specify either --np or (--tasks_per_rs and --nrs).
+    launcher += '-n{} -r{} -a{} -g{} -c{} -bpacked:{} '.format(RS, defs['RSpN'], defs['mpipRS'], gpupRS, cpRS, cpmpi) 
+    launcher += '-d packed ./flash4 &' 
     #-n = "Resource set"[rs] as subdivisions of a node
     #-a  MPI ranks/tasks per rs
     #-c cpus per rs (physical, non-threaded)
@@ -318,7 +338,13 @@ def summitBatch(proj, time, nodes, smt, ddt, otpf, **kwargs):
     #-r rs per host=node
     #-l latency priority (cpu-gpu gpu-cpu)
     #-d launch distribution (task starting order)
-    schedlist.append('export OMP_NUM_THREADS={}'.format(smt))
+
+    # hdf5 parallel to serial hack
+    schedlist.append('module load pgi cuda essl netlib-lapack hdf5/1.8.18')
+    schedlist.append('export ROMIO_HINTS=/gpfs/alpine/csc198/proj-shared/frivas/07.miscellaneous/bash/romio_h')
+    schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
+    schedlist.append('export OMP_SCHEDULE="dynamic"')
+    schedlist.append('export OMP_STACKSIZE="256M"')
     return launcher, 'bsub', '.lsf', schedlist
 
 
@@ -338,7 +364,25 @@ def writeSchedulerScript(subfile, code, schedcode):
         o.write("\n")
 
 
-def getTITANtime(nodes):
+def getWalltime(nodes, machine='summit'):
+    """get max walltime based on nodes requested."""
+    time = globals()[machine](nodes)
+    return time
+
+
+def summit(nodes):
+    """lsf uses hh:mm not hh:mm:ss but this is handled by the lsf submit writer."""
+    if nodes<46:
+        return '02:00:00'
+    elif nodes<92:
+        return '06:00:00'
+    elif nodes<922:
+        return '12:00:00'
+    else:
+        return '24:00:00'
+
+
+def titan(nodes):
     if nodes<125:
         return '02:00:00'
     elif nodes<312:

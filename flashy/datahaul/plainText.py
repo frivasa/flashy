@@ -182,6 +182,9 @@ class dataMatrix(object):
 
 def spliceProfs(left, right):
     """joins profiles at ends, 'right' takes precedence on overlap.
+    Note: bulkprops should stay ordered unless a new one is added to 
+    datamatrix. Now species mix so one might need to do a sortnuclides 
+    down the road.
     
     Args:
         left(dataMatrix): innermost profile.
@@ -199,10 +202,14 @@ def spliceProfs(left, right):
     lprops = left.bulkprops + left.species
     rprops = right.bulkprops + right.species
     if lprops==rprops:
-        #print('same')
         keys = left.filekeys
     else:
-        keys = list(set(lprops + rprops))
+        # set() yields unordered members. 
+        # simply check repeated since they are already ordered from the object. 
+        keys = []
+        for k in lprops+rprops:
+            if k not in keys:
+                keys.append(k)
     for k in keys[2:]:
         try:
             latt = getattr(left, k)
@@ -215,7 +222,7 @@ def spliceProfs(left, right):
         hst = np.hstack((latt, ratt))
         dblock = np.column_stack((dblock, hst))
     return dataMatrix([keys, dblock])
-        
+
 
 def snipProf(orig, cut, byM=False, left=True):
     """ cuts a profile, returning a new profile obj.

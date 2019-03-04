@@ -75,27 +75,27 @@ def fetchData(fname, direction, fields=[]):
     return time, pars, paths, dataMatrix([keys, ad.transpose()])
 
 
-def writeFig(fig, paths, filetag):
-    """writes figure to file according to folders in path.
+# def writeFig(fig, paths, filetag):
+#     """writes figure to file according to folders in path.
     
-    Args:
-        fig(mpl.figure): matplotlib object to store.
-        paths(str list): output paths.
-        filetag(str): preffix for output file.
+#     Args:
+#         fig(mpl.figure): matplotlib object to store.
+#         paths(str list): output paths.
+#         filetag(str): preffix for output file.
         
-    Returns:
-        (str): destination path of the file.
-        (str): file suffix number.
+#     Returns:
+#         (str): destination path of the file.
+#         (str): file suffix number.
     
-    """
-    num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-    dest = os.path.join(os.path.dirname(paths[0]), filetag)
-    name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-    os.makedirs(dest, exist_ok=True)  # bless you, p3
-    plt.savefig(name, format='png')
-    plt.close(fig)
-    print("Wrote: {}".format(name))
-    return dest, num
+#     """
+#     num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
+#     dest = os.path.join(os.path.dirname(paths[0]), filetag)
+#     name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+#     os.makedirs(dest, exist_ok=True)  # bless you, p3
+#     plt.savefig(name, format='png')
+#     plt.close(fig)
+#     print("Wrote: {}".format(name))
+#     return dest, num
 
 
 def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False, 
@@ -264,6 +264,7 @@ def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False,
 def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, xrange=[0.0, 0.0],
                  byM=True, direction=[], vmax=4e9, plotall=False):
     """Plot species and aggregated masses in a chekpoint through a ray.
+    Masses are a trapezoid integrated ray for each species.
     
     Args:
         fname(str): path of file.
@@ -272,6 +273,7 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False, xrange=[0.0, 0
         batch(bool): skips returning figure, saving it to a structured directory instead.
         byM(bool): plot by mass instead of radius.
         direction(float list): list of spherical angles (alt, azimuth), empty for 1D.
+        vmax(floar): limit for species velocities.
         plotall(bool): force plotting every species found.
     
     Returns:

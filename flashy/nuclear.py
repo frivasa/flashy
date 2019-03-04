@@ -157,7 +157,7 @@ def OLDconvertYield2Abundance(mdict, norm='H', offset=12.0):
 def convertYield2Abundance(mdict, norm='H', offset=12.0):
     percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
     names, percs = zip(*percdata)
-    sp, z, n, a = splitSpecies(names)
+    sp, z, n, a = splitSpecies(names)  # , standardize=True)
     sundict = {}
     for i, s in enumerate(sp):
         if s in sundict:
@@ -174,13 +174,18 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
         zz = mdict[k]['z']
         particles = 0
         for n in mdict[k]['n']:
-            particles += sundict[k]['n'][n]*mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
+            if k not in sundict:
+                particles += 0.0
+            elif n not in sundict[k]['n']:
+                particles += 0.0
+            else:
+                particles += sundict[k]['n'][n]*mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
         partdict[k] = particles
 
     nrm = partdict[norm]
     otp = []
     for k, v in partdict.items():
-        if v==0:
+        if v==0.0:
             continue
         else:
             otp.append((mdict[k]['z'], k, np.log(partdict[k]/nrm)+offset))

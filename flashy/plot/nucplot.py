@@ -96,30 +96,69 @@ def nuclideYields(files, tags):
         return fig
 
 
-def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38], 
-                    boxsize=1.0, cmmin=1.0e-5, cmmax=1.0, cmap='Blues', 
-                    log=False, addtags=True, invert=False):
+def plotGridYield(yieldfile, dpi=150, cmap='Oranges', filetag='gridspec', batch=False):
+    """plots mass yields over whole species grid for a yield file.
+    
+    Args:
+        yieldfile(str): path of file.
+        dpi(float): dpi of figure.
+        cmap(str): colormap name.
+        filetag(str): prefix for batch mode. 
+        batch(bool): skips returning figure, saving it to a structured directory instead.
+        
+    Returns:
+        (mpl figure) or (None)
+    
+    """
+    names = np.genfromtxt(yieldfile, dtype='|U4', usecols=(0,))
+    vals = np.genfromtxt(yieldfile, usecols=(1,))
+    mass = np.sum(vals)
+    f, a = plt.subplots(dpi=dpi)
+    sq = plotNuclideGrid(a, names, xmass=vals, cmap=cmap)
+    cax = f.add_axes([0.12, 0.9, 0.8, 0.037])  # left, bot, width, height
+    cmap = mpl.cm.Oranges
+    # norm = mpl.colors.Normalize(vmin=0.0, vmax=0.5)
+    norm = mpl.colors.LogNorm(vmin=1e-3, vmax=0.5)
+    cbar1 = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm, orientation='horizontal')
+    cax.xaxis.set_ticks_position('top')
+    if batch:
+        folder = os.path.dirname(yieldfile)
+        filename = os.path.basename(yieldfile).split('.')[0]
+        paths = (folder, filename)
+        writeFig(f, paths, filetag)
+    else:
+        return f
+
+
+def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[-2, 38], 
+                    boxsize=1.0, cmmin=1.0e-5, cmmax=0.9, cmap='Blues', addtags=True, 
+                    invert=False, frameless=False):
     """plots a list of species on a grid."""
     cmap = mpl.cm.get_cmap(cmap)
+    norm = mpl.colors.LogNorm(vmin=cmmin, vmax=cmmax)
     if len(xmass)>0:
         xis = xmass
+        a = ax.annotate("{:.5f} s".format(time),
+                xy=(0.0, 0.0), xytext=(0.72, 0.18), size=12,
+                textcoords='figure fraction', xycoords='figure fraction')
+                        #, bbox=dict(boxstyle='round', fc='w', ec='k'))
     else:
-        fakeXi = 1.0-np.random.rand(1)
-        xis = [fakeXi[0]]*len(species)
+        # fakeXi = 1.0-np.random.rand(1)
+        xis = [0.5]*len(species)
     if invert:
         clr = 'white'
     else:
         clr = 'black'
     nam, zs, ns, As = splitSpecies(species, standardize=True)
     for (z, n, xi) in zip(zs, ns, xis):
-        if log:
-            square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
-                    boxsize, boxsize, facecolor=cmap(ut.x2clog(xi)),
-                    edgecolor=clr)
-        else:
-            square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
-                    boxsize, boxsize, facecolor=cmap(xi),
-                    edgecolor=clr)
+#         if log:
+        square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
+                boxsize, boxsize, facecolor=cmap(norm(xi)),
+                edgecolor=clr)
+#         else:
+#             square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
+#                     boxsize, boxsize, facecolor=cmap(xi),
+#                     edgecolor=clr)
         ax.add_patch(square)
         mainsquare = square
     if addtags:
@@ -127,10 +166,8 @@ def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38],
         for (t, x, y) in zip(tags, xs, ys):
             ax.text(x, y, t, fontsize=8, verticalalignment='center', 
                     horizontalalignment='right', color=clr)
-    ax.set_ylabel('Z ($p^+$)', color=clr)
-    ax.set_xlabel('N ($n^0$)', color=clr)
-#     ax.set_ylabel('Proton Number', color=clr)
-#     ax.set_xlabel('Neutron Number', color=clr)
+    ax.set_ylabel('Z', color=clr, rotation=0, labelpad=12)
+    ax.set_xlabel('N', color=clr)
     ax.set_ylim(z_range)
     ax.set_xlim(n_range)
     # numbered axes
@@ -138,12 +175,13 @@ def plotNuclideGrid(ax, species, xmass=[], z_range=[-0.5,35], n_range=[-0.5,38],
 #     ax.xaxis.set_label_position('top')
     
     # remove spines/ticks (arrow and named axes)
-#     for side in ['bottom','right','top','left']:
-#         ax.spines[side].set_visible(False)
-#     ax.set_xticks([]) # labels 
-#     ax.set_yticks([])
-#     ax.arrow(0, 12, 0, 10, head_width=0.5, head_length=1, fc=clr, ec=clr)
-#     ax.arrow(13, 0, 10, 0, head_width=0.5, head_length=1, fc=clr, ec=clr)
+    if frameless:
+        for side in ['bottom','right','top','left']:
+            ax.spines[side].set_visible(False)
+        ax.set_xticks([]) # labels 
+        ax.set_yticks([])
+        ax.arrow(0, 12, 0, 10, head_width=0.5, head_length=1, fc=clr, ec=clr)
+        ax.arrow(13, 0, 10, 0, head_width=0.5, head_length=1, fc=clr, ec=clr)
     
     # numbered axes
     ax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))

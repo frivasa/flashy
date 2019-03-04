@@ -29,7 +29,7 @@ setcmap = yt.make_colormap(cols, name='custom')
 
 # yt plotting functions
 def planeSlice(fname, field, lims, zcut=0.0, linear=False, 
-               batch=False, width=1.1e9, point=[]):
+               batch=False, width=1.1e9, mark=[]):
     """Makes a slice at zcut
     
     Args:
@@ -40,7 +40,7 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False,
         linear(bool): logscale toggle.
         batch(bool): toggle return figure or write to file.
         width(float): total side size of plot
-        point(float list): specify a position to mark in the plot.
+        mark(float list): specify a position to mark in the plot.
     
     Returns:
         mpl.figure or None
@@ -66,10 +66,10 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False,
     im.axes.annotate("Z: {:.4e} cm".format(zcut),
                      xy=(0.10, 0.05), xycoords='axes fraction', 
                      textcoords='axes fraction')
-    if point.any():
-        print(point, point[::-1])
-        im.axes.annotate("x",
-                         xy=point[::-1], xycoords='data', 
+    if mark:
+        xm, ym = mark
+        im.axes.annotate("o",
+                         xy=mark[::-1], xycoords='data', 
                          textcoords='data')
     if batch:
         num = ds.parameter_filename[-5:]
@@ -216,7 +216,7 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
 
 def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
               fields=['density', 'pressure', 'temperature'], linear=False, 
-              mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9]):
+              mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9], mark=[]):
     """Plots the list of fields specified in yt.
     
     Args:
@@ -249,6 +249,10 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         y_match = ds.parameters['y_match']
         p.annotate_marker((x_match, y_match), coord_system='plot',
                           plot_args={'color':'black', 's': 30})
+    if mark:
+        xm, ym = mark
+        p.annotate_marker((xm, ym), coord_system='plot', marker='o',
+                          plot_args={'color':'white', 's': 30, 'facecolors':"None" }) 
     if grids:
         p.annotate_grids()
     pvars = zip(fields, mins, maxs)

@@ -37,7 +37,6 @@ class simulation(object):
         # qsub output parsing (.o files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
-#         print(self.otpfiles)
         # treat files as overwriting addenda to the timesteps
         if self.otpfiles:
             for f in self.otpfiles:
@@ -350,12 +349,16 @@ def readOtp(filename):
                     ns.append(int(n)-1)
                     slowp.append([float(x) for x in l[a+1:b].split(',')])
                     dth, dtb = l.split()[-2:]
-                    if len(dth)<=1:  # | 2.922E-04 line so there's no dtb
-                        dthydro.append(float(dtb))
+                    try:
+                        if len(dth)<=1:  # | 2.922E-04 line so there's no dtb
+                            dthydro.append(float(dtb))
+                            dtburn.append(1.0)
+                        else:
+                            dthydro.append(float(dth))
+                            dtburn.append(float(dtb))
+                    except ValueError:
+                        dthydro.append(1.0)
                         dtburn.append(1.0)
-                    else:
-                        dthydro.append(float(dth))
-                        dtburn.append(float(dtb))
         return ns, slowp, dthydro, dtburn
 
 
