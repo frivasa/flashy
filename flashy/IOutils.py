@@ -10,13 +10,21 @@ from PIL import Image
 import imageio
 
 _cdxfolder = "cdx"
-if os.environ['HOSTTYPE']=='powerpc64le':  # summit has POWER arch
+# if os.environ['HOSTTYPE']=='powerpc64le':  # summit has POWER arch
+#     _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
+#     _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
+# else:
+#     _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
+#     _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
+# _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
+
+if os.getenv('HOSTTYPE', 'powerpc64le')=='powerpc64le':  # summit has POWER arch
     _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
     _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
 else:
     _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
     _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
-_maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
+# _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
                geometry='cylindrical', maxbl=500):

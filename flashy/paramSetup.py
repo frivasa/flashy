@@ -234,7 +234,7 @@ class parameterGroup(object):
         return nodes, sotp
     
     def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, ddt=False,
-                      multisub=True, prefix='', IOwindow=120, forceWallT='',
+                      multisub=True, postfix='', IOwindow=120, forceWallT='',
                       proj='csc198', machine='titan', **kwargs):
         """Probes the parameters, sets up required resources, and writes 
         necessary files based on a stringent structure.
@@ -244,7 +244,7 @@ class parameterGroup(object):
             terse(bool): add descriptions to parameters in the par file.
             multisub(bool): activate iterator (see flashy.IOutils).
             ddt(bool): enable arm-forge debugging connection.
-            prefix(str): pass a prefix to runname generator.
+            postfix(str): pass a postfix to runname generator.
             IOwindow(int): seconds to extract from walltime to write Checkpoints.
             proj(str): allocation project code.
             machine(str): machine being used for batch submit.
@@ -253,7 +253,8 @@ class parameterGroup(object):
         
         """
         # sets otp_directory and runname key in meta
-        self.generateRunName(prefix=prefix)
+        self.generateRunName(postfix=postfix)
+        print('check')  # XXX
         # estimate allocation
         nodes, _ = self.probeSimulation(frac=frac,  forcePEs=forcePEs)
         if forceWallT:
@@ -315,7 +316,7 @@ class parameterGroup(object):
         print('Wrote: {}'.format(otpname))
         return scheduler, ext
         
-    def generateRunName(self, prefix=''):
+    def generateRunName(self, prefix='', postfix=''):
         if not prefix:
             prefix = getProfilePrefix(self.defaults.initialWDFile['value'])
         match = (self.defaults.x_match['value'], 
@@ -335,6 +336,8 @@ class parameterGroup(object):
             prefix += '_point{}'.format(int(direc[0]/1e5))
         temp = self.defaults.t_ignite_outer['value']
         runname = '{}_ms{}_t{:.1f}'.format(prefix, int(size/1e5), temp/1e9)
+        if postfix:
+            runname += '_'+postfix
         print ('Run name generated: {}'.format(runname))
         self.defaults.geometry = self.meta['geometry']
         # separate auxiliary files from checkpoints to stripe otp folder.
@@ -364,7 +367,10 @@ def getProfilePrefix(string):
     
     """
     profilename = os.path.basename(string[:-4])
-    wd, shell, wdm, shm = profilename.split('_')
+    try:
+        wd, shell, wdm, shm = profilename.split('_')
+    except ValueError:
+        return 'custom'
     code = wd[0]+shell[0]
     mass = getFloat(wdm)
     shma = getFloat(shm)
