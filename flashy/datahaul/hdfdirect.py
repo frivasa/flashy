@@ -134,6 +134,43 @@ def switchGeometry(file, output, verbose=True):
         print("Wrote {} from {}".format(output, file))
 
 
+def switchback(file, output, verbose=True):
+    """copies hdf5 file, reverting switchGeometry effect (cartesian -> cylindrical).
+    
+    Args:
+        file(str): input filename.
+        output(str): output filename.
+        verbose(bool): Report file creation.
+    
+    """
+    finn = h5py.File(file, "r")
+    jake = h5py.File(output, "w")
+    # p2 > p3: obj.iterkeys() > obj.keys()
+    # p2 > p3: hdf5 works with bytes, not str: u"" > b""
+    for k in finn.keys():
+        finn.copy(k, jake)
+    # string scalars is usually a single entry, but directly changing it didn't work 
+    # so iterate over all values found.
+    ds = jake[u'string scalars']
+    newt = np.copy(ds[...])
+    for i, v in enumerate(ds):
+        if b"cartesian   " in v[1]:
+            newt[i][1] = v[1].replace(b"cartesian  ", b"cylindrical")
+    ds[...] = newt
+    
+    ds2 = jake[u'string runtime parameters']
+    newt2 = np.copy(ds2[...])
+    for i, v in enumerate(ds2):
+        if b"cartesian  " in v[1]:
+            newt2[i][1] = v[1].replace(b"cartesian  ", b"cylindrical")
+    ds2[...] = newt2
+    
+    finn.close()
+    jake.close()
+    if verbose:
+        print("Wrote {} from {}".format(output, file))
+
+
 def turn2cartesian(folder, prefix='all', nowitness=False):
     """Iterates over files within a folder, switching the geometry of 
     hdf5 files found to cartesian.

@@ -32,7 +32,11 @@ def readNuclideMasses():
     Reads only masses, there's more data within it so
     this function is extensible.
     output is a dict with capitalized element names, then a
-    z and n key to access z and a keyset of N numbers.
+    z and n key to access z and a keyset of neutron numbers with 
+    mass in amu and binding energy in keV.
+    
+    dict['He']['n', 'z'][N]['mass', 'binding']
+    
     """
     massdict = {}
     with open(AMDC, 'r') as f:
@@ -56,11 +60,15 @@ def readNuclideMasses():
             else:
                 name = name.strip().capitalize()
             if name in massdict:
-                massdict[name]['n'][n] = mass*1e-6  # source mass is in micro u
+                massdict[name]['n'][n] = {}
+                massdict[name]['n'][n]['mass'] = mass*1e-6  # source mass is in micro u
+                massdict[name]['n'][n]['binding'] = bind
             else:
                 massdict[name] = {}
                 massdict[name]['n'] = {}
-                massdict[name]['n'][n] = mass*1e-6  # source mass is in micro u
+                massdict[name]['n'][n] = {}
+                massdict[name]['n'][n]['mass'] = mass*1e-6  # source mass is in micro u
+                massdict[name]['n'][n]['binding'] = bind
                 massdict[name]['z'] = z
     # AMDC doesn't list m_e or m_p so add them by hand from scipy constants
     massdict['p'] = {}
@@ -132,28 +140,6 @@ def normalizeYield(mdict, norm='H', offset=12.0):
     return mdict
 
 
-def OLDconvertYield2Abundance(mdict, norm='H', offset=12.0):
-    """Turns mass yields into abundances."""
-    nucmass = readNuclideMasses()
-    partdict = {}
-    for k in mdict.keys():
-        zz = mdict[k]['z']
-        particles = 0
-        for n in mdict[k]['n']:
-            particles += mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
-        partdict[k] = particles
-    #print partdict
-    nrm = partdict[norm]
-    otp = []
-    for k, v in partdict.items():
-        if v==0:
-            continue
-        else:
-            otp.append((mdict[k]['z'], k, np.log(partdict[k]/nrm)+offset))
-    zs, names, mix = zip(*sorted(otp))
-    return zs, names, mix
-
-
 def convertYield2Abundance(mdict, norm='H', offset=12.0):
     percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
     names, percs = zip(*percdata)
@@ -179,7 +165,7 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
             elif n not in sundict[k]['n']:
                 particles += 0.0
             else:
-                particles += sundict[k]['n'][n]*mdict[k]['n'][n]*msol/nucmass[k]['n'][n]*Avogadro
+                particles += sundict[k]['n'][n]*mdict[k]['n'][n]*msol/nucmass[k]['n'][n]['mass']*Avogadro
         partdict[k] = particles
 
     nrm = partdict[norm]
@@ -325,7 +311,7 @@ def getMus(species, xmasses):
     return muion, mue
 
 
-def splitSpecies(Spcodes, trueA=True, standardize=False):
+def splitSpecies(Spcodes, trueA=True, standardize=False, zipped=False):
     """returns list of symbols, Z, N, A from a list of
     nuclide codes.(Ni56, He4, U238, ...)
     
@@ -333,6 +319,9 @@ def splitSpecies(Spcodes, trueA=True, standardize=False):
         Spcodes(str list): nuclide code list (Ni56, He4, U238, ...).
         trueA(bool): return real weight instead of N+Z.
         standardize(bool): return element for special names (deuteron, proton, tritium).
+    
+    Returns:
+        names, proton#, neutron#, Masses
     
     """
     Sp, As = zip(*[elemSplit(s) for s in Spcodes])
@@ -351,8 +340,11 @@ def splitSpecies(Spcodes, trueA=True, standardize=False):
     Zs = np.array([mdict[n]['z'] for n in Sp])
     Ns = As - Zs
     if trueA:
-        As = [mdict[s]['n'][n] for (s,n) in zip(Sp,Ns)]
-    return Sp, Zs, Ns, As
+        As = [mdict[s]['n'][n]['mass'] for (s,n) in zip(Sp,Ns)]
+    if zipped:
+        return zip(Sp, Zs, Ns, As)
+    else:
+        return Sp, Zs, Ns, As
 
 
 def sortNuclides(spcodes, capitalize=False):

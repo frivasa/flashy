@@ -10,21 +10,19 @@ from PIL import Image
 import imageio
 
 _cdxfolder = "cdx"
-# if os.environ['HOSTTYPE']=='powerpc64le':  # summit has POWER arch
-#     _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
-#     _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
-# else:
-#     _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
-#     _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
-# _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
-
+_otpfolder = "chk"
+_logfile = 'f.log'
+_statsfile = 's.dat'
+_juptree = 'http://localhost:1988/tree/'
 if os.getenv('HOSTTYPE', 'powerpc64le')=='powerpc64le':  # summit has POWER arch
     _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
     _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
+    _SCRIPT_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/07.miscellaneous/bash/"
 else:
     _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
     _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
-# _maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
+    _SCRIPT_DIR = "/lustre/atlas/proj-shared/csc198/frivas/07.miscellaneous/bash/"
+_maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
                geometry='cylindrical', maxbl=500):
@@ -106,6 +104,50 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     return comm  #, exitcode, out, err
 
 
+def mergeRuns(runlist, newname):
+    """builds a newname runfolder with aggregate properties from 
+    each run in runlist.
+    
+    Args:
+        runlist(str list): paths of runs to join.
+        newname(str): pathname of aggregated run.
+    
+    """
+    
+    sortinp = sorted([i.strip('/') for i in runlist])
+    runfolder = os.path.abspath(newname)
+    print("Creating:", runfolder)
+    os.makedirs(os.path.join(runfolder, _otpfolder))
+    # first move all checkpoints to the new chk folder
+    dst = os.path.join(os.path.abspath(runfolder), _otpfolder)
+    for r in sortinp:
+        src = os.path.join(os.path.abspath(r), _otpfolder)
+        for f in os.listdir(src):
+            shutil.copy2(os.path.join(src,f), dst)
+    # next copy all non-appendable output
+    dst = os.path.abspath(runfolder)
+    for r in sortinp:
+        src = os.path.abspath(r)
+        files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
+        nonappfiles = [f for f in files if f!=_logfile and f!=_statsfile]
+        for f in nonappfiles:
+            if f=='flash.par':
+                parname = os.path.basename(r)
+                shutil.copy2(os.path.join(src, f), os.path.join(dst, "{}.par".format(parname)))
+            else:
+                shutil.copy2(os.path.join(src, f), dst)
+    # finally append log and stat file
+    dst = os.path.abspath(runfolder)
+    refstats = os.path.join(dst, _statsfile)
+    reflog = os.path.join(dst, _logfile)
+    for r in sortinp:
+        src = os.path.abspath(r)
+        stats = os.path.join(src, _statsfile)
+        log = os.path.join(src, _logfile)
+        os.system("cat " + stats + " >> " + refstats)
+        os.system("cat " + log + " >> " + reflog)
+
+
 def getFileList(folder, glob='plt', fullpath=False):
     """Returns a filename list subject to a prefix 'glob'.
     
@@ -127,15 +169,11 @@ def getFileList(folder, glob='plt', fullpath=False):
         return fnames
 
 
-def cpFLASHrun(runfolder, newrunfol):
-    """copy the cdx folder to a new runfolder"""
-    src = os.path.join(os.path.abspath(runfolder), _cdxfolder)
-    dst = os.path.join(os.path.abspath(newrunfol), _cdxfolder)
-    if os.path.exists(dst):
-        shutil.rmtree(dst)
-        shutil.copytree(src, dst)
-    else:
-        shutil.copytree(src, dst)
+def rename(path, glob, newname):
+    templog = getFileList(path, glob=glob, fullpath=True)
+    if templog:
+        os.rename(templog[0], os.path.join(os.path.split(templog[0])[0], newname))
+        print('IOutils.rename: changed {} to {}'.format(templog, newname))
 
 
 def makeGIF(srcfolder, speed=0.2):
@@ -349,11 +387,24 @@ def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
 
     # hdf5 parallel to serial hack
     schedlist.append('module load pgi cuda essl netlib-lapack hdf5/1.8.18')
-    schedlist.append('export ROMIO_HINTS=/gpfs/alpine/csc198/proj-shared/frivas/07.miscellaneous/bash/romio_h')
+    # write specific romio_ hints
+    romiofile = writeRHints(nodes)
+    schedlist.append('export ROMIO_HINTS={}'.format(romiofile))
     schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     schedlist.append('export OMP_SCHEDULE="dynamic"')
     schedlist.append('export OMP_STACKSIZE="256M"')
     return launcher, 'bsub', '.lsf', schedlist
+
+
+def writeRHints(nodes, buffer=33554432, multi=4):
+    name = 'romio_h{}'.format(multi*nodes)
+    romiofile = os.path.join(_SCRIPT_DIR, name)
+    with open(romiofile, 'w') as o:
+        o.write('romio_cb_write enable\n')
+        o.write('romio_ds_write disable\n')
+        o.write('cb_buffer_size {:d}\n'.format(int(buffer)))
+        o.write('cb_nodes {:d}\n'.format(multi*nodes))
+    return romiofile
 
 
 def writeSchedulerScript(subfile, code, schedcode):

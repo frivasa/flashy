@@ -1,8 +1,9 @@
 import pandas as pd
-from .IOutils import cl, np, fortParse, os, _cdxfolder, getWalltime, getMachineSubJob, writeSchedulerScript
+from .IOutils import cl, np, fortParse, os, getWalltime, getMachineSubJob, writeSchedulerScript
+from .IOutils import _cdxfolder, _otpfolder, _logfile, _statsfile
 from .utils import cart2sph
 _FLASHdefaults = 'setup_params'
-_otpfolder = 'chk'
+_strmax = 49
 pd.set_option('display.max_colwidth', 0)
 
 class parGroup(object):
@@ -37,6 +38,7 @@ class parGroup(object):
 class parameterGroup(object):
     def __init__(self, parfile):
         # fillcode is a workaround to avoid creating empty parGroups.
+        # 0: pars only, 1: +defaults, 2: both and merged
         self.meta = getMeta(parfile)
         if not self.meta['code']:
             dc = makeParDict(parfile)
@@ -138,18 +140,16 @@ class parameterGroup(object):
             outpath = os.path.abspath(outfile)
             print(outpath)
             try:
-                docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
-                writeDictionary(dict(docked), outpath, meta=True, terse=terse)
+                writeDictionary(self.getDocked(), outpath, meta=True, terse=terse)
             except Exception as e:
                 print('Failed to write documentation, writing params only.')
                 writeDictionary(dict(self.params.items()), outpath, meta=False)
             print('Wrote: {}'.format(outpath))
         else:  # default is to assume 'docked' params and write to runfolder/otp
             self.vuvuzela()
-            docked = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
             cdx = self.meta['cdxpath']
             cpname = os.path.join(cdx, 'flash.par')
-            writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
+            writeDictionary(self.getDocked(), os.path.abspath(cpname), meta=True, terse=terse)
             print('Wrote: {}'.format(cpname))
             # create checkpoint folder
             otpf = self.defaults.output_directory['value']
@@ -159,7 +159,7 @@ class parameterGroup(object):
             otpf = "../{}/".format(self.meta['runname'])
             outpath = os.path.join(cdx, otpf)
             cpname = os.path.join(outpath, 'flash.par')
-            writeDictionary(dict(docked), os.path.abspath(cpname), meta=True, terse=terse)
+            writeDictionary(self.getDocked(), os.path.abspath(cpname), meta=True, terse=terse)
             print('Wrote: {}'.format(cpname))
 
     def vuvuzela(self):
@@ -234,7 +234,7 @@ class parameterGroup(object):
         return nodes, sotp
     
     def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, ddt=False,
-                      multisub=True, postfix='', IOwindow=120, forceWallT='',
+                      multisub=True, prefix='', suffix='', IOwindow=120, forceWallT='',
                       proj='csc198', machine='titan', **kwargs):
         """Probes the parameters, sets up required resources, and writes 
         necessary files based on a stringent structure.
@@ -244,7 +244,8 @@ class parameterGroup(object):
             terse(bool): add descriptions to parameters in the par file.
             multisub(bool): activate iterator (see flashy.IOutils).
             ddt(bool): enable arm-forge debugging connection.
-            postfix(str): pass a postfix to runname generator.
+            prefix(str): pass a prefix to runname generator.
+            suffix(str): pass a suffix to runname generator.
             IOwindow(int): seconds to extract from walltime to write Checkpoints.
             proj(str): allocation project code.
             machine(str): machine being used for batch submit.
@@ -253,8 +254,7 @@ class parameterGroup(object):
         
         """
         # sets otp_directory and runname key in meta
-        self.generateRunName(postfix=postfix)
-        print('check')  # XXX
+        self.generateRunName(suffix=suffix, prefix=prefix, checkpath=self.meta['cdxpath'])
         # estimate allocation
         nodes, _ = self.probeSimulation(frac=frac,  forcePEs=forcePEs)
         if forceWallT:
@@ -293,7 +293,7 @@ class parameterGroup(object):
                 code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
         launcher, scheduler, ext, schedulercode = getMachineSubJob(machine, proj, time, nodes, ompth, 
                                                                    ddt, os.path.join(runf, auxf), **kwargs)
-        print(os.path.join(runf, auxf))
+        # print(os.path.join(runf, auxf))
         if ddt:
             code.append('module load forge/18.3')  # specify version to latest
             launcher = 'ddt --connect {}'.format(launcher)
@@ -316,9 +316,8 @@ class parameterGroup(object):
         print('Wrote: {}'.format(otpname))
         return scheduler, ext
         
-    def generateRunName(self, prefix='', postfix=''):
-        if not prefix:
-            prefix = getProfilePrefix(self.defaults.initialWDFile['value'])
+    def generateRunName(self, prefix='', suffix='', checkpath=""):
+        basename = getProfilePrefix(self.defaults.initialWDFile['value'])
         match = (self.defaults.x_match['value'], 
                  self.defaults.y_match['value'], 
                  self.defaults.z_match['value'])
@@ -327,38 +326,83 @@ class parameterGroup(object):
         size = rout-rin
         dim = self.meta['dimension']
         if sum(direc)==0.0:
-            prefix += '_ring{}'.format(int(self.defaults.r_match_inner['value']/1e5))
+            basename += '_r{}'.format(int(self.defaults.r_match_inner['value']/1e5))
         elif dim==3:
-            prefix += '_point{}_{}_{}'.format(int(direc[0]/1e5), int(direc[1]), int(direc[2]))
+            basename += '_p{}_{}_{}'.format(int(direc[0]/1e5), int(direc[1]), int(direc[2]))
         elif dim==2:  # 2D is x-y, not x-z as in canonical spherical, hence direc[2]
-            prefix += '_point{}_{}'.format(int(direc[0]/1e5), int(direc[2]))
+            basename += '_p{}_{}'.format(int(direc[0]/1e5), int(direc[2]))
         else:
-            prefix += '_point{}'.format(int(direc[0]/1e5))
+            basename += '_p{}'.format(int(direc[0]/1e5))
         temp = self.defaults.t_ignite_outer['value']
-        runname = '{}_ms{}_t{:.1f}'.format(prefix, int(size/1e5), temp/1e9)
-        if postfix:
-            runname += '_'+postfix
+        # some params might be str from setPars >> float(temp)
+        runname = '{}_ms{}_t{:.1f}'.format(basename, int(size/1e5), float(temp)/1e9)
+        if prefix:
+            runname = "_".join([prefix, runname])
+        if suffix:
+            runname = "_".join([runname, suffix])    
         print ('Run name generated: {}'.format(runname))
+        self.defaults.run_comment = runname
+        # check length of runname for FLASH output str limit and add a number to the run
+        if len(runname)> _strmax:
+            print('paramSetup.generateRunName.WARNING: '\
+                  'Run name too long for FLASH. clipping to {} chars.'.format(_strmax))
+            runname = runname[:_strmax]
+        num = len(os.listdir(os.path.split(checkpath)[0]))-1
+        runname = "{:02}{}".format(num, runname)
+        print ('Run name used: {}'.format(runname))
+        
         self.defaults.geometry = self.meta['geometry']
         # separate auxiliary files from checkpoints to stripe otp folder.
         self.meta['runname'] = runname
         self.defaults.output_directory = "../{}/{}/".format(runname, _otpfolder)
-        self.defaults.log_file = "../{}/run.log".format(runname)
-        self.defaults.stats_file = "../{}/stats.dat".format(runname)
-
-    # qgrid-df methods, deprecated
-    def readChanges(self, df):
-        # turn df to a simple dictionary  DEPRECATED
-        if 'comment' in df.columns:
-            pars, values = list(df.index), list(df['value'])
-            newpdict = dict(zip(pars, values))
+        self.defaults.log_file = "../{}/{}".format(runname, _logfile)
+        self.defaults.stats_file = "../{}/{}".format(runname, _statsfile)
+        
+    def getDocked(self, onlyvals=False):
+        """returns default values that have been changed through 
+        reading pars or manually changed
+        """
+        group = [z for z in self.defaults.items() if len(str(z[1]['value']))>0]
+        if onlyvals:
+            return dict([(a, b['value']) for (a, b) in group])
         else:
-            newpdict = df.T.to_dict("records")[0]
-        # parse values to avoid 'int'
-        parsedv = [fortParse(str(x), dec=False) for x in newpdict.values()]
-        self.params.update(dict(zip(newpdict.keys(), parsedv)))
-        # refresh docked values and remove empty value parameters for when retabulating.
-        self.mergeValues()
+            return dict(group)
+
+
+def comPars(par1, par2):
+    """compare two flash .par files
+    
+    Args:
+        par1(str): reference .par filename.
+        par1(str): comparison .par filename.
+        
+    Returns:
+        (pandas.Styler): highlighted pandas dataframe.
+    
+    """
+    d1 = makeParDict(par1)
+    d2 = makeParDict(par2)
+    return comDicts(d1, d2)
+
+
+def comDicts(d1, d2):
+    """compare two parameter dictionaries.
+    
+    Args:
+        d1(str): reference dict.
+        d2(str): comparison dict.
+        
+    Returns:
+        (pandas.Styler): highlighted pandas dataframe.
+    
+    """
+    A = pd.DataFrame(list(d1.items()), columns=['Parameter', 'Value'])
+    B = pd.DataFrame(list(d2.items()), columns=['Parameter', 'Value'])
+    joined = pd.merge(A, B, on='Parameter')
+    redind = joined.index[joined['Value_x']!=joined['Value_y']].tolist()
+    S = joined.style
+    S.applymap(stylerTest, subset=pd.IndexSlice[redind, ['Value_x']])
+    return S
 
 
 def getProfilePrefix(string):
@@ -390,7 +434,8 @@ def getFloat(string):
 
 def stylerTest(value):
     """stub to change colors in selected cells."""
-    return 'color: #ec971f'
+    #return 'color: #ec971f'  # orange
+    return 'color: #FF0000'  # red
 
 
 def getMeta(filepath):
@@ -510,13 +555,21 @@ def writeDictionary(indict, outfile, meta=False, terse=False):
                 vals = [x for x in dat if x[4]==g]
                 maxlen = max([len(x[0]) for x in vals])
                 for (p, v, d, dc, fm) in sorted(vals):
-                    if terse:
-                        o.write("{:{length}} = {} # {} \n".format(p, fortParse(str(v)), d, length=maxlen))
+                    if '"' in str(fortParse(str(v))):  # yeah this is ugly
+                        strlen = len(p)
                     else:
-                        o.write("{:{length}} = {} # {} {}\n".format(p, fortParse(str(v)), d, dc, length=maxlen))
+                        strlen = maxlen
+                    if terse:
+                        o.write("{:{length}} = {} # {} \n".format(p, fortParse(str(v)), d, length=strlen))
+                    else:
+                        o.write("{:{length}} = {} # {} {}\n".format(p, fortParse(str(v)), d, dc, length=strlen))
     else:
         maxlen = max([len(x) for x in indict.keys()])
         with open(outfile, 'w') as o:
             for key, val in sorted(indict.items()):
-                o.write("{:{pal}} = {:}\n".format(key, fortParse(str(val)), pal=maxlen))
+                if '"' in str(fortParse(str(val))):  # yeah this is ugly
+                    strlen = len(key)
+                else:
+                    strlen = maxlen
+                o.write("{:{pal}} = {:}\n".format(key, fortParse(str(val)), pal=strlen))
 

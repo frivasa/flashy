@@ -75,31 +75,8 @@ def fetchData(fname, direction, fields=[]):
     return time, pars, paths, dataMatrix([keys, ad.transpose()])
 
 
-# def writeFig(fig, paths, filetag):
-#     """writes figure to file according to folders in path.
-    
-#     Args:
-#         fig(mpl.figure): matplotlib object to store.
-#         paths(str list): output paths.
-#         filetag(str): preffix for output file.
-        
-#     Returns:
-#         (str): destination path of the file.
-#         (str): file suffix number.
-    
-#     """
-#     num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-#     dest = os.path.join(os.path.dirname(paths[0]), filetag)
-#     name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-#     os.makedirs(dest, exist_ok=True)  # bless you, p3
-#     plt.savefig(name, format='png')
-#     plt.close(fig)
-#     print("Wrote: {}".format(name))
-#     return dest, num
-
-
 def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False, 
-                direction=[], wakesize=1e8, inward=False):
+                direction=[], wakesize=1e8, inward=False, grid=False):
     """plot shock wake for a checkpoint. 
     WARN: slowest pos will not match for non x-axis directions.
     
@@ -112,6 +89,7 @@ def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
         direction(str list): polar angle and azimuth of profile ray.
         wakesize(float): extent of plot in fraction of shock position.
         inward(bool): shock to follow.
+        grid(bool): add radial positions as a line grid.
     
     Return:
         (mpl figure) or (None)
@@ -119,7 +97,7 @@ def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
     """
     fig, meta = PARsimProfile(fname, simfolder=simfolder, thresh=thresh, 
                               filetag='', batch=False, byM=byM, 
-                              direction=direction, meta=True)
+                              direction=direction, meta=True, grid=grid)
     # readjust the plot to center the shock
     ax = plt.gca()
     outsh, inwsh, slowx, paths = meta
@@ -138,7 +116,8 @@ def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
 
 
 def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0], 
-                  filetag='metaprof', batch=False, byM=False, direction=[], meta=False):
+                  filetag='metaprof', batch=False, byM=False, direction=[], 
+                  meta=False, grid=False):
     """bloated method for IPP.
     WARN: slowest pos will not match for non x-axis directions.
     
@@ -151,6 +130,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
         batch(bool): write file instead of returning figure.
         byM(bool): plot by mass coordinate instead of radius.
         direction(str list): polar angle and azimuth of profile ray.
+        grid(bool): add radial positions as a line grid.
     
     Return:
         (mpl figure) or (None)
@@ -189,10 +169,12 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
     lgd = ax.legend(ncol=1, loc='upper left', bbox_to_anchor=(1.00, 0.50), 
                       columnspacing=0.0, labelspacing=0.0, markerfirst=False, 
                       numpoints=3, handletextpad=0.0, edgecolor='k')
+    if grid:
+        drawGrid(ax, prof.radius)
     if meta:
         markings = [po, pi, p, paths]
         return fig, markings
-    #I/O
+    # I/O
     if not batch:
         return fig
     else:
@@ -243,8 +225,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0], yrange=[0.0, 0.0],
 def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False, 
                     byM=True, direction=[],  xrange=[0.0, 0.0]):
     time, pars, paths, prof = fetchData(fname, direction)
-    fig = plotDegen(prof, byM=byM, 
-                   thresh=thresh, xrange=xrange)
+    fig = plotDegen(prof, byM=byM, thresh=thresh, xrange=xrange)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
                     xy=(0.0, 0.0), xytext=(0.88, 0.10), size=12,
@@ -468,7 +449,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     return fig
 
 
-def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True, alpha=1.0):
+def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True, alpha=1.0, marker=False):
     """plots main properties of a profile in only two axes, merging 
     thermodynamic properties.
     
@@ -482,9 +463,6 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True, alpha=1.0):
     fig = plt.figure()
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
-    # DEBUG
-#     print(len(prof.species))
-#     print(prof.t3)
     keys = sortNuclides(prof.species)
     ncol = 4
     labelspace = -0.1
@@ -517,8 +495,12 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True, alpha=1.0):
         spax.set_yscale('log')
         spax.set_xscale('log')
     # Thermodynamical variables (reference is, as always, density)
+    if marker:
+        marker='.'
+    else:
+        marker=None
     tdax = plt.subplot2grid(layout, (1, 0), colspan=2, sharex=spax)
-    tdax.semilogy(xs, prof.density, label='Density')
+    tdax.semilogy(xs, prof.density, label='Density', marker=marker)
     ylabels = ['$\\frac{g}{cm^3}$']
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
     tdax.tick_params(labelbottom=False)
@@ -696,6 +678,7 @@ def simplePlot(ax, dmatr, absc, attr, log=True, **kwargs):
     l = plt.xlabel(absc.capitalize())
     l = plt.ylabel(attr.capitalize())
     return line
+
 
 def drawGrid(ax, gridpoints, alpha=0.6, color='salmon', lw=2.0):
     """draws gridpoints as a line grid on an axes."""

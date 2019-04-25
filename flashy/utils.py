@@ -227,9 +227,26 @@ def percentDiff(x1, y1, x2, y2):
         (float list): percentage difference (vs y1, i.e., <0 implies y1<y2)
     
     """
-    jake = np.interp(x1, x2, y2)
+    jake = np.interp(x1, x2, y2)  # return f2 values at x1
     diffs = np.array([abs(j)/abs(y1)-1.0 for (y1, j) in zip(y1, jake)])
     return 100*np.nan_to_num(diffs)
+
+
+def chunks(array, N):
+    """iterative return for an array, yielding N objects at a time."""
+    for i in range(0, len(array), N):
+        yield array[i:i + N]
+
+
+def scientify(array):
+    """turns every float in an array to sceintific notation."""
+    formv = []
+    for v in array:
+        try:
+            formv.append('{:e}'.format(float(v)))
+        except ValueError:
+            formv.append(str(v))
+    return formv
 
 
 def getUnit(bulkname):

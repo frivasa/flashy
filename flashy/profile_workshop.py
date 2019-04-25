@@ -3,7 +3,7 @@ from copy import deepcopy
 from .datahaul.helmholtz import getPres
 from .datahaul.plainText import spliceProfs, snipProf
 from .wdprofiles.coldFermi import buildFermiHelmhotz
-from .wdprofiles.polytropes import buildPolytropicHelmholtz
+from .wdprofiles.polytropes import buildPolytropic
 
 
 def goldenIdolShell(dmatr, limit, reference='rho'):
@@ -111,7 +111,7 @@ def fifty50Shell(dmatr, eps=1e-3, limdens=1e2):
     return shell, coreend, shellend
 
 
-def polyShell(dmatr, cut, index=1.5):
+def polyShell(dmatr, cut, index=1.5, species=['he4'], xmass=[1.0]):
     """return a polytropic shell for a given wd, starting at 'cut' radius.
         
     Args:
@@ -123,11 +123,13 @@ def polyShell(dmatr, cut, index=1.5):
     
     """
     trimmed = snipProf(dmatr, cut)
-    cr, cd, cp, ct, xmass, specs = getCond(trimmed, -1)
+    print("Conditions at cut:")
+    cr, cd, cp, ct, _, _ = getCond(trimmed, -1)
+    print("Ignoring cut composition...")
     # index = 3.0  # ultra-rel degenerate
     # index = 1.5  # non-rel degenerate
-    shell = buildPolytropicHelmholtz(cr, cp, cd, gamma=(index+1)/index, 
-                                     species=specs, xmass=xmass)
+    shell = buildPolytropic(cr, cp, cd, gamma=(index+1)/index, 
+                            species=species, xmass=xmass)
     print ('Generated shell mass: {:E}'.format(shell.meta['mass']))
     return shell
 
@@ -141,9 +143,9 @@ def getCond(dmatr, where, verbose=True):
         where(int): cell to probe.
     
     Returns:
-        (float): central radius.
-        (float): central density.
-        (float): central pressure.
+        (float): radius.
+        (float): density.
+        (float): pressure.
         (float list): mass fractions.
         (str list): corresponding species names.
     
@@ -181,8 +183,8 @@ def getSummedMasses(dmatr):
         # check for nans
         line = np.nan_to_num(getattr(dmatr, k), copy=True)
         yields.append(sum(line*cell_masses))
-    print('Total Summed Mass: {:e}'.format(sum(yields)))
-    print('Last Mass Cell: {:e}'.format(dmatr.masses[-1]))
+    # print('Total Summed Mass: {:e}'.format(sum(yields)))
+    # print('Last Mass Cell: {:e}'.format(dmatr.masses[-1]))
     return dict(zip(keys, yields))
 
 
@@ -243,7 +245,4 @@ def getMaxima(dmatr):
     for (k, v) in getMaximaPositions(dmatr).items():
         maxd[k] = getattr(dmatr, k)[v]
     return maxd
-
-
-
 

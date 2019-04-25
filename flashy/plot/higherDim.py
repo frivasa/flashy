@@ -4,6 +4,7 @@ import yt  # move this dependency to datahaul
 # avoid yt warnings
 from yt.funcs import mylog
 mylog.setLevel(50)
+
 # COLORMAPS
 # https://jiffyclub.github.io/palettable/colorbrewer/
 # colorscheme names: http://jiffyclub.github.io/palettable +/colorbrewer /matplotlib /cmocean
@@ -214,9 +215,9 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
     return im, cax
 
 
-def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
+def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9, center=(0.0, 0.0),
               fields=['density', 'pressure', 'temperature'], linear=False, 
-              mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9], mark=[]):
+              mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9], mark=[], cmap=''):
     """Plots the list of fields specified in yt.
     
     Args:
@@ -226,8 +227,10 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         batch (bool): if true save figure to file instead of returning it.
         fields (list of str): list of named fields to plot.
         linear (bool): set linear or log scale(false).
-        mins (list of float): minima of scale for each field.
-        maxs (list of float): maxima of scale for each field.
+        mins (float list): minima of scale for each field.
+        maxs (float list): maxima of scale for each field.
+        mark (float list): mark a (x,y) coordinate in the plot.
+        cmap (str): matplotlib colormap for the plot.
     
     """
     ds = yt.load(fname)
@@ -239,8 +242,11 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
                     share_all = True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
     p = yt.SlicePlot(ds, 'z', list(fields))
+    if sum(center)==0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
     p.set_width((frame, 2*frame))
-    p.set_center((frame*0.5, 0.0))
     p.set_origin(("center", "left", "domain"))
     p.set_axes_unit('cm')
     header = '{:17.6f} s'
@@ -259,7 +265,10 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     for i, (f, mi, mx) in enumerate(pvars):
         if not i:
             p.annotate_title(header.format(float(ds.current_time)))
-        p.set_cmap(f, 'custom')
+        if cmap:
+            p.set_cmap(f, cmap)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
         p.set_zlim(f, mi, mx)
         if linear:
             p.set_log(field, False)

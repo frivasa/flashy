@@ -1,8 +1,8 @@
 from .utils import np
-from .IOutils import os, getFileList, subp, _cdxfolder
+from .IOutils import os, getFileList, subp, rename, _cdxfolder
 import datetime
-from .paramSetup import parameterGroup, _FLASHdefaults, _otpfolder
-import flashy.plot.simplot as simp
+from .paramSetup import parameterGroup, _FLASHdefaults, _otpfolder, _statsfile, _logfile
+# import flashy.plot.simplot as simp
 from flashy.datahaul.hdfdirect import turn2cartesian
 _pancake = 'PANCAKE'  # break word
 
@@ -20,7 +20,8 @@ class simulation(object):
         self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
         # parameters
         self.pargroup = parameterGroup(os.path.join(self.cdx, _FLASHdefaults))
-        self.pargroup.setPars(os.path.join(self.name, 'flash.par'))
+        pars = getFileList(self.name, glob='.par', fullpath=True)
+        self.pargroup.setPars(sorted(pars)[0])  # pick first .par file if there's multiple
         # check for Xnet
         if os.path.exists(os.path.join(self.cdx, 'Networks')):
             netname = 'Data_{}'.format(self.pargroup.meta['network'].split('_')[-1])
@@ -30,9 +31,18 @@ class simulation(object):
         # initial profile
         self.profile = os.path.join(self.cdx, self.pargroup.defaults.initialWDFile['value'])
         # log file and stats (read log, sort steps, read stats, merge to steps)
-        self.steps, self.runtime, self.irlstep, \
-        self.header, self.timings = readMeta(os.path.join(name, 'run.log'), 
-                                             os.path.join(name, 'stats.dat'))
+        # backwards compatibility: change names so it's normalized henceforth
+        if not getFileList(folder, glob=_logfile)==[_logfile]:
+            rename(folder, '.log', _logfile)
+            rename(folder, '.dat', _statsfile)
+        try:
+            self.steps, self.runtime, self.irlstep, \
+            self.header, self.timings = readMeta(os.path.join(name, _logfile), 
+                                                 os.path.join(name, _statsfile))
+        except Exception as e:
+            # print('log/stats not loaded:', e)
+            self.steps, self.runtime, self.irlstep, \
+            self.header, self.timings = [], [], [], [], []
         self.time = self.getStepProp('t')
         # qsub output parsing (.o files)
         glob = os.path.basename(name) + '.o'
@@ -55,17 +65,22 @@ class simulation(object):
             self.yields = []
             self.decayedyields = []
 
-    def getStepProp(self, which):
+    def getStepProp(self, which, range=[0,0]):
         """get a property of all steps in a run.
 
         Args:
             which(str): property to extract.
+            endpoint(int): pick steps up to endpoint.
 
         Returns:
             (list): step ordered property list.
 
         """
-        return np.array([getattr(t, which) for t in self.steps])
+        if sum(range)!=0:
+            cut = slice(*range)
+            return np.array([getattr(t, which) for t in self.steps[cut]])
+        else:
+            return np.array([getattr(t, which) for t in self.steps])
 
     def standardizeGeometry(self):
         """convert hdf5 files from cylindrical to cartesian."""
@@ -97,7 +112,7 @@ class simulation(object):
         """read in a qsub output file. getting slowest coordinates for each timestep."""
         ns, slowps, dthy, dtbu = readOtp(filename)
         if not ns:
-            print('Qsub stopped in {} or No steps achieved.'.format(filename))
+            print('Qsub stopped in {} or No steps achieved.'.format(os.path.basename(filename)))
             #os.remove(filename)
         for (n, p, dth, dtb) in zip(ns, slowps, dthy, dtbu):
             try:
@@ -334,7 +349,10 @@ def splitHeader(hlines):
 
 def readOtp(filename):
     """reads an output file (.oNUMBER) extracting the slowest coordinate for
-    each step."""
+    each step.
+    time and dt are not read in due to being set by the .log file first and foremost.
+    
+    """
     with open(filename, 'r') as f:
         ns, slowp, dthydro, dtburn = [], [], [], []
         for i, l in enumerate(f):
@@ -348,17 +366,26 @@ def readOtp(filename):
                     a, b = l.index('('), l.index(')')
                     ns.append(int(n)-1)
                     slowp.append([float(x) for x in l[a+1:b].split(',')])
-                    dth, dtb = l.split()[-2:]
-                    try:
-                        if len(dth)<=1:  # | 2.922E-04 line so there's no dtb
-                            dthydro.append(float(dtb))
-                            dtburn.append(1.0)
-                        else:
-                            dthydro.append(float(dth))
-                            dtburn.append(float(dtb))
-                    except ValueError:
-                        dthydro.append(1.0)
-                        dtburn.append(1.0)
+                    # get dts after the '|'
+                    specificdts = l.split('|')[-1]
+                    dts = specificdts.split()
+                    if len(dts)>2:  # more than 2 dts, fails so set to 1.0
+                        dthydro.append(-1.0)
+                        dtburn.append(-1.0)
+                    elif len(dts)==1:  # only 1 dt, this must be reasonable.
+                        dthydro.append(float(dts[0]))
+                    else:  # 2 dts, try for weird non-floats like 1.798+307
+                        dth, dtb = dts
+                        try:
+                            dth = float(dth)
+                        except ValueError:
+                            dth = -1.0
+                        try:
+                            dtb = float(dtb)
+                        except ValueError:
+                            dtb = -1.0
+                        dthydro.append(dth)
+                        dtburn.append(dtb)
         return ns, slowp, dthydro, dtburn
 
 
@@ -409,11 +436,7 @@ def chopLogline(string):
         if k==-1:
             continue # not a value
         else:
-#             try:
             params.append((k.strip(), float(v)))
-#             except ValueError:
-#                 print('bad log line: {}'.format(v))
-#                 params.append((k.strip(), 1.0e-20))
     return stamp, params
 
 

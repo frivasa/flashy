@@ -7,15 +7,6 @@ from ..datahaul.hdfdirect import directMeta
 from matplotlib.patches import Rectangle
 import flashy.utils as ut
 
-# class patchN(object):
-#     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
-#         x0, y0 = handlebox.xdescent, handlebox.ydescent
-#         width, height = handlebox.width, handlebox.height
-#         patch = Rectangle((x0,y0), height, height)
-#         patch.update_from(orig_handle)
-#         patch.set_transform(handlebox.get_transform())
-#         handlebox.add_artist(patch)
-#         return patch
 
 def speciesYields(yieldfiles, tags=[], norm='Si', offset=6):
     """plots abundances for a list of files or a single file vs solar composition."""
@@ -96,7 +87,8 @@ def nuclideYields(files, tags):
         return fig
 
 
-def plotGridYield(yieldfile, dpi=150, cmap='Oranges', filetag='gridspec', batch=False):
+def plotGridYield(yieldfile, dpi=150, cmap='Oranges', 
+                  filetag='gridspec', tag='', batch=False):
     """plots mass yields over whole species grid for a yield file.
     
     Args:
@@ -121,6 +113,10 @@ def plotGridYield(yieldfile, dpi=150, cmap='Oranges', filetag='gridspec', batch=
     norm = mpl.colors.LogNorm(vmin=1e-3, vmax=0.5)
     cbar1 = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm, orientation='horizontal')
     cax.xaxis.set_ticks_position('top')
+    if tag:
+        # trick to make an empty handle 
+        sq = plt.Rectangle((0,0), 1, 1, fill=False, edgecolor='none', visible=False)
+        leg = a.legend(handles=[sq], labels=[tag], loc=(0.0, 0.85), frameon=False)
     if batch:
         folder = os.path.dirname(yieldfile)
         filename = os.path.basename(yieldfile).split('.')[0]
@@ -131,9 +127,30 @@ def plotGridYield(yieldfile, dpi=150, cmap='Oranges', filetag='gridspec', batch=
 
 
 def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[-2, 38], 
-                    boxsize=1.0, cmmin=1.0e-5, cmmax=0.9, cmap='Blues', addtags=True, 
-                    invert=False, frameless=False):
-    """plots a list of species on a grid."""
+                    boxsize=1.0, cmmin=1.0e-5, cmmax=0.9, cmap='Blues', addtags=True, tagsonright=False,
+                    noedge=False, frameless=False):
+    """Plots a list of species on a grid.
+    
+    Args:
+        ax(mpl.axes): axes to draw on.
+        species(str list): list of nuclide codes (e.g.: Ca40).
+        xmass(float list): list of mass fractions for each nuclide.
+        time(float): timestamp for plot (for use with xmass).
+        z_range(float list): atomic number range for plot.
+        n_range(float list): neutron number range for plot.
+        boxsize(float): size of nuclide marker box.
+        cmmin(float): colormap min value.
+        cmmax(float): colomap max value.
+        cmap(str): colormap name (https://matplotlib.org/examples/color/colormaps_reference.html)
+        addtags(bool): print element names.
+        tagsonright(bool): move tags to the rightside of the network.
+        noedge(bool): remove nuclide marker edges.
+        frameless(bool): remove frames, only show arrows.
+    
+    Returns:
+        (mpl.rectangle): handle for mpl legend.
+    
+    """
     cmap = mpl.cm.get_cmap(cmap)
     norm = mpl.colors.LogNorm(vmin=cmmin, vmax=cmmax)
     if len(xmass)>0:
@@ -143,36 +160,32 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[
                 textcoords='figure fraction', xycoords='figure fraction')
                         #, bbox=dict(boxstyle='round', fc='w', ec='k'))
     else:
-        # fakeXi = 1.0-np.random.rand(1)
-        xis = [0.5]*len(species)
-    if invert:
-        clr = 'white'
+        xis = [1e-2]*len(species)
+    if noedge:
+        clr = 'None'
     else:
         clr = 'black'
     nam, zs, ns, As = splitSpecies(species, standardize=True)
     for (z, n, xi) in zip(zs, ns, xis):
-#         if log:
         square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
                 boxsize, boxsize, facecolor=cmap(norm(xi)),
                 edgecolor=clr)
-#         else:
-#             square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
-#                     boxsize, boxsize, facecolor=cmap(xi),
-#                     edgecolor=clr)
         ax.add_patch(square)
         mainsquare = square
     if addtags:
-        tags, xs, ys = getNuclideGridNames(list(nam), zs, ns)
+        tags, xs, ys = getNuclideGridNames(list(nam), zs, ns, rightside=tagsonright)
         for (t, x, y) in zip(tags, xs, ys):
-            ax.text(x, y, t, fontsize=8, verticalalignment='center', 
-                    horizontalalignment='right', color=clr)
-    ax.set_ylabel('Z', color=clr, rotation=0, labelpad=12)
-    ax.set_xlabel('N', color=clr)
+            if tagsonright:
+                ax.text(x, y, t, fontsize=8, verticalalignment='center', 
+                        horizontalalignment='left')
+            else:
+                ax.text(x, y, t, fontsize=8, verticalalignment='center', 
+                        horizontalalignment='right')
+
+    ax.set_ylabel('Z', rotation=0, labelpad=12)
+    ax.set_xlabel('N')
     ax.set_ylim(z_range)
     ax.set_xlim(n_range)
-    # numbered axes
-#     ax.xaxis.tick_top()
-#     ax.xaxis.set_label_position('top')
     
     # remove spines/ticks (arrow and named axes)
     if frameless:
@@ -180,8 +193,8 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[
             ax.spines[side].set_visible(False)
         ax.set_xticks([]) # labels 
         ax.set_yticks([])
-        ax.arrow(0, 12, 0, 10, head_width=0.5, head_length=1, fc=clr, ec=clr)
-        ax.arrow(13, 0, 10, 0, head_width=0.5, head_length=1, fc=clr, ec=clr)
+        ax.arrow(0, 12, 0, 10, head_width=0.5, head_length=1, fc='k', ec='k')
+        ax.arrow(13, 0, 10, 0, head_width=0.5, head_length=1, fc='k', ec='k')
     
     # numbered axes
     ax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
@@ -226,7 +239,7 @@ def plotReacNet(ax, sunet, matr_shape, forcedZ=0, step=6, xoffset=1, cmap='Blues
 
 
 def doYouBelieveInMagic(ax, color='brown'):
-    """Draws a magical grid of stability (?)"""
+    """Draws a magical grid of stability."""
     cadabra = [2, 8, 20, 28, 50, 82, 126]
     for abra in cadabra:
         ax.axhline(abra, alpha=0.4, color=color, ls=':')
@@ -327,16 +340,24 @@ def speciesGrid(ax, spcodes, yoffset=5.0):
     return 0
 
 
-def getNuclideGridNames(names, zs, ns):
+def getNuclideGridNames(names, zs, ns, rightside=False):
     """Retuns tags and positions for a nuclide grid."""
     if 'p' in names and 'H' in names:
         names[names.index('p')] = 'H'  # change proton name to void H tag
+    if rightside:
+        # make a zip to get the max N to each Z
+        pairs = zip(zs,ns)
     tags = set()
     nams, x, y = [], [], []
     for i, n in enumerate(names):
         if n not in tags:
             tags.add(n)
             nams.append(n)
-            x.append(ns[i]-0.7)
-            y.append(zs[i])
+            if rightside:
+                rightmostN = [n for (z,n) in zip(zs, ns) if z==zs[i]]
+                y.append(zs[i]-0.2)
+                x.append(rightmostN[-1]+0.7)
+            else:
+                y.append(zs[i])
+                x.append(ns[i]-0.7)
     return nams, x, y

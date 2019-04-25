@@ -24,7 +24,7 @@ def plotNetwork(sim, dpi=100):
     return f
 
 
-def plotSpeciesGrid(sim):
+def plotSpeciesGrid(sim, **kwargs):
     """build a figure with nuclides included in a network."""
     if not sim.netpath:
         print("plot.simplot: Run doesn't use XNet.")
@@ -34,7 +34,7 @@ def plotSpeciesGrid(sim):
     with open(sunet) as fl:
         species = fl.readlines()
     species = [s.strip() for s in species]
-    plotNuclideGrid(ax, species)
+    plotNuclideGrid(ax, species, **kwargs)
     f.tight_layout()
     return f
 
@@ -83,18 +83,22 @@ def plotRayleighs(sim):
     return f
 
 
-def plotTsteps(sim, burndtfactor=0.0):
+def plotTsteps(sim, burndtfactor=0.0, range=[0,0]):
     """build a figure with timestep size vs evolution time."""
+    if sum(range)!=0:
+        cut = slice(*range)
+    else:
+        cut = slice(0, None, None)
     f, ax = plt.subplots()
-    ax.loglog(sim.time, sim.getStepProp('dt'), color='k', label='simulation')
+    ax.loglog(sim.time[cut], sim.getStepProp('dt', range=range), color='k', label='simulation', marker='x', ls=':')
     try:
-        ax.loglog(sim.time, sim.getStepProp('dthydro'), 
+        ax.loglog(sim.time[cut], sim.getStepProp('dthydro', range=range), 
                   color='b', ls=':', alpha=0.8, label='hydro')
         if not burndtfactor:
             burndtfactor = float(sim.pargroup.defaults.enucDtFactor['default'])
             print(burndtfactor)
-        ax.loglog(sim.time, np.array(sim.getStepProp('dtburn'))/burndtfactor, 
-                  color='r', alpha=0.8, ls=':', label='burn/{:.2e}'.format(burndtfactor))
+        ax.loglog(sim.time[cut], np.array(sim.getStepProp('dtburn', range=range))*burndtfactor, 
+                  color='r', alpha=0.8, ls=':', label='burn*{:.2e}'.format(burndtfactor))
     except Exception as e:
         print(e)
         pass
