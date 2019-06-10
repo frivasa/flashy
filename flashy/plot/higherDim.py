@@ -1,36 +1,13 @@
 # TDL separate datahaul elements from plotting routines
 from .globals import *
+from flashy.datahaul.hdf5yt import getFields
 import yt  # move this dependency to datahaul
-# avoid yt warnings
-from yt.funcs import mylog
+from yt.funcs import mylog  # avoid yt warnings
 mylog.setLevel(50)
-
-# COLORMAPS
-# https://jiffyclub.github.io/palettable/colorbrewer/
-# colorscheme names: http://jiffyclub.github.io/palettable +/colorbrewer /matplotlib /cmocean
-import palettable  # cmocean colors are included in palettable
-# palettable schemes are not interpolated so make a new one for yt
-# yt call: (name, type, num): num<=11 type={diverging, qualitative, sequential}
-#_cScheme = ('GnBu', 'sequential', 9)
-# import cmocean fails for ipyparallel. so hack it through palettable
-cmap = palettable.cmocean.sequential.Tempo_20.mpl_colormap
-cmap = palettable.cmocean.sequential.Amp_20.mpl_colormap
-# import cmocean fails for ipyparallel. 
-# so hack it through palettable
-_ytcmap = palettable.cmocean.sequential.Gray_20.mpl_colors
-# _ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
-# _ytcmap = palettable.cmocean.diverging.Curl_19_r.mpl_colors
-# _ytcmap = palettable.cmocean.diverging.Delta_20_r.mpl_colors
-_ytcmap = palettable.cmocean.diverging.Balance_20.mpl_colors
-# _ytcmap = palettable.cmocean.sequential.Amp_20.mpl_colors
-cols = [tuple([list(x),1]) for x in _ytcmap]
-cols.append(([0.0, 0.0, 0.0], 0))  # black initial color
-# cols.append(([1.0, 1.0, 1.0], 0))  # white initial color
-setcmap = yt.make_colormap(cols, name='custom')
 
 # yt plotting functions
 def planeSlice(fname, field, lims, zcut=0.0, linear=False, 
-               batch=False, width=1.1e9, mark=[]):
+               batch=False, width=1.1e9, cmap='', mark=[]):
     """Makes a slice at zcut
     
     Args:
@@ -41,6 +18,7 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False,
         linear(bool): logscale toggle.
         batch(bool): toggle return figure or write to file.
         width(float): total side size of plot
+        cmap (str): matplotlib colormap for the plot.
         mark(float list): specify a position to mark in the plot.
     
     Returns:
@@ -50,7 +28,10 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False,
     ds = yt.load(fname)
     p = yt.SlicePlot(ds, 'z', field, center=[0, 0, zcut])
     p.set_width((width, width))
-    p.set_cmap(field, 'custom')
+    if cmap:
+        p.set_cmap(field, cmap)
+    else:
+        p.set_cmap(field, 'RdBu_r')  # fall back to RdBu
     p.set_axes_unit('cm')
     fig = plt.figure(figsize=(10,10))
     grid = AxesGrid(fig, 111, nrows_ncols=(1, 1),
@@ -95,7 +76,7 @@ def planeSlice(fname, field, lims, zcut=0.0, linear=False,
 
 def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9,
            botfield='temperature', blims=[3e7, 2e9], lintop=False,  batch=False,
-           linbot=False, name=''):
+           linbot=False, name='', cmap=''):
     """Plots 2 properties for a hemisphere 2d cut as a joined sphere."""
     ds = yt.load(fname)
     p = yt.SlicePlot(ds, 'z', [topfield, botfield])
@@ -112,11 +93,11 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
                     cbar_mode="each", cbar_size="5%", cbar_pad="0%")
     plotFRB(grid[0], grid.cbar_axes[0], 
                   np.flipud(np.transpose(p.frb[topfield])), 
-                  tlims, linear=lintop)
+                  tlims, linear=lintop, cmap=cmap)
     plotFRB(grid[1], grid.cbar_axes[1], 
                   np.fliplr(np.transpose(p.frb[botfield])), 
                   blims, 
-                  top=False, linear=linbot)
+                  top=False, linear=linbot, cmap=cmap)
     if mhead:
         # we've transposed the matrix, so flip the _match positions
         x_match = ds.parameters['y_match']
@@ -150,7 +131,7 @@ def bifold(fname, mhead=True, topfield='density', tlims=[1e-1, 4e7], width=1.1e9
         return fig
 
 
-def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
+def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False, cmap=''):
     """draw frb to a given axesgrid.
     
     Args:
@@ -174,6 +155,8 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
         norm = NoNorm(vmin=vmin, vmax=vmax)
     else:
         norm = LogNorm(vmin=vmin, vmax=vmax)
+    if not cmap:
+        cmap = 'RdBu_r'  # fall back to RdBu
     if top:
         im = gridAx.imshow(imArr, 
                            cmap=cmap, aspect='auto', 
@@ -218,7 +201,8 @@ def plotFRB(gridAx, cbgAx, imArr, lims, top=True, linear=False):
 def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9, center=(0.0, 0.0),
               fields=['density', 'pressure', 'temperature'], linear=False, 
               mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9], mark=[], cmap=''):
-    """Plots the list of fields specified in yt.
+    """YT 2D plots of a specified list of fields through a slice 
+    perpedicular to the z-axis.
     
     Args:
         fname (str): filename to plot.
@@ -291,7 +275,7 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9, center=(0.
 
 
 def flashSpeeds(fname, thresh=1e-6, filetag='speeds', batch=False, 
-                 byM=True, direction=[], plotall=False):
+                byM=True, direction=[], plotall=False):
     """Plot species distribution in 'speed' space for a set wedge in the domain.
     ATM the wedge is fixed at a polar angle of 0-45 degrees at 90 degrees azimuth. 
     TDL: variable wedge angle.
@@ -319,35 +303,57 @@ def flashSpeeds(fname, thresh=1e-6, filetag='speeds', batch=False,
     
     _, species = getFields(ds.field_list)
     fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
+    offset = 4
     
     # ask yt for data, as always this takes forever.
     rawd = []
     for f in fields:
         rawd.append(wedge[f].value)
+    # this is wrong, will fix with methods from flashy.post
+    return 0
+#     vx2 = np.power(rawd[0][:],2)
+#     vy2 = np.power(rawd[1][:],2)
+#     vz2 = np.power(rawd[2][:],2)
+#     arg = vx2+vy2+vz2
+#     speeds = np.sqrt(arg)
     
-    f, ax = plt.subplots()
-    for i in range(len(species)):
-        spmass = [x[1][i] for x in celltpls]
-        joined = sorted(zip(speedrange, spmass))
-        speeds, masses = zip(*joined)
-        start = 0
-        weights = []
-        for c in counts:
-            massf = sum(masses[start:start+c])
-            weights.append(1.0/c)
-            start+=c
-        weights = np.array(weights)
-        bins = bins[1:]
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=weights, 
-                                         histtype='step', log=True, label=species[i])
-    # plot mass vs speed
-    ax.set_ylim([thresh, 2])
-    ax.yaxis.set_minor_formatter(StrMethodFormatter(''))
-    ax.xaxis.set_major_formatter(customFormatter(10))
-    ax.xaxis.set_minor_formatter(StrMethodFormatter(''))
-    ax.set_xlabel('Speed ($10^{10}$ cm/s)')
-    ax.legend()
-    fig.subplots_adjust(hspace=0.4)
+#     celltpls = []
+#     for i in range(len(rawd[0])):
+#         masses = [rawd[j][i]*rawd[3][i] for j in range(offset,len(species)+offset)]
+#         celltpls.append((speeds[i], masses))
+    
+#     sortedcells = sorted(celltpls)
+#     speeds, massgrid = zip(*sortedcells)
+#     # get ranges for histogram bins
+#     vmin, vmax = np.amin(speeds), np.amax(speeds)
+#     binsize = 1e7  # 100 km/s bins (Fink, 2010)
+#     binnum = int((vmax - vmin)/binsize)
+#     print("Velocity range: {:e} {:e}".format(vmin, vmax))
+#     print("Bins: {}".format(binnum))
+#     counts, bins = np.histogram(speeds, bins=int(binnum))
+#     f, ax = plt.subplots()
+#     for i in range(len(species)):
+#         spmass = [x[1][i] for x in celltpls]
+#         joined = sorted(zip(speedrange, spmass))
+#         speeds, masses = zip(*joined)
+#         start = 0
+#         weights = []
+#         for c in counts:
+#             massf = sum(masses[start:start+c])
+#             weights.append(1.0/c)
+#             start+=c
+#         weights = np.array(weights)
+#         bins = bins[1:]
+#         mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=weights, 
+#                                          histtype='step', log=True, label=species[i])
+#     # plot mass vs speed
+#     ax.set_ylim([thresh, 2])
+#     ax.yaxis.set_minor_formatter(StrMethodFormatter(''))
+#     ax.xaxis.set_major_formatter(customFormatter(10))
+#     ax.xaxis.set_minor_formatter(StrMethodFormatter(''))
+#     ax.set_xlabel('Speed ($10^{10}$ cm/s)')
+#     ax.legend()
+#     fig.subplots_adjust(hspace=0.4)
     
     if not batch:
         return fig
@@ -359,24 +365,3 @@ def flashSpeeds(fname, thresh=1e-6, filetag='speeds', batch=False,
         plt.savefig(name, format='png')
         plt.close(fig)
         print("Wrote: {}".format(name))
-
-### Deprecated ###
-def get_frb(fname, field, zcut=0.0, width=3e9, turn=False):
-    """TODO: swtich to new method, this one is dead
-    returns frb with required field."""
-    ds = yt.load(fname)
-#     p = yt.SlicePlot(ds, 'z', [field])
-    p = yt.SlicePlot(ds, 'z', field, center=[0, 0, zcut])
-    
-    p.set_width((width, width))
-    p.set_cmap(field, 'custom')
-    p.set_axes_unit('cm')
-    
-    #p.set_width((width, 2*width))
-    #p.set_center((width*0.5, 0.0))
-    #p.set_origin(("center", "left", "domain"))
-    p.set_axes_unit('cm')
-    if turn:
-        return np.transpose(p.frb[field])
-    else:
-        return p.frb[field]

@@ -12,7 +12,7 @@ for nongui in nonguis:
         break
     except:
         continue
-print("[flash.plot]: Using",mpl.get_backend())
+# print("[flash.plot]: Using",mpl.get_backend())
 
 # misc imports
 from mpl_toolkits.axes_grid1 import AxesGrid

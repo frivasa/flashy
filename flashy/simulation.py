@@ -82,11 +82,11 @@ class simulation(object):
         else:
             return np.array([getattr(t, which) for t in self.steps])
 
-    def standardizeGeometry(self):
+    def standardizeGeometry(self, verbose=False):
         """convert hdf5 files from cylindrical to cartesian."""
         if self.pargroup.params.geometry.strip('"')=='cylindrical':
-            turn2cartesian(self.chk, prefix='all', nowitness=False)
-        else:
+            turn2cartesian(self.chk, prefix='all', nowitness=False, silent=True)
+        elif verbose:
             print('Geometry already cartesian or spherical. Skipping conversion.')
 
     def getSlowCoord(self, direction='x'):
@@ -124,18 +124,32 @@ class simulation(object):
             except IndexError:
                 continue
 
-    def quickLook(self, refsimtime=0.1, refstep=100):
-        """print a group of general information about the run."""
+    def quickLook(self, refsimtime=0.1, refstep=100, rsets=6, rounding=8):
+        """print a group of general information about the run.
+        
+        Args:
+            refsimtime(float): simtime to backtrace steps and walltime.
+            refstep(int): step to backtrace simtime and walltime.
+            rsets(int): assumed MPI Ranks/node based on machine.
+        
+        Returns:
+            (str): string block of information about the run.
+        
+        """
         nodes, info = self.pargroup.probeSimulation(verbose=False)
         # nodes from probe may change if a forced PE count is used,
         # that meta is lost so get PEs from log file (3rd row).
+        info[-1] = ''  # erase node recommendation from probeSim
         nodes = int(self.header.split('\n')[2].split()[-1])
-        info[-1] = 'Nodes used: {:>19}'.format(nodes)
+        info.insert(len(info), 'Nodes used: {:>19}'.format(int(nodes/rsets)))
+        info.insert(len(info), 'MPI Ranks: {:>20}'.format(nodes))
         info.append('Achieved timesteps: {:>11}'.format(len(self.steps)))
+        tmax = self.getStepProp('t')[-1]+ self.getStepProp('dt')[-1]
+        info.append('Achieved simtime: {:>13}'.format(round(tmax, rounding)))
         info.append('Tstep sizes (s) [min/max(mean)]: {:e}/{:e} ({:>10e})'.format(*self.getAvgTstep()))
         info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
         info.append('IRL timestep (hh:mm:ss): {}'.format(self.irlstep))
-        limblks = np.max(self.getStepProp('blocks'))
+        limblks = np.max(self.getStepProp('totblocks'))
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints/Plotfiles: {}/{}'.format(len(self.checkpoints), len(self.plotfiles)))
         # simulation figure of merit
@@ -287,7 +301,7 @@ def readStats(filename):
     return data
 
 
-def readLog(filename):
+def readLogPrev(filename):
     """reads a FLASH log file filtering everything except step lines and header/timers"""
     steps = []
     hlines = []
@@ -303,6 +317,54 @@ def readLog(filename):
                 elif 'step' in l:
                     tst = tstep()
                     setattr(tst, 'blocks', blks)
+                    tstamp, params = chopLogline(l.strip())
+                    setattr(tst, 'tstamp', tstamp)
+                    for (k, v) in params:
+                        setattr(tst, k, v)
+                    steps.append(tst)
+            else:
+                hlines.append(l.strip('\n'))
+    try:
+        header, timings = splitHeader(hlines)
+        timings = ['\n'.join(t) for t in timings]
+    except IndexError:
+        header = hlines
+        timings = None
+    # clean up steps from log
+    nsteps = set()
+    purged = []
+    skipped = []
+    for i, step in enumerate(steps):
+        if step.n not in nsteps:
+            nsteps.add(step.n)
+            purged.append(step)
+        else:
+            skipped.append(i)
+            continue
+    return purged, '\n'.join(header), timings, skipped
+
+
+def readLog(filename):
+    """reads a FLASH log file filtering everything except step lines and header/timers"""
+    steps = []
+    hlines = []
+    with open(filename, 'r') as f:
+        for i, l in enumerate(f):
+            if l.startswith(' ['):
+                if 'GRID' in l and 'min blks ' in l:
+                    spl1 = l.strip().split('blks')
+                    minblk = int(spl1[1].split()[0]) 
+                    maxblk = int(spl1[2].split()[0])
+                    totblk = int(spl1[-1])
+                elif 'step' in l and 'GRID' in l:
+                    continue
+                elif 'checkpoint' in l:
+                    continue
+                elif 'step' in l:
+                    tst = tstep()
+                    setattr(tst, 'totblocks', totblk)
+                    setattr(tst, 'minblocks', minblk)
+                    setattr(tst, 'maxblocks', maxblk)
                     tstamp, params = chopLogline(l.strip())
                     setattr(tst, 'tstamp', tstamp)
                     for (k, v) in params:
@@ -424,7 +486,17 @@ def unstick(phrase):
 
 
 def chopLogline(string):
-    """splits a step line from a .log file."""
+    """splits a step line from a .log file, e.g.:
+    '[ 05-14-2019  10:08:38.088 ] step: n=5 t=5.368000E-08 dt=2.073600E-08 \n'
+    returning the timestamp and 'n', 't', 'dt' params
+    
+    Args:
+        string(str): log line (non-striped).
+        
+    Returns:
+        datetime.datetime, tuple list
+    
+    """
     br1, br2 = string.find('['), string.find(']')  # assuming index if leftmost ocurrence
     if br1==-1:
         return -1, -1

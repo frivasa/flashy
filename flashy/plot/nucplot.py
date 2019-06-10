@@ -88,14 +88,15 @@ def nuclideYields(files, tags):
 
 
 def plotGridYield(yieldfile, dpi=150, cmap='Oranges', 
-                  filetag='gridspec', tag='', batch=False):
+                  filetag='gridspec', imgtag='', batch=False):
     """plots mass yields over whole species grid for a yield file.
     
     Args:
         yieldfile(str): path of file.
         dpi(float): dpi of figure.
         cmap(str): colormap name.
-        filetag(str): prefix for batch mode. 
+        filetag(str): prefix for batch mode.
+        imgtag(str): label for plot (appears within the axes)
         batch(bool): skips returning figure, saving it to a structured directory instead.
         
     Returns:
@@ -105,18 +106,21 @@ def plotGridYield(yieldfile, dpi=150, cmap='Oranges',
     names = np.genfromtxt(yieldfile, dtype='|U4', usecols=(0,))
     vals = np.genfromtxt(yieldfile, usecols=(1,))
     mass = np.sum(vals)
+    with open(yieldfile, 'r') as tf:
+        allrows = tf.readlines()
+    time = float(allrows[1].split()[-1])
     f, a = plt.subplots(dpi=dpi)
-    sq = plotNuclideGrid(a, names, xmass=vals, cmap=cmap)
+    sq = plotNuclideGrid(a, names, xmass=vals, cmap=cmap, time=time)
     cax = f.add_axes([0.12, 0.9, 0.8, 0.037])  # left, bot, width, height
     cmap = mpl.cm.Oranges
     # norm = mpl.colors.Normalize(vmin=0.0, vmax=0.5)
     norm = mpl.colors.LogNorm(vmin=1e-3, vmax=0.5)
     cbar1 = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm, orientation='horizontal')
     cax.xaxis.set_ticks_position('top')
-    if tag:
+    if imgtag:
         # trick to make an empty handle 
         sq = plt.Rectangle((0,0), 1, 1, fill=False, edgecolor='none', visible=False)
-        leg = a.legend(handles=[sq], labels=[tag], loc=(0.0, 0.85), frameon=False)
+        leg = a.legend(handles=[sq], labels=[imgtag], loc=(0.0, 0.85), frameon=False)
     if batch:
         folder = os.path.dirname(yieldfile)
         filename = os.path.basename(yieldfile).split('.')[0]
@@ -128,7 +132,7 @@ def plotGridYield(yieldfile, dpi=150, cmap='Oranges',
 
 def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[-2, 38], 
                     boxsize=1.0, cmmin=1.0e-5, cmmax=0.9, cmap='Blues', addtags=True, tagsonright=False,
-                    noedge=False, frameless=False):
+                    noedge=False, frameless=False, forceColor=False, fColor='peru'):
     """Plots a list of species on a grid.
     
     Args:
@@ -146,6 +150,8 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[
         tagsonright(bool): move tags to the rightside of the network.
         noedge(bool): remove nuclide marker edges.
         frameless(bool): remove frames, only show arrows.
+        forceColor(bool): force a single color for all species.
+        fColor(str): Hex or name of color to force
     
     Returns:
         (mpl.rectangle): handle for mpl legend.
@@ -167,8 +173,12 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35], n_range=[
         clr = 'black'
     nam, zs, ns, As = splitSpecies(species, standardize=True)
     for (z, n, xi) in zip(zs, ns, xis):
+        if forceColor:
+            facecolor = fColor
+        else:
+            facecolor = cmap(norm(xi))
         square = plt.Rectangle((n-0.5*boxsize, z-0.5*boxsize),
-                boxsize, boxsize, facecolor=cmap(norm(xi)),
+                boxsize, boxsize, facecolor=facecolor,
                 edgecolor=clr)
         ax.add_patch(square)
         mainsquare = square

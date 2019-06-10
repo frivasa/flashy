@@ -53,7 +53,7 @@ def polyTemp(pres, rho, species, xmass):
     """returns the ideal gas temperature subject to a composition."""
     yis, abar, zbar = convXmass2Abun(species, xmass)
     molarmass = np.sum(yis)*1e-3  # turn to SI kg/mole
-    # turn dyne to N and cm to m for gas_constant SI > 1e-7
+    # turn dyne to N and cm to m for gas_constant SI -> 1e-7
     return molarmass*pres/rho/gas_constant*1e-7 
 
 

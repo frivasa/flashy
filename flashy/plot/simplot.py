@@ -109,18 +109,38 @@ def plotTsteps(sim, burndtfactor=0.0, range=[0,0]):
     return f
 
 
-def plotBlockUse(sim):
-    """build a figure with requested blocks vs evolution time."""
-    f, ax = plt.subplots()
-    ax.semilogx(sim.time, sim.getStepProp('blocks'), color='k')
-    ax.set_ylabel('Blocks Requested')
-    ax.set_xlabel('Time (s)')
-    f.tight_layout()
+def plotBlockUse(sim, cutoff=0):
+    """build a figure with requested blocks vs evolution time.
+    
+    Args:
+        sim(simulation): target simulation object.
+        cutoff(int): plots data beyond cutoff (data[cutoff:]).
+        
+    Returns:
+        (mpl.figure)
+    
+    """
+    f = plt.figure()
+    layout = (3,1)
+    totax = plt.subplot2grid(layout, (0, 0), rowspan=2)
+    totax.loglog(sim.time[cutoff:], sim.getStepProp('totblocks')[cutoff:], c='k', label='total')
+    totax.set_ylabel('Blocks')
+#     totax.yaxis.set_ticks([1400, 1600, 1800])
+    for tick in totax.get_xticklabels():
+        tick.set_visible(False)
+    totax.legend()
+    othax = plt.subplot2grid(layout, (2, 0), sharex=totax)
+    othax.loglog(sim.time[cutoff:], sim.getStepProp('maxblocks')[cutoff:], c='r', label='max')
+    othax.loglog(sim.time[cutoff:], sim.getStepProp('minblocks')[cutoff:], c='b', label='min')
+    othax.set_ylabel('Blocks')
+    othax.set_xlabel('Time (s)')
+    othax.legend()
+#     f.tight_layout()
     return f
 
 
 def plotStats(sim):
-    """build a figure with energy components through evolution time."""
+    """build a figure with energy components vs sim time."""
     f, ax = plt.subplots()
     ax.loglog(sim.time, sim.getStepProp('E_total')/_foe, label='Total', color='k')
     ax.loglog(sim.time, sim.getStepProp('E_kinetic')/_foe, label='Kin', color='r', alpha=0.8, ls=':')

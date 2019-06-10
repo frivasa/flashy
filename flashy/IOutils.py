@@ -44,7 +44,9 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         if 'xnet' in kwargs:
             if kwargs['xnet']==True:
                 net = kwargs['xnetData'].split('_')[-1]
-        dnum = {1:'one', 2:'two', 3:'three'}[len(nbs)]
+        # first 'three' without a 't' based on # speakers is 
+        # Mandarin -> German -> Japanese
+        dnum = {1:'one', 2:'two', 3:'san'}[len(nbs)]
         cells = 'x'.join([str(x) for x in nbs])
         name = '{}.{}.{}cells.{}maxb'.format(net, geometry, cells, maxbl)
         # TODO: remove/patch relative paths
@@ -263,7 +265,7 @@ def cpList(files, src, dst):
         shutil.copy('/'.join([src,f]), '/'.join([dst,f]))
 
 
-def getMachineSubJob(machine, proj, time, nodes, ompth, ddt, otpf, **kwargs):
+def getMachineSubJob(machine, proj, time, nodes, ompth, otpf, **kwargs):
     """returns scheduler code and extension for submit file according 
     to the specified queued machine.
     
@@ -273,18 +275,17 @@ def getMachineSubJob(machine, proj, time, nodes, ompth, ddt, otpf, **kwargs):
         time(str): walltime request.
         nodes(int): nodes to request.
         ompth(int): omp thread number.
-        ddt(bool): enable arm forge connection.
         otpf(str): output filename.
         **kwargs: additional keywords for ad-hoc changes.
     
     """
     if machine=='summit':
-        return summitBatch(proj, time, nodes, ddt, otpf, **kwargs)
+        return summitBatch(proj, time, nodes, otpf, **kwargs)
     else:
-        return titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs)
+        return titanBatch(proj, time, nodes, ompth, otpf, **kwargs)
 
 
-def titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs):
+def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
     """Titan/PBS submit maker.
     builds a submit.pbs with a typical header, specifying walltime and nodes.
     rhea: mpirun --map-by ppr:N:node:pe=Th or -n
@@ -297,7 +298,6 @@ def titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs):
         time(str): walltime request.
         nodes(int): nodes to request.
         ompth(int): omp thread number.
-        ddt(bool): enable arm forge connection.
         otpf(str): output filename.
         **kwargs: additional keywords for ad-hoc changes.
     
@@ -326,7 +326,7 @@ def titanBatch(proj, time, nodes, ompth, ddt, otpf, **kwargs):
     return launcher, 'qsub', '.pbs', schedlist
 
 
-def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
+def summitBatch(proj, time, nodes, otpf, **kwargs):
     """Summit/BSUB submit maker.
     builds a submit.lsf with a typical header, specifying walltime and nodes.
     
@@ -335,7 +335,6 @@ def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
         time(str): walltime request.
         nodes(int): nodes to request.
         smt(int): omp/smt thread number.
-        ddt(bool): enable arm forge connection.
         otpf(str): output filename.
         **kwargs: additional keywords for ad-hoc changes.
     
@@ -372,8 +371,8 @@ def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
         schedlist.append('#BSUB -u rivas.aguilera@gmail.com')
     # count nodes from bash NNODES=$(($(cat $LSB_DJOB_HOSTFILE | uniq | wc -l)-1))
     # 2 node 7 core + GPU per task 4 threads
-    #launcher = 'stdbuff -o0 jsrun --exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash4 &'
-    launcher = 'stdbuf -o0 jsrun '  # --exit_on_error > Must specify either --np or (--tasks_per_rs and --nrs).
+    # launcher = 'stdbuf -o0 jsrun --exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash4 &'
+    launcher = 'jsrun '
     launcher += '-n{} -r{} -a{} -g{} -c{} -bpacked:{} '.format(RS, defs['RSpN'], defs['mpipRS'], gpupRS, cpRS, cpmpi) 
     launcher += '-d packed ./flash4 &' 
     #-n = "Resource set"[rs] as subdivisions of a node
@@ -384,7 +383,6 @@ def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
     #-r rs per host=node
     #-l latency priority (cpu-gpu gpu-cpu)
     #-d launch distribution (task starting order)
-
     # hdf5 parallel to serial hack
     schedlist.append('module load pgi cuda essl netlib-lapack hdf5/1.8.18')
     # write specific romio_ hints
@@ -393,6 +391,10 @@ def summitBatch(proj, time, nodes, ddt, otpf, **kwargs):
     schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     schedlist.append('export OMP_SCHEDULE="dynamic"')
     schedlist.append('export OMP_STACKSIZE="256M"')
+    # schedlist.append('export OMPI_LD_PRELOAD_POSTPEND=/ccs/home/walkup/mpitrace/spectrum_mpi/libmpitrace.so')
+    schedlist.append('export OMPI_LD_PRELOAD_POSTPEND=${OLCF_SPECTRUM_MPI_ROOT}/lib/libmpitrace.so')
+    # warning this makes it extremely slow and faulty
+    # profiler: export OMPI_LD_PRELOAD_POSTPEND=/ccs/home/walkup/mpitrace/spectrum_mpi/libhpmprof.so
     return launcher, 'bsub', '.lsf', schedlist
 
 

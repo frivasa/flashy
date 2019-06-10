@@ -209,7 +209,12 @@ class parameterGroup(object):
             limblcks = np.power(2, (rmax-1))*float(nblocks[i])
             limcells = limblcks*cells[i]
             #minspan = span/limcells
-            sotp.append('{} span: {:2.4E}, resolution: {:2.4E}, cpb: {}'.format(dname, span, span/limcells, cells[i]))
+            dimline = []
+            dimline.append('{} span: {:2.4E}'.format(dname, span))
+            dimline.append('resolution: {:2.4E}'.format(span/limcells))
+            dimline.append('cpb: {}'.format(cells[i]))
+            dimline.append('init_blks: {}'.format(int(nblocks[i])))
+            sotp.append(', '.join(dimline))
             #area*=span
             tblcks*=limblcks
             tcells*=limcells
@@ -220,7 +225,6 @@ class parameterGroup(object):
         sotp.append('Max Refinement:{:>16.0f}'.format(rmax))
         sotp.append('Max blocks/cells:{:>14.4E}/{:.4E}'.format(tblcks, tcells))
         #sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))  # this is not correct
-        
         if forcePEs:
             sotp.append('forced PEs: {:0.0f}'.format(forcePEs))
             nodes = forcePEs
@@ -285,18 +289,23 @@ class parameterGroup(object):
         # move where the action is and get the corresponding flash.par
         code.append('cd {}'.format(runf))
         code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
-        # not sure if this still goes for alpine...
-        if self.meta['dimension'] > 1:
-            if nodes>512:  # hear the warnings, set limit to 512
-                code.append('lfs setstripe -c 512 {}'.format(os.path.join(otpf)))
-            else:
-                code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
+        # this is deprecated in Summit, striping is done automatically
+        # if self.meta['dimension'] > 1:
+        #     if nodes>512:  # hear the warnings, set limit to 512
+        #         code.append('lfs setstripe -c 512 {}'.format(os.path.join(otpf)))
+        #     else:
+        #         code.append('lfs setstripe -c {} {}'.format(nodes, os.path.join(otpf)))
         launcher, scheduler, ext, schedulercode = getMachineSubJob(machine, proj, time, nodes, ompth, 
-                                                                   ddt, os.path.join(runf, auxf), **kwargs)
-        # print(os.path.join(runf, auxf))
-        if ddt:
-            code.append('module load forge/18.3')  # specify version to latest
-            launcher = 'ddt --connect {}'.format(launcher)
+                                                                   os.path.join(runf, auxf), **kwargs)
+        if ddt:  # only mapping for now
+            for i, l in enumerate(schedulercode):  # search for the first module import
+                if 'export' in l:
+                    break
+            schedulercode.insert(i, 'module load forge/18.3')  # specify version to latest
+            # launcher = 'ddt --connect {}'.format(launcher)
+            launcher = 'map --profile {}'.format(launcher)
+        else:  # stdbuf kills arm
+            launcher = 'stdbuf -o0 {}'.format(launcher)
         otpname = submitpath + ext
         code.append(launcher)
         if multisub:

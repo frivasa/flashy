@@ -70,15 +70,12 @@ class dataMatrix(object):
             rname = 'pressure'
         else:
             rname = name
-#             bulk = False
         if rname in self.classn:  # skip init settings
             return super().__setattr__(rname, value)
         if rname not in self.__dict__:
-#             if bulk:
             if any(char.isdigit() for char in rname) or len(rname)==1:
                 self.__dict__['species'].append(rname)
             else:
-#             else:
                 self.__dict__['bulkprops'].append(rname)
             return super().__setattr__(rname, value)
         else:
@@ -224,7 +221,7 @@ def spliceProfs(left, right):
     return dataMatrix([keys, dblock])
 
 
-def snipProf(orig, cut, byM=False, left=True):
+def snipProf(orig, cut, byM=False, left=True, edgecell=False):
     """ cuts a profile, returning a new profile obj.
     conv: center is 0, edge is -1.
     
@@ -246,14 +243,25 @@ def snipProf(orig, cut, byM=False, left=True):
         return orig
     allcells = np.where(flow)
     # remove edge cell 
-    cells = (allcells[0][:-1],) if left else (allcells[0][1:],)
+    if edgecell:
+        cells = (allcells[0][:],) if left else (allcells[0][0:],)
+    else:
+        cells = (allcells[0][:],) if left else (allcells[0][0:],)
     # start block with essential properties (all dmat have these 2).
     nra = orig.radius[cells]
     nde = orig.density[cells]
     dblock = np.column_stack([nra, nde])
     keys = orig.filekeys
-    for k in keys[2:]:
+    rem = []
+    for i, k in enumerate(keys):
+        if k in orig.rnames or k in orig.dnames:
+            continue
+        elif k in orig.mnames:
+            rem.append(i)
+            continue
         dblock = np.column_stack((dblock, getattr(orig, k)[cells]))
+    for index in rem:
+        del keys[index]
     return dataMatrix([keys, dblock])
 
 

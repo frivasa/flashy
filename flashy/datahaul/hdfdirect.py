@@ -171,7 +171,7 @@ def switchback(file, output, verbose=True):
         print("Wrote {} from {}".format(output, file))
 
 
-def turn2cartesian(folder, prefix='all', nowitness=False):
+def turn2cartesian(folder, prefix='all', nowitness=False, silent=False):
     """Iterates over files within a folder, switching the geometry of 
     hdf5 files found to cartesian.
     
@@ -191,7 +191,8 @@ def turn2cartesian(folder, prefix='all', nowitness=False):
     for finn in finns:
         jake = os.path.join(folder,'cart_'+finn)
         if os.path.exists(jake):
-            print("{} found. Skipping.".format(jake))
+            if not silent:
+                print("{} found. Skipping.".format(jake))
             continue
         switchGeometry(os.path.join(folder,finn), jake, verbose=True)
         if nowitness:
