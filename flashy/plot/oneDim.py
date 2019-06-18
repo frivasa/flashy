@@ -685,3 +685,34 @@ def drawGrid(ax, gridpoints, alpha=0.6, color='salmon', lw=2.0):
     print('Gridpoints: {}'.format(len(gridpoints)))
     for r in gridpoints:
         ax.axvline(r, alpha=alpha, color=color, lw=lw)
+
+
+def getProfDegen(prof, relativistic=False):
+    """calculates degeneracy parameters for a dmat profile,
+    namely Y_e and \eta = T / T_fermi.
+    \eta near zero implies degeneracy, 
+    while \eta >> 1 or negative implies non-degenerate matter.
+    
+    Args:
+        prof (dataMatrix): dataMatrix obj.
+    
+    Returns:
+        (np.arrays): fermi temps, electron fractions, number fractions
+    
+    """  
+    # Ye and Yion
+    yes, yis = [], []
+    npnts = len(getattr(prof, prof.species[0]))
+    for i in range(npnts):
+        xis = []
+        for s in prof.species:
+            xis.append(getattr(prof, s)[i])
+        invyi, invye = getMus(prof.species, xis)
+        yes.append(1.0/invye)
+        yis.append(1.0/invyi)
+    # get fermi temperatures through the lineout
+    if relativistic:
+        fermT = [ extRelFermi(d)/ut.kb for d in prof.density ]
+    else:
+        fermT = [ nonRelFermi(d, ye=y)/ut.kb for d, y in zip(prof.density, yes) ]
+    return fermT, yes, yis
