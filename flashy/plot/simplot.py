@@ -1,4 +1,5 @@
-# from ..simulation import simulation
+from ..simulation import readTiming
+from ..IOutils import pairGen
 from .nucplot import plotNuclideGrid, plotReacNet
 from .globals import *
 _foe = 1.0e51
@@ -49,10 +50,7 @@ def plotSlowCoords(sim):
     zm = np.array(sim.getSlowCoord(direction='z'))
     rm = np.sqrt(xm**2+ym**2+zm**2)
     f, ax = plt.subplots()
-#     ax.semilogy(sim.time[1:], xm, label='x')
-#     ax.semilogy(sim.time[1:], ym, label='y')
     ax.semilogy(sim.time[:len(rm)], rm, label='r')
-#     ax.semilogy(sim.time[1:], rm, color='k')
     ax.set_ylabel('Radius (cm)')
     ax.set_xlabel('Time (s)')
     f.tight_layout()
@@ -90,14 +88,15 @@ def plotTsteps(sim, burndtfactor=0.0, range=[0,0]):
     else:
         cut = slice(0, None, None)
     f, ax = plt.subplots()
-    ax.loglog(sim.time[cut], sim.getStepProp('dt', range=range), color='k', label='simulation', marker='x', ls=':')
+    ax.loglog(sim.time[cut], sim.getStepProp('dt', range=range), 
+              color='k', label='picked', marker='x', ls=':')
+    step = sim.steps[0]
     try:
-        ax.loglog(sim.time[cut], sim.getStepProp('dthydro', range=range), 
+        ax.loglog(sim.time[cut], sim.getStepProp('dt_hydro', range=range), 
                   color='b', ls=':', alpha=0.8, label='hydro')
         if not burndtfactor:
-            burndtfactor = float(sim.pargroup.defaults.enucDtFactor['default'])
-            print(burndtfactor)
-        ax.loglog(sim.time[cut], np.array(sim.getStepProp('dtburn', range=range))*burndtfactor, 
+            burndtfactor = float(sim.pargroup.defaults.enucDtFactor['value'])
+        ax.loglog(sim.time[cut], np.array(sim.getStepProp('dt_Burn', range=range))*burndtfactor, 
                   color='r', alpha=0.8, ls=':', label='burn*{:.2e}'.format(burndtfactor))
     except Exception as e:
         print(e)
@@ -109,7 +108,7 @@ def plotTsteps(sim, burndtfactor=0.0, range=[0,0]):
     return f
 
 
-def plotBlockUse(sim, cutoff=0):
+def plotBlockUse(sim, range=[0,0]):
     """build a figure with requested blocks vs evolution time.
     
     Args:
@@ -120,22 +119,24 @@ def plotBlockUse(sim, cutoff=0):
         (mpl.figure)
     
     """
+    times = sim.getStepProp('t', range=range, src='refs')
+    blocks = sim.getStepProp('totblocks', range=range, src='refs')
+    minblk = sim.getStepProp('minblocks', range=range, src='refs')
+    maxblk = sim.getStepProp('maxblocks', range=range, src='refs')
     f = plt.figure()
     layout = (3,1)
     totax = plt.subplot2grid(layout, (0, 0), rowspan=2)
-    totax.loglog(sim.time[cutoff:], sim.getStepProp('totblocks')[cutoff:], c='k', label='total')
+    totax.loglog(times, blocks, c='k', label='total')
     totax.set_ylabel('Blocks')
-#     totax.yaxis.set_ticks([1400, 1600, 1800])
     for tick in totax.get_xticklabels():
         tick.set_visible(False)
     totax.legend()
     othax = plt.subplot2grid(layout, (2, 0), sharex=totax)
-    othax.loglog(sim.time[cutoff:], sim.getStepProp('maxblocks')[cutoff:], c='r', label='max')
-    othax.loglog(sim.time[cutoff:], sim.getStepProp('minblocks')[cutoff:], c='b', label='min')
+    othax.loglog(times, maxblk, c='r', label='max')
+    othax.loglog(times, minblk, c='b', label='min')
     othax.set_ylabel('Blocks')
     othax.set_xlabel('Time (s)')
     othax.legend()
-#     f.tight_layout()
     return f
 
 
@@ -152,44 +153,120 @@ def plotStats(sim):
     return f
 
 
-def plotTiming(sim, depth=2, cut=0.01):
+def plotTiming(sim, which=0, fsize=5, ringsize=0.2, startingr=0.5):
+    """Plot a nested pie chart with timings nested outwards
+    
+    Args:
+        sim(flashy.sim): simulation object to extract data from. 
+        which(int): which timing to plot.
+        fsize(float): size of figure.
+        ringsize(float): thickness of each ring.
+        startingr(float): donut hole size.
+    
+    Returns:
+        (mpl.fig)
+    
+    """
     if not sim.timings:
         print ("No timing information.")
         return None
-    steps, time, delta, md = sim.mergeTimings()
-    fig = plt.figure(figsize=(9, 9))
-    layout = (1, 3)
-    # Species
-    ax1 = plt.subplot2grid(layout, (0, 0), colspan=2)
-    a = ax1.annotate("Steps: {}\nRuntime: {:.5f} s\nAvg.Step:{:.5e} s".format(steps, time, delta),
-                    xy=(0.0, 0.0), xytext=(0.6, 0.10), size=12,
-                    textcoords='figure fraction', xycoords='figure fraction', 
-                    bbox=dict(boxstyle='round', fc='w', ec='k'))
-    for i, k in enumerate(md.keys()):
-        probe = probeAtDepth(md, k, depth)
-        for (lab, val) in probe:
-            if val < cut:
+    time, steps, data = readTiming(sim.timings[which])
+
+    # split block and get some shape info from it
+    units, deps, uts, cs, tavs, tpcs = zip(*data)
+    maxdep = max(deps)+1
+    delt = np.diff(deps)
+    delt = np.append(0, delt)
+    mm = np.zeros((len(data), maxdep), dtype="S30")
+    mmval = np.zeros((len(data), maxdep))
+    # build a matrix with leveled names and values
+    for i in range(maxdep):
+        layer = np.array(deps)-i
+        pick = np.where(layer==0)[0]
+        for j in range(len(units)):
+            if j in pick:
+                mov = sum(delt[:j+1])
+                if mov>0:
+                    mm[j-mov][i] = units[j].strip()
+                    mmval[j-mov][i] = uts[j]
+                else:
+                    mm[j][i] = units[j].strip()
+                    mmval[j][i] = uts[j]
+            else:
                 continue
-            ax1.bar(i, val, label=lab)
-    ax1.set_ylabel('Percentage(%)')
-    ax1.set_xticks(range(len(md.keys())))
-    ax1.set_xticklabels(md.keys(), rotation=-30, ha='left', rotation_mode='anchor')
-    ax1.tick_params(pad=6)
-    ax1.set_yscale('log')
-    lgd = ax1.legend(ncol=1, loc='upper left', bbox_to_anchor=(1.00, 1.05), 
-                     columnspacing=0.0,
-                     numpoints=3)
-    plt.tight_layout()
-    return fig
-
-
-def probeAtDepth(tree, stem, depth, value='percent'):
-    props = ['secs', 'calls', 'percent']
-    vals = []
-    for k in tree[stem]:
-        if k in props:
+    # remove emptied lines and mark roots
+    pmm, pmmv = [], []
+    for i, row in enumerate(mm):
+        if any([bool(x) for x in row]):
+            pmm.append(row)
+            pmmv.append(mmval[i,:])
+        else:
             continue
-        if tree[stem][k]['depth']==depth:
-            vals.append((k, tree[stem][k][value]))
-    return vals
+    pmm = np.array(pmm)
+    pmmv = np.array(pmmv)
+    # fill empty row values to the right and fill first non-zero to the left
+    for i, row in enumerate(pmm):
+        valrange = [k for k, x in enumerate(row) if bool(x)]
+        for j in range(valrange[-1], maxdep):
+            pmmv[i][j] = pmmv[i][valrange[-1]]
+        for j in range(1, valrange[0]):
+            pmmv[i][j] = pmmv[i][valrange[0]]
+    rootloc = [i for i, row in enumerate(pmmv) if bool(row[0])]
+    rootloc.append(len(pmmv))
+    
+    slices = []
+    for a,b in pairGen(rootloc):
+        slices.append(slice(a,b))
+    names = [x.decode('utf-8') for x in pmm[:,0]]
+    vals = pmmv[:,0]
+    maincols = []
+    for i, slc in enumerate(slices):
+        grad = linear_gradient(colors[i], n=len(range(*slc.indices(1000))))
+        maincols = maincols + grad['hex']
 
+    ringnames, ringvals = [], []
+    slc = slice(len(maincols))
+    for i in range(1, maxdep):
+        rnam = [x.decode('utf-8') for x in pmm[slc,i]] 
+        if any([bool(x)  for x in rnam]):
+            ringnames.append(rnam)
+            ringvals.append(pmmv[slc,i])
+        else:
+            break
+    fsize = 5
+    ringsize = 0.2
+    startingr = 0.5
+    layout = (1, 3)
+    fig = plt.figure(figsize=(2.6*fsize, fsize))
+    ax = plt.subplot2grid(layout, (0, 0), colspan=1)
+    lax = plt.subplot2grid(layout, (0, 2))
+    lax.axis('off')
+    ax.axis('equal')
+    pies = []
+    # always normalize so that mpl.pie plots up to the values encountered 
+    # instead of filling the circle with proportional fractions.
+    # https://matplotlib.org/3.1.0/api/_as_gen/matplotlib.axes.Axes.pie.html
+    pies, _ = ax.pie(vals/np.max(vals), radius=startingr, 
+                     colors=maincols,
+                     startangle=30,
+                     wedgeprops=dict(width=ringsize, edgecolor='w', lw=0.2))
+    for i in range(len(ringnames)):
+        outerp, _ = ax.pie(ringvals[i]/np.max(ringvals[i]), radius=startingr+ringsize*(i+1),
+                           colors=maincols, rotatelabels=True, 
+                           startangle=30, counterclock=False,
+                           wedgeprops=dict(width=ringsize, edgecolor='w', lw=0.2))
+        pies = pies + outerp
+        names = np.append(names, ringnames[i])
+
+    a = ax.annotate("Steps: {}. Runtime: {:.5f} s".format(steps, time),
+                xy=(0.0, 0.0), xytext=(0.4, 0.10), size=10,
+                textcoords='figure fraction', xycoords='figure fraction', 
+                bbox=dict(boxstyle='round', alpha=0.8, fc='w', ec='k'))
+
+    # handle handles ha ha
+    codes = [i for i, x in enumerate(names) if bool(x)]
+    pickedhandles = [pies[i] for i in codes]
+    stub = ax.legend(handles=pickedhandles, labels=[x for x in names if bool(x)], 
+                     loc='center left', bbox_to_anchor=(1.2, 0.6), 
+                     ncol=3, prop={'size': 10}, facecolor='w', framealpha=1.0)
+    return fig

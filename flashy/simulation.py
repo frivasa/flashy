@@ -1,49 +1,42 @@
 from .utils import np
-from .IOutils import os, getFileList, subp, rename, _cdxfolder
-import datetime
+from .IOutils import os, getFileList, rename, _cdxfolder
+from .IOutils import blockGenerator, getLines, getBlock, getRepeatedBlocks
+import datetime, tempfile
 from .paramSetup import parameterGroup, _FLASHdefaults, _otpfolder, _statsfile, _logfile
 # import flashy.plot.simplot as simp
 from flashy.datahaul.hdfdirect import turn2cartesian
-_pancake = 'PANCAKE'  # break word
+_DEFpar = 'flash.par'  # default par name
 
 class simulation(object):
     def __init__(self, folder):
         name = folder.rstrip('/')
-        # folders and paths
-        self.name = name
-        self.root = os.path.dirname(name)
-        self.cdx = os.path.join(self.root, _cdxfolder)
-        self.chk = os.path.join(self.name, _otpfolder)
-        self.checkpoints = getFileList(self.chk, glob='cart_flash_hdf5_chk', fullpath=True)
-        if not self.checkpoints:
-            self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
-        self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
-        # parameters
+        self.name = os.path.basename(name)
+        self.cdx = os.path.join(os.path.dirname(name), _cdxfolder)
+        self.chk = os.path.join(name, _otpfolder)
+        # parameters (user set and defs)
         self.pargroup = parameterGroup(os.path.join(self.cdx, _FLASHdefaults))
-        pars = getFileList(self.name, glob='.par', fullpath=True)
-        self.pargroup.setPars(sorted(pars)[0])  # pick first .par file if there's multiple
-        # check for Xnet
-        if os.path.exists(os.path.join(self.cdx, 'Networks')):
-            netname = 'Data_{}'.format(self.pargroup.meta['network'].split('_')[-1])
-            self.netpath = os.path.join(self.cdx, 'Networks', netname)
-        else:
-            self.netpath = ''
-        # initial profile
-        self.profile = os.path.join(self.cdx, self.pargroup.defaults.initialWDFile['value'])
-        # log file and stats (read log, sort steps, read stats, merge to steps)
-        # backwards compatibility: change names so it's normalized henceforth
+        self.pargroup.setPars(os.path.join(name, _DEFpar))
+        self.profile = os.path.join(self.cdx, self.pargroup.defaults.initialWDFile['value']) 
+        # backwards compatibility: change names of otp
         if not getFileList(folder, glob=_logfile)==[_logfile]:
             rename(folder, '.log', _logfile)
             rename(folder, '.dat', _statsfile)
+        self.pargroup.meta.update(buildMetaFromLog(os.path.join(folder, _logfile)))
+        self.netpath = os.path.join(self.cdx, 'Networks', self.pargroup.meta['network'])
+        if self.pargroup.meta['geometry']=='cylindrical':
+            self.standardizeGeometry()
+            self.checkpoints = getFileList(self.chk, glob='cart_flash_hdf5_chk', fullpath=True)
+            self.plotfiles = getFileList(self.chk, glob='cart_flash_hdf5_plt_', fullpath=True)
+        else:
+            self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
+            self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
         try:
-            self.steps, self.runtime, self.irlstep, \
-            self.header, self.timings = readMeta(os.path.join(name, _logfile), 
-                                                 os.path.join(name, _statsfile))
+            self.steps, self.refs, self.header, self.timings = \
+                readLogAndStats(os.path.join(name, _logfile), os.path.join(name, _statsfile))
         except Exception as e:
-            # print('log/stats not loaded:', e)
-            self.steps, self.runtime, self.irlstep, \
-            self.header, self.timings = [], [], [], [], []
+            self.steps, self.header, self.timings = [], [], []
         self.time = self.getStepProp('t')
+        self.runtime, self.irlstep = addIRLdeltas(self.steps, outlier=3.0)
         # qsub output parsing (.o files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
@@ -51,11 +44,9 @@ class simulation(object):
         if self.otpfiles:
             for f in self.otpfiles:
                 self.addOtp(f)
-        # cj output parsing (specific .dat files)
-        glob = 'shockDetect_'
+        glob = 'shockDetect_'  # cj output parsing (specific .dat files)
         self.CJ = getFileList(folder, glob=glob, fullpath=True)
-        # yield files
-        yieldf = os.path.join(folder, 'spec')
+        yieldf = os.path.join(folder, 'spec')   # yield files
         try:
             glob = '.yield'
             self.yields = getFileList(yieldf, glob=glob, fullpath=True)
@@ -65,12 +56,13 @@ class simulation(object):
             self.yields = []
             self.decayedyields = []
 
-    def getStepProp(self, which, range=[0,0]):
+    def getStepProp(self, which, range=[0,0], src='steps'):
         """get a property of all steps in a run.
 
         Args:
             which(str): property to extract.
-            endpoint(int): pick steps up to endpoint.
+            range(int list): pick steps within range.
+            src(str): source of data, either 'steps' or 'refs'
 
         Returns:
             (list): step ordered property list.
@@ -78,9 +70,9 @@ class simulation(object):
         """
         if sum(range)!=0:
             cut = slice(*range)
-            return np.array([getattr(t, which) for t in self.steps[cut]])
+            return np.array([getattr(t, which) for t in getattr(self, src)[cut]])
         else:
-            return np.array([getattr(t, which) for t in self.steps])
+            return np.array([getattr(t, which) for t in getattr(self, src)])
 
     def standardizeGeometry(self, verbose=False):
         """convert hdf5 files from cylindrical to cartesian."""
@@ -109,20 +101,27 @@ class simulation(object):
         return low, high, avg
 
     def addOtp(self, filename):
-        """read in a qsub output file. getting slowest coordinates for each timestep."""
-        ns, slowps, dthy, dtbu = readOtp(filename)
-        if not ns:
-            print('Qsub stopped in {} or No steps achieved.'.format(os.path.basename(filename)))
-            #os.remove(filename)
-        for (n, p, dth, dtb) in zip(ns, slowps, dthy, dtbu):
-            try:
-                setattr(self.steps[n], 'slowx', p[0])
-                setattr(self.steps[n], 'slowy', p[1])
-                setattr(self.steps[n], 'slowz', p[2])
-                setattr(self.steps[n], 'dthydro', dth)
-                setattr(self.steps[n], 'dtburn', dtb)
-            except IndexError:
-                continue
+        otpls = getLines(filename, ') |  ')
+        # get extra dt names from first line
+        dtnames = otpls[0].split('|')[-1]
+        dtnames = dtnames.split()
+        stags = ['slowx', 'slowy', 'slowz',]
+        nums = np.array([step.n for step in self.steps])
+        for otpl in otpls[1:]:
+            num, dtv, slowc = otpBreakdown(otpl)
+            loc = np.where((nums-num)==0)[0]
+            if loc.size>0:
+                loc = loc[0]
+            else:
+                # this should be the last step which has no 
+                # corresponding log step
+                continue 
+            target = self.steps[loc]
+            for t,v in zip(dtnames+stags, dtv+slowc):
+                setattr(target, t, v)
+        # finally set first log step to zero (log-otp offset)
+        for t in dtnames+stags:
+            setattr(self.steps[0], t, 0.0)
 
     def quickLook(self, refsimtime=0.1, refstep=100, rsets=6, rounding=8):
         """print a group of general information about the run.
@@ -131,6 +130,7 @@ class simulation(object):
             refsimtime(float): simtime to backtrace steps and walltime.
             refstep(int): step to backtrace simtime and walltime.
             rsets(int): assumed MPI Ranks/node based on machine.
+            rounding(int): precision for max walltime.
         
         Returns:
             (str): string block of information about the run.
@@ -149,7 +149,7 @@ class simulation(object):
         info.append('Tstep sizes (s) [min/max(mean)]: {:e}/{:e} ({:>10e})'.format(*self.getAvgTstep()))
         info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
         info.append('IRL timestep (hh:mm:ss): {}'.format(self.irlstep))
-        limblks = np.max(self.getStepProp('totblocks'))
+        limblks = np.max(self.getStepProp('totblocks', src='refs'))
         info.append('Max blocks used (per node): {} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints/Plotfiles: {}/{}'.format(len(self.checkpoints), len(self.plotfiles)))
         # simulation figure of merit
@@ -170,7 +170,7 @@ class simulation(object):
         if abs(simdelta) > tol:
             return ["\n Reference simulation time not reached."]
             #return 0, int(N), datetime.timedelta(0), datetime.timedelta(0)
-        tstamps = [step.tstamp for step in self.steps[:int(N)]]
+        tstamps = [step.timestamp for step in self.steps[:int(N)]]
         start = tstamps[0]
         tstamps.insert(0, start)
         deltas = np.array([b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])])
@@ -197,7 +197,7 @@ class simulation(object):
             simtime = self.steps[refstep].t
         except IndexError:
             return ["\n Reference simulation step not reached."]
-        tstamps = [step.tstamp for step in self.steps[:refstep]]
+        tstamps = [step.timestamp for step in self.steps[:refstep]]
         start = tstamps[0]
         tstamps.insert(0, start)
         deltas = np.array([b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])])
@@ -228,242 +228,99 @@ class simulation(object):
                 return self.steps[i].n, self.steps[i].t
         return self.steps[-1].n-1, self.steps[-1].t
 
-    def mergeTimings(self):
-        """Averages timing information."""
-        props = ['secs', 'calls', 'percent', 'depth']
-        if not self.timings:
-            return {}
-        #elif len(self.timings)==1:
-        else:  # just use the first one.
-            tsteps, ttime, md = readTiming(self.timings[0])
-            return tsteps, ttime, ttime/tsteps, md
-        # some keys change in timings. skipping merging for now
-        tims = []
-        for timing in self.timings:
-            tims.append(readTiming(timing))
-        tsteps = sum([a[0] for a in tims])
-        ttime = sum([a[1] for a in tims])
-        fmd = tims[0][2]
-        avg = len(tims)
-        print(fmd.keys())
-        for md in [a[2] for a in tims[1:]]:
-            print (md.keys())
-            for k in md.keys():
-                print(k)
-                fmd[k]['secs'] += md[k]['secs']
-                fmd[k]['calls'] += md[k]['calls']
-                fmd[k]['percent'] += md[k]['percent']
-                for j in md[k].keys():
-                    if j not in props:
-                        fmd[k][j]['secs'] += md[k][j]['secs']
-                        fmd[k][j]['calls'] += md[k][j]['calls']
-                        fmd[k][j]['percent'] += md[k][j]['percent']
-        for k in fmd.keys():
-            fmd[k]['secs'] /= avg
-            fmd[k]['calls'] /= avg
-            fmd[k]['percent'] /= avg
-            for j in fmd[k].keys():
-                if j not in props:
-                    fmd[k][j]['secs'] /= avg
-                    fmd[k][j]['calls'] /= avg
-                    fmd[k][j]['percent'] /= avg
-        return tsteps, ttime, ttime/tsteps, fmd
-
     
-def readMeta(logfile, statsfile, tstepsigma=3.0):
+def readLogAndStats(logfile, statsfile):
     """reads both log and stats file, correlating the data to each simulation step."""
-    # read log and base the timing on it's timesteps
-    rsteps, header, timings, skips = readLog(logfile)
-    # get IRL times from log tstamps
-    tstamps = [step.tstamp for step in rsteps]
-    start = tstamps[0]
-    tstamps.insert(0, start)
-    # deltas = np.array([(b-a).seconds for (a,b) in zip(tstamps[:-1], tstamps[1:])])
-    deltas = np.array([b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])])
-    newlogcutoff = np.mean(deltas)*tstepsigma  # threshold for end of a submit
-    deltas[np.where(deltas>newlogcutoff)[0]] = datetime.timedelta(0)  # remove these deltas
-    
-    totaltime = sum(deltas, datetime.timedelta(0))
-    IRLstep = np.mean(deltas)
-    
-    data = readStats(statsfile)
+    # read log data
+    rsteps, skips, refs, header, timings = readLog(logfile)
+    # read stats data and remove pre-restart values
+    data = np.genfromtxt(statsfile, names=True)  # this already skips # comments
     for att in data.dtype.names:
         # remove repeated steps detected in run.log from the stats data rows 
         purgedAtt = np.delete(data[att], skips)
         for step, p in zip(rsteps, purgedAtt):
             setattr(step, att, p)
-    return rsteps, totaltime, IRLstep, header, timings
+    return rsteps, refs, header, timings
 
 
-def readStats(filename):
-    """reads in data from a stats.dat file."""
-    data = np.genfromtxt(filename, names=True)  # this already skips # comments
-    return data
-
-
-def readLogPrev(filename):
-    """reads a FLASH log file filtering everything except step lines and header/timers"""
-    steps = []
-    hlines = []
-    with open(filename, 'r') as f:
-        for i, l in enumerate(f):
-            if l.startswith(' ['):
-                if 'GRID' in l and 'tot blks requested' in l:
-                    blks = int(l.split(':')[-1])
-                elif 'step' in l and 'GRID' in l:
-                    continue
-                elif 'checkpoint' in l:
-                    continue
-                elif 'step' in l:
-                    tst = tstep()
-                    setattr(tst, 'blocks', blks)
-                    tstamp, params = chopLogline(l.strip())
-                    setattr(tst, 'tstamp', tstamp)
-                    for (k, v) in params:
-                        setattr(tst, k, v)
-                    steps.append(tst)
-            else:
-                hlines.append(l.strip('\n'))
-    try:
-        header, timings = splitHeader(hlines)
-        timings = ['\n'.join(t) for t in timings]
-    except IndexError:
-        header = hlines
-        timings = None
-    # clean up steps from log
-    nsteps = set()
-    purged = []
-    skipped = []
-    for i, step in enumerate(steps):
-        if step.n not in nsteps:
-            nsteps.add(step.n)
-            purged.append(step)
-        else:
-            skipped.append(i)
-            continue
-    return purged, '\n'.join(header), timings, skipped
-
-
-def readLog(filename):
-    """reads a FLASH log file filtering everything except step lines and header/timers"""
-    steps = []
-    hlines = []
-    with open(filename, 'r') as f:
-        for i, l in enumerate(f):
-            if l.startswith(' ['):
-                if 'GRID' in l and 'min blks ' in l:
-                    spl1 = l.strip().split('blks')
-                    minblk = int(spl1[1].split()[0]) 
-                    maxblk = int(spl1[2].split()[0])
-                    totblk = int(spl1[-1])
-                elif 'step' in l and 'GRID' in l:
-                    continue
-                elif 'checkpoint' in l:
-                    continue
-                elif 'step' in l:
-                    tst = tstep()
-                    setattr(tst, 'totblocks', totblk)
-                    setattr(tst, 'minblocks', minblk)
-                    setattr(tst, 'maxblocks', maxblk)
-                    tstamp, params = chopLogline(l.strip())
-                    setattr(tst, 'tstamp', tstamp)
-                    for (k, v) in params:
-                        setattr(tst, k, v)
-                    steps.append(tst)
-            else:
-                hlines.append(l.strip('\n'))
-    try:
-        header, timings = splitHeader(hlines)
-        timings = ['\n'.join(t) for t in timings]
-    except IndexError:
-        header = hlines
-        timings = None
-    # clean up steps from log
-    nsteps = set()
-    purged = []
-    skipped = []
-    for i, step in enumerate(steps):
-        if step.n not in nsteps:
-            nsteps.add(step.n)
-            purged.append(step)
-        else:
-            skipped.append(i)
-            continue
-    return purged, '\n'.join(header), timings, skipped
-
-
-def splitHeader(hlines):
-    """separates the header from timings in a list of .log lines."""
-    perfs, heads, runs = [], [], []
-    for i, l in enumerate(hlines):
-        if 'FLASH log' in l:
-            heads.append(i)
-        # average timers may fail sometimes so you get only percentages.
-        elif 'perf_summary: code performance summary for process' in l:
-            perfs.append(i)
-    header = hlines[heads[0]:perfs[0]]
-    timings = []
-    heads.append(len(hlines))
-    for i, j in enumerate(perfs):
-        timings.append(hlines[j:heads[i+1]])
-    return header, timings
-
-
-def readOtp(filename):
-    """reads an output file (.oNUMBER) extracting the slowest coordinate for
-    each step.
-    time and dt are not read in due to being set by the .log file first and foremost.
+def readLog(logfile):
+    """read a flash log file, building step objects, grepping the first header,
+    listing available timings and associating refinements to the steps.
+    The method used here takes into account for repeated timesteps (which happpen 
+    after restarts) but not for repeated refinements which is likely for failing 
+    runs but not dramatic for the delta in blocks.
+    
+    Args:
+        logfile(str): filepath to *.log file from flash run.
+        
+    Return:
+        (sim.steps): every singular numbered step in the run (no repeated steps).
+        (str): first flash header from the log file.
+        (str list): end of run timings when available.
+        (int list): rows of repeated steps(this is used to clean stats.dat).
     
     """
-    with open(filename, 'r') as f:
-        ns, slowp, dthydro, dtburn = [], [], [], []
-        for i, l in enumerate(f):
-            if _pancake in l:
-                return [], [], [], []
-            if '|' in l:
-                if 'x' in l:
-                    continue
-                else:
-                    n = l.split()[0]
-                    a, b = l.index('('), l.index(')')
-                    ns.append(int(n)-1)
-                    slowp.append([float(x) for x in l[a+1:b].split(',')])
-                    # get dts after the '|'
-                    specificdts = l.split('|')[-1]
-                    dts = specificdts.split()
-                    if len(dts)>2:  # more than 2 dts, fails so set to 1.0
-                        dthydro.append(-1.0)
-                        dtburn.append(-1.0)
-                    elif len(dts)==1:  # only 1 dt, this must be reasonable.
-                        dthydro.append(float(dts[0]))
-                    else:  # 2 dts, try for weird non-floats like 1.798+307
-                        dth, dtb = dts
-                        try:
-                            dth = float(dth)
-                        except ValueError:
-                            dth = -1.0
-                        try:
-                            dtb = float(dtb)
-                        except ValueError:
-                            dtb = -1.0
-                        dthydro.append(dth)
-                        dtburn.append(dtb)
-        return ns, slowp, dthydro, dtburn
+    # get first header from title to the first logged step
+    header = getBlock(logfile, 'FLASH log file', ' [ ', skip=0)
+    header = '\n'.join(header)
+    # get all timings found in the log
+    timings = getRepeatedBlocks(logfile, 
+                                'perf_summary: code performance summary for', 
+                                'LOGFILE_END: FLASH run complete.')
+    timings = ['\n'.join(t) for t in timings]
+    # log steps
+    steps = [stepBreakdown(sline) for sline in getLines(logfile, 'step: ')]
+    realsteps, removedrows = clearRestarts(steps)
+    # refinement data
+    refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
+    refdata = [refBreakdown(rfb) for rfb in blockGenerator(refinementLines)]
+    tstamps = [step.timestamp for step in steps]
+    zero = datetime.timedelta(0)
+    tags = ['minblocks', 'maxblocks', 'totblocks', 
+            'leaf_minblocks', 'leaf_maxblocks', 'leaf_totblocks']
+    # find the simsteps where the ref took place
+    corr = []
+    reftime = datetime.datetime.now()
+    numreft = np.array([(reftime - rlvl[0]).total_seconds() for rlvl in refdata])
+    numstept = np.array([(reftime - t).total_seconds() for t in tstamps])
+    for n in numreft:
+        delts = numstept - n
+        pos = np.where(delts>0.0)[0]
+        if pos.size>0:
+            corr.append(pos[-1])
+        else:
+            corr.append(0)
+    # group ref-steps with the data from the corresponding simtime steps
+    refs = []
+    for i,c in enumerate(corr):
+        ref = tstep()
+        setattr(ref, 'n', steps[c].n)
+        setattr(ref, 't', steps[c].t)
+        for t,v in zip(tags, refdata[i][1:]):
+            setattr(ref, t, v)
+        refs.append(ref)
+    return realsteps, removedrows, refs, header, timings
 
 
-def timingParser(tlines):
-    """for now this returns the timespan of a timing.
-    expand to make stats from run."""
-    start, stop = datetime.datetime(1, 1, 1), datetime.datetime(1, 1, 1)
-    for t in tlines:
-        if 'beginning : ' in t:
-            _, _, tstamp = t.partition(':')
-            start = datetime.datetime.strptime(tstamp.strip(), '%m-%d-%Y  %H:%M:%S')
-        if 'ending :' in t:
-            _, _, tstamp = t.partition(':')
-            stop = datetime.datetime.strptime(tstamp.strip(), '%m-%d-%Y  %H:%M:%S')
-    delt = stop-start
-    return delt
+def addIRLdeltas(steps, outlier=3.0):
+    """calculate walltime deltas between timesteps.
+    Args:
+        steps(sim.step list): simulation log steps.
+        outlier(float): outlier delta for restarts (in minutes). 
+        
+    Returns:
+        (timedelta, timedelta): total walltime, mean walltime step
+    
+    """
+    tstamps = [step.timestamp for step in steps]
+    deltas = [b-a for (a,b) in zip(tstamps[:-1], tstamps[1:])]
+    deltas.append(datetime.timedelta(0))
+    for st, d in zip(steps, deltas):
+        if d>datetime.timedelta(minutes=outlier):
+            setattr(st, 'irldelta', datetime.timedelta(0))
+        else:
+            setattr(st, 'irldelta', d)
+    return sum(deltas, datetime.timedelta(0)), np.mean(deltas[:-1])
 
 
 class tstep(object):
@@ -477,76 +334,172 @@ class tstep(object):
         return zip(keys, values)
 
 
-def unstick(phrase):
-    """future: use str.partition(separator) = pre, sep, post"""
-    where = phrase.find('=')
-    if where==-1:
-        return -1, -1  # pass on the 'error'
-    return phrase[:where], phrase[where+1:]
+def buildMetaFromLog(log):
+    """Looks up relevant run information from a log file to update the simulation object."""
+    keys = ['network', 'geometry', 'cells', 'maxblocks', 'dimension']
+    units = getBlock(log, 'FLASH Units used:', '=========')[1:]
+    speciesblk = getBlock(log, 'Species Constituents', '=========')[1:]
+    if any(['XNet' in u for u in units]):
+        if len(speciesblk) < 15:
+            netname = 'alpha'
+        else:
+            netname = 'SN{}'.format(len(speciesblk))
+        network = 'Data_{}'.format(netname)
+    else:
+        network = 'Other'
+    lines = getLines(log, 'geometry')
+    for geom in ['cylindrical', 'spherical', 'cartesian']:
+        if any([geom in line for line in lines]):
+            break
+    lines = getLines(log, 'zones')
+    cells = []
+    for l in lines[:3]:
+        cells.append(int(l.split()[-1]))
+    lines = getLines(log, 'Dimensionality')
+    dimension = int(lines[0].split()[-1])
+    lines = getLines(log, 'Max Number of Blocks/Proc')
+    maxblocks = float(lines[0].split()[-1])
+    return dict(zip(keys, [network, geom, cells, maxblocks, dimension]))
 
 
-def chopLogline(string):
-    """splits a step line from a .log file, e.g.:
-    '[ 05-14-2019  10:08:38.088 ] step: n=5 t=5.368000E-08 dt=2.073600E-08 \n'
-    returning the timestamp and 'n', 't', 'dt' params
+def readTiming(timingString, perProc=False):
+    """return timing data from a specified timing block.
+    timing block has 2 subblocks, first one is for a single 
+    proc while the second is an avg from all procs.
     
     Args:
-        string(str): log line (non-striped).
-        
+        timingString(str list): timing block to analize.
+        perProc(bool): return "second" timing subblock.
+
     Returns:
-        datetime.datetime, tuple list
+        (list list): data per line with depths at pos 1.
     
     """
-    br1, br2 = string.find('['), string.find(']')  # assuming index if leftmost ocurrence
-    if br1==-1:
-        return -1, -1
-    stamp = datetime.datetime.strptime(string[br1+1:br2].strip(), '%m-%d-%Y  %H:%M:%S.%f')
-    remnant = string[br2:]
-    params = []
-    for p in remnant.split():
-        k, v = unstick(p)
-        if k==-1:
-            continue # not a value
-        else:
-            params.append((k.strip(), float(v)))
-    return stamp, params
+    # simulate a file
+    tp = tempfile.NamedTemporaryFile(mode='w')
+    tp.write(timingString)
+    tp.flush()
+    # chop lines
+    time = getLines(tp.name, 'seconds in monitoring period')
+    time = float(time[0].split(':')[-1])
+    steps = getLines(tp.name, 'number of evolution steps')
+    steps = int(steps[0].split(':')[-1])
+    tblock = getBlock(tp.name, 'accounting unit', '======')
+    # get data
+    div = 35  # split for name and values
+    data = []
+    for line in tblock[2:]:
+        unit, vals = line[:div], line[div:]
+        ldep = len(unit) - len(unit.lstrip(' '))
+        values = [unit, ldep-1]+[float(v) for v in vals.split()]
+        data.append(values)
+    return time, steps, data
 
 
-def readTiming(timingString):
-    lim = []
-    depth, indent = 0, 0
-    for i, l in enumerate(timingString.split('\n')):
-    #     depth = len(l) - len(l.lstrip(' '))
-        if 'seconds in monitoring period' in l:
-            tdelt = float(l.split()[-1])
-        elif 'number of evolution steps' in l:
-            steps = int(l.split()[-1])
-        elif '---' in l:
-            start = i
-        elif '====' in l:
-            stop = i
-            break
-        else:
-            indent = len(l) - len(l.lstrip(' '))
-            if indent>depth and indent<20:  # first lines have large indents
-                depth = indent
-    md = {}
-    for i, l in enumerate(timingString.split('\n')[start+1:stop]):
-        specialsplt = [a for a in l.split('  ') if a!='']
-        delt = len(l) - len(l.lstrip(' '))
-        mp, secs, calls, avgt, perc = specialsplt
-        mp = mp.strip().replace(' ', '_')
-        if delt==1:
-            md[mp] = {}
-            md[mp]['secs'] = float(secs)
-            md[mp]['calls'] = int(calls)
-            md[mp]['percent'] = float(perc)
-            stem = mp
-        else:
-            md[stem][mp]={}
-            md[stem][mp]['secs'] = float(secs)
-            md[stem][mp]['calls'] = int(calls)
-            md[stem][mp]['percent'] = float(perc)
-            md[stem][mp]['depth'] = delt
-    return steps, tdelt, md
+def clearRestarts(steps):
+    """Remove repeated steps from restarting failed runs.
+    
+    Args:
+        (sim.step list): list of simulation.step objects.
+    
+    Returns:
+        (sim.step list): cleansed steps.
+        (int list): removed step indices.
+    
+    """
+    numbers = np.array([step.n for step in steps])  # get step numbers
+    checkdelt = np.diff(numbers - len(numbers))  # find restarts
+    restartpos = np.where(checkdelt!=1)[0]  # get restart positions
+    repsteps = abs(checkdelt[restartpos])+1  # get wasted steps
+    remsteps = []
+    for pos, reps in zip(restartpos, repsteps):
+        for i in range(int(reps)):
+            remsteps.append(pos-i)
+    realsteps = [st for i, st in enumerate(steps) if i not in remsteps]
+    return realsteps, remsteps
 
+
+def refBreakdown(refBlock):
+    """detailed breakdown of the refinement block from a flash log.
+    e.g.:
+    [ 06-17-2019  18:15:06.134 ] [GRID amr_refine_derefine]: initiating refinement
+    [ 06-17-2019  18:15:06.144 ] [GRID amr_refine_derefine]: redist. phase.  tot blks requested: 10484
+    [GRID amr_refine_derefine] min blks 39    max blks 46    tot blks 10484
+    [GRID amr_refine_derefine] min leaf blks 30    max leaf blks 38    tot leaf blks 7895
+    [ 06-17-2019  18:15:06.185 ] [GRID amr_refine_derefine]: refinement complete
+    
+    Arg:
+        (str list): 5 line refinement log stamps.
+    
+    Returns:
+        (datetime.datetime, 6 floats): timestamp, min/max/tot blocks base and leaf.
+    
+    """
+    blockstencil = [2, 5, 8]
+    leafbstencil = [3, 7, 11]
+    # get tstep from first line
+    tstampstr, _, _ = refBlock[0].partition(']')
+    tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
+    # block information from lines 3-4
+    _, _, blockstr = refBlock[2].partition(']')
+    min, max, tot = [int(x) for i, x in enumerate(blockstr.split()) if i in blockstencil]
+    _, _, blockstr = refBlock[3].partition(']')
+    lmin, lmax, ltot = [int(x) for i, x in enumerate(blockstr.split()) if i in leafbstencil]
+    return tstamp, min, max, tot, lmin, lmax, ltot
+
+
+def stepBreakdown(sline):
+    """detailed breakdown a step from a flash log.
+    e.g.:
+    '[ 06-17-2019  18:15:07.507 ] step: n=46142 t=1.314454E+00 dt=1.000000E-10'
+    
+    Args:
+        (str): log line
+    
+    Returns:
+        (simulation.step): step object with relevant data.
+    
+    """
+    tags = ['timestamp', 'n', 't', 'dt']
+    tstampstr, _, props = sline.partition(']')
+    values = [datetime.datetime.strptime(tstampstr.strip('['), ' %m-%d-%Y %H:%M:%S.%f ')]
+    pstr = props.replace('=', ' ')
+    values += [float(x) for x in pstr.split() if x[0].isdigit()]
+    simstep = tstep()
+    for t, v in zip(tags, values):
+        setattr(simstep, t, v)
+    return simstep
+
+
+def otpBreakdown(otpline):
+    """detailed breakdown of a bash output file from flash.
+    e.g.:
+    '  14 5.9196E-07 1.2839E-07  ( 5.243E+05,  4.168E+08,   0.00    ) |  2.966E-04 1.158E-05'
+    Note that there's an offset in the ouput with respect to the log
+    since the first timestep is not written to std out.
+    
+    Args:
+        (str): step from the bash output.
+
+    Returns:
+        (int): log step number (otp number + 1).
+        (float list): timestep values found.
+        (float list): slowest coordinates (x, y, z).
+    
+    """
+    stepinfo, _, extradts = otpline.partition('|')
+    extradts = extradts.split()
+    stepprops, _, pos = stepinfo.strip(' )').partition('(')
+    # t and dt already in log so discard
+    otpn, _, _ = stepprops.split()
+    x, y, z = pos.split()
+    otpn = int(otpn)+1  # log vs otp offset
+    slowc = [float(i.replace(',','')) for i in [x, y, z]]
+    # take the first dt and float it
+    hydrodt = float(extradts[0])
+    try:
+        otherdts = [float(exdt) for exdt in extradts[1:]]
+    except ValueError:
+        otherdts = [-1.0]*len(extradts[1:])
+    dtvals = [hydrodt]+otherdts
+    return otpn, dtvals, slowc

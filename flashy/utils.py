@@ -239,7 +239,7 @@ def chunks(array, N):
 
 
 def scientify(array):
-    """turns every float in an array to sceintific notation."""
+    """turns every float in an array to scientific notation."""
     formv = []
     for v in array:
         try:

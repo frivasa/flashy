@@ -8,6 +8,7 @@ import subprocess as subp
 import operator
 from PIL import Image
 import imageio
+import itertools
 
 _cdxfolder = "cdx"
 _otpfolder = "chk"
@@ -176,6 +177,68 @@ def rename(path, glob, newname):
     if templog:
         os.rename(templog[0], os.path.join(os.path.split(templog[0])[0], newname))
         print('IOutils.rename: changed {} to {}'.format(templog, newname))
+
+        
+def getLines(filename, keyword):
+    """returns all lines matching a keyword within them"""
+    lines = []
+    with open(filename, 'r') as f:
+        for l in f:
+            if keyword in l:
+                lines.append(l.strip())
+    return lines
+
+
+def getBlock(filename, initkey, endkey, skip=0):
+    """returns all lines within keywords, clearing empty ones.
+    
+    Args:
+        filename(str): input file.
+        initkey(str): initial block keyword.
+        endkey(str): ending block keyword.
+        skip(int): skip the initkey skip times before extracting.
+        
+    Returns:
+        (str list): block extracted without blank lines.
+    
+    """
+    lines = []
+    save = False
+    par = 0
+    with open(filename, 'r') as f:
+        for l in f:
+            if initkey in l:
+                par+=1
+                if par>skip:
+                    save = True
+            elif save and endkey in l:
+                break
+            if save:
+                lines.append(l.strip('\n'))
+    return list(filter(None, lines))
+
+
+def getRepeatedBlocks(filename, initkey, endkey):
+    blocks = []
+    while(True): 
+        block = getBlock(filename, initkey, endkey, skip=len(blocks))
+        if block:
+            blocks.append(block)
+        else:
+            break
+    return blocks
+
+
+def blockGenerator(lines, step=5):
+    for i in range(0, len(lines), step):
+        yield lines[i:i+step]
+
+
+def pairGen(objlist):
+    """ turns a list into subsequent pairs between the objects """
+    a, b = itertools.tee(objlist)
+    next(b, None)
+    return zip(a, b)
 
 
 def makeGIF(srcfolder, speed=0.2):
@@ -390,7 +453,7 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
     schedlist.append('export ROMIO_HINTS={}'.format(romiofile))
     schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     schedlist.append('export OMP_SCHEDULE="dynamic"')
-    schedlist.append('export OMP_STACKSIZE="256M"')
+    schedlist.append('export OMP_STACKSIZE="2G"')  # def is 512
     # schedlist.append('export OMPI_LD_PRELOAD_POSTPEND=/ccs/home/walkup/mpitrace/spectrum_mpi/libmpitrace.so')
     schedlist.append('export OMPI_LD_PRELOAD_POSTPEND=${OLCF_SPECTRUM_MPI_ROOT}/lib/libmpitrace.so')
     # warning this makes it extremely slow and faulty

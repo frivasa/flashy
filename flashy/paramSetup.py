@@ -178,7 +178,10 @@ class parameterGroup(object):
                 print("BZZZZZZZZZZZZ: {} NOT SET!".format(k))
 
     def readMeta(self):
-        """returns dimension, cells per block, and maxblocks from a 'docked' parfile"""
+        """returns dimension, cells per block, and maxblocks from a 'docked' parfile
+        > simulation now reads meta from the log file
+        > pargroup tries to read this from the filepath so it's weaker.
+        """
         dim = int(self.meta['dimension'])
         cells = self.meta['cells'].split('x')
         cells[-1] = cells[-1].replace('cells', '')
@@ -198,7 +201,10 @@ class parameterGroup(object):
         return [float(n) for n in nblocks], [float(m) for m in mins], [float(m) for m in maxs]
     
     def probeSimulation(self, frac=0.4, forcePEs=0, verbose=True):
-        dim, cells, maxbl = self.readMeta()
+        if not isinstance(self.meta['maxblocks'], float):
+            dim, cells, maxbl = self.readMeta()
+        else:
+            dim, cells, maxbl = self.meta['dimension'], self.meta['cells'], self.meta['maxblocks']
         nblocks, mins, maxs = self.readEssential()
         area, tblcks, tcells = 1.0, 1.0, 1.0
         rmax = float(self.defaults.lrefine_max['value'])
@@ -207,7 +213,7 @@ class parameterGroup(object):
             dname = {0:'x', 1:'y', 2:'z'}[i]
             span = maxs[i]-mins[i]
             limblcks = np.power(2, (rmax-1))*float(nblocks[i])
-            limcells = limblcks*cells[i]
+            limcells = limblcks*float(cells[i])
             #minspan = span/limcells
             dimline = []
             dimline.append('{} span: {:2.4E}'.format(dname, span))
@@ -221,7 +227,7 @@ class parameterGroup(object):
         # mult(spans)/mult(nblocks)/mult(cells)/2^(ref-1)/2^(ref-1) = area of cell
         # ref 1 is nblocks, therefore ref-1
         # cells per block might change if blocks are rectangular (not cubes)
-        sotp.append('Max Blocks per PE: {:>12.0f}'.format(maxbl))
+        sotp.append('Max Blocks per PE: {:>12.0f}'.format(float(maxbl)))
         sotp.append('Max Refinement:{:>16.0f}'.format(rmax))
         sotp.append('Max blocks/cells:{:>14.4E}/{:.4E}'.format(tblcks, tcells))
         #sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))  # this is not correct
