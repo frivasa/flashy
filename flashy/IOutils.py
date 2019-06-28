@@ -15,18 +15,24 @@ _otpfolder = "chk"
 _logfile = 'f.log'
 _statsfile = 's.dat'
 _juptree = 'http://localhost:1988/tree/'
-if os.getenv('HOSTTYPE', 'powerpc64le')=='powerpc64le':  # summit has POWER arch
-    _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"  # summit testing
+# summit has POWER arch
+if os.getenv('HOSTTYPE', 'powerpc64le') == 'powerpc64le':
+    _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"
     _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
-    _SCRIPT_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/07.miscellaneous/bash/"
+    _SCRIPT_DIR = "/gpfs/alpine/csc198/proj-shared/"\
+                  "frivas/07.miscellaneous/bash/"
 else:
     _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
     _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
-    _SCRIPT_DIR = "/lustre/atlas/proj-shared/csc198/frivas/07.miscellaneous/bash/"
-_maxint = 2147483647  # this was removed in p3 due to arbitrary int length, but FORTIE doesn't know...
+    _SCRIPT_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"\
+                  "07.miscellaneous/bash/"
+# restore maxint number
+# (removed in p3 due to arbitrary int length, but FORTIE doesn't know...)
+_maxint = 2147483647
 
-def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16, 16, 16],
-               geometry='cylindrical', maxbl=500):
+
+def setupFLASH(module, runfolder='', kwargs={'threadBlockList': 'true'},
+               nbs=[16, 16, 16], geometry='cylindrical', maxbl=500):
     """calls ./setup at _FLASH_DIR with given parameters,
     writing the code to runfolder. (FLASH setup script runs only on py 2.X).
 
@@ -43,11 +49,11 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
     if not runfolder:
         net = 'ap13'
         if 'xnet' in kwargs:
-            if kwargs['xnet']==True:
+            if kwargs['xnet'] is True:
                 net = kwargs['xnetData'].split('_')[-1]
-        # first 'three' without a 't' based on # speakers is 
+        # first 'three' without a 't' based on # speakers is
         # Mandarin -> German -> Japanese
-        dnum = {1:'one', 2:'two', 3:'san'}[len(nbs)]
+        dnum = {1: 'one', 2: 'two', 3: 'san'}[len(nbs)]
         cells = 'x'.join([str(x) for x in nbs])
         name = '{}.{}.{}cells.{}maxb'.format(net, geometry, cells, maxbl)
         # TODO: remove/patch relative paths
@@ -63,60 +69,57 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList':'true'}, nbs=[16,
         print('Emptying {}'.format(destination))
         shutil.rmtree(destination)
         os.makedirs(destination)
-    
-    if len(nbs)==1:
+
+    if len(nbs) == 1:
         dimstr = "-1d -nxb={}".format(*nbs)
-    elif len(nbs)==2:
+    elif len(nbs) == 2:
         dimstr = "-2d -nxb={} -nyb={}".format(*nbs)
     else:
         dimstr = "-3d -nxb={} -nyb={} -nzb={}".format(*nbs)
-    
+
     cstub = 'cd {} \n ./setup {} -auto '\
             '-objdir="{}" {} -geometry={} -maxblocks={} '
     comm = cstub.format(_FLASH_DIR, module, path,
                         dimstr, geometry, maxbl)
     kwstr = ''
     for (k, v) in kwargs.items():
-        if v=='':
-            kwstr+=' {}'.format(k)
+        if v == '':
+            kwstr += ' {}'.format(k)
         else:
-            kwstr+=' {}={}'.format(k,v)
-    #kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
+            kwstr += ' {}={}'.format(k, v)
+    # kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
     print('\nGenerated run name: {}\n'.format(name))
     print(comm)
-    #p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
-    #out, err = p.communicate(input=comm.encode())
-    #exitcode = p.returncode
-    
+    # p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
+    # out, err = p.communicate(input=comm.encode())
+    # exitcode = p.returncode
     # copy parameter varying script
     try:
         iterpath = os.path.join(_AUX_DIR, '07.miscellaneous/bash/iterator')
-#         shutil.copy2(iterpath, destination)
-#         print('copied iterator')
         print('cp {} {}/.'.format(iterpath, destination))
     except:
         print('bash iterator not found, skipping.')
-    
-    print("************************************************************"\
+
+    print("************************************************************"
           "************************************************************"
-          "\nFLASH uses a preprocessing bash script to set an env_var so "\
-          "popen doesn't work. Please run the above commands by hand.\n"\
-          "************************************************************"\
+          "\nFLASH uses a preprocessing bash script to set an env_var so "
+          "popen doesn't work. Please run the above commands by hand.\n"
+          "************************************************************"
           "************************************************************")
-    return comm  #, exitcode, out, err
+    return comm  # , exitcode, out, err
 
 
 def mergeRuns(runlist, newname):
-    """builds a newname runfolder with aggregate properties from 
+    """builds a newname runfolder with aggregate properties from
     each run in runlist.
-    
+
     Args:
         runlist(str list): paths of runs to join.
         newname(str): pathname of aggregated run.
-    
+
     """
-    
+
     sortinp = sorted([i.strip('/') for i in runlist])
     runfolder = os.path.abspath(newname)
     print("Creating:", runfolder)
@@ -126,17 +129,19 @@ def mergeRuns(runlist, newname):
     for r in sortinp:
         src = os.path.join(os.path.abspath(r), _otpfolder)
         for f in os.listdir(src):
-            shutil.copy2(os.path.join(src,f), dst)
+            shutil.copy2(os.path.join(src, f), dst)
     # next copy all non-appendable output
     dst = os.path.abspath(runfolder)
     for r in sortinp:
         src = os.path.abspath(r)
-        files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
-        nonappfiles = [f for f in files if f!=_logfile and f!=_statsfile]
+        srcf = os.listdir(src)
+        files = [f for f in srcf if os.path.isfile(os.path.join(src, f))]
+        nonappfiles = [f for f in files if f != _logfile and f != _statsfile]
         for f in nonappfiles:
-            if f=='flash.par':
+            if f == 'flash.par':
                 parname = os.path.basename(r)
-                shutil.copy2(os.path.join(src, f), os.path.join(dst, "{}.par".format(parname)))
+                shutil.copy2(os.path.join(src, f),
+                             os.path.join(dst, "{}.par".format(parname)))
             else:
                 shutil.copy2(os.path.join(src, f), dst)
     # finally append log and stat file
@@ -153,16 +158,15 @@ def mergeRuns(runlist, newname):
 
 def getFileList(folder, glob='plt', fullpath=False):
     """Returns a filename list subject to a prefix 'glob'.
-    
+
     Args:
         folder(str): look-in path.
         prefix(str): filter string for files
         fullpath(bool): return absolute path for each file.
-        
+
     Returns:
         (str list)
-    
-    
+
     """
     names = sorted(os.listdir(folder))
     fnames = [x for x in names if glob in x]
@@ -175,10 +179,11 @@ def getFileList(folder, glob='plt', fullpath=False):
 def rename(path, glob, newname):
     templog = getFileList(path, glob=glob, fullpath=True)
     if templog:
-        os.rename(templog[0], os.path.join(os.path.split(templog[0])[0], newname))
+        os.rename(templog[0],
+                  os.path.join(os.path.split(templog[0])[0], newname))
         print('IOutils.rename: changed {} to {}'.format(templog, newname))
 
-        
+
 def getLines(filename, keyword):
     """returns all lines matching a keyword within them"""
     lines = []
@@ -191,16 +196,16 @@ def getLines(filename, keyword):
 
 def getBlock(filename, initkey, endkey, skip=0):
     """returns all lines within keywords, clearing empty ones.
-    
+
     Args:
         filename(str): input file.
         initkey(str): initial block keyword.
         endkey(str): ending block keyword.
         skip(int): skip the initkey skip times before extracting.
-        
+
     Returns:
         (str list): block extracted without blank lines.
-    
+
     """
     lines = []
     save = False
@@ -208,8 +213,8 @@ def getBlock(filename, initkey, endkey, skip=0):
     with open(filename, 'r') as f:
         for l in f:
             if initkey in l:
-                par+=1
-                if par>skip:
+                par += 1
+                if par > skip:
                     save = True
             elif save and endkey in l:
                 break
@@ -220,7 +225,7 @@ def getBlock(filename, initkey, endkey, skip=0):
 
 def getRepeatedBlocks(filename, initkey, endkey):
     blocks = []
-    while(True): 
+    while(True):
         block = getBlock(filename, initkey, endkey, skip=len(blocks))
         if block:
             blocks.append(block)
@@ -242,23 +247,24 @@ def pairGen(objlist):
 
 
 def makeGIF(srcfolder, speed=0.2):
-    """Join all png images within a folder in an 
+    """Join all png images within a folder in an
     animated .gif. Outputs at srcfolder/../
     # reduce size via webm conversion.
 
     Args:
         srcfolder (str): folder path
         speed (float): seconds between frames
-    
+
     """
     finns = sorted([x for x in os.listdir(srcfolder) if '.png' in x])
     outfolder = os.path.dirname(srcfolder)
     # maim the first file to get a name for the gif
-    outname = os.path.join(os.path.dirname(outfolder), '{}.gif'.format(finns[0][:-9]))
+    outname = os.path.join(os.path.dirname(outfolder),
+                           '{}.gif'.format(finns[0][:-9]))
     jakes = []
     for finn in finns:
         sys.stdout.write(finn + " ")
-        jakes.append(imageio.imread(os.path.join(srcfolder,finn)))
+        jakes.append(imageio.imread(os.path.join(srcfolder, finn)))
     imageio.mimsave(outname, jakes, format='gif', duration=speed)
     print("\n\tSaved: {}".format(outname))
 
@@ -278,9 +284,10 @@ def fortParse(arg, dec=True):
     booleans = ['false', 'true']
     query = arg.strip('."\' ').lower()
     try:
-        val = np.float(query.replace('d','E'))
-        if int(val)==val: # FORT does not handle big ints nor 'X.XEXX ints.
-            if abs(val)>_maxint:
+        val = np.float(query.replace('d', 'E'))
+        # FORT does not handle big ints nor 'X.XEXX ints.
+        if int(val) == val:
+            if abs(val) > _maxint:
                 return '{:E}'.format(val)
             else:
                 return int(val)
@@ -317,21 +324,21 @@ def execute(outpath):
 
 def cpList(files, src, dst):
     """Copies a file list between folders.
-    
+
     Args:
         files(str list): list of filenames.
         src(str): source folder.
         dst(str): destination folder.
-    
+
     """
     for f in files:
-        shutil.copy('/'.join([src,f]), '/'.join([dst,f]))
+        shutil.copy('/'.join([src, f]), '/'.join([dst, f]))
 
 
 def getMachineSubJob(machine, proj, time, nodes, ompth, otpf, **kwargs):
-    """returns scheduler code and extension for submit file according 
+    """returns scheduler code and extension for submit file according
     to the specified queued machine.
-    
+
     Args:
         machine(str): machine name.
         proj(str): project allocation code.
@@ -340,9 +347,9 @@ def getMachineSubJob(machine, proj, time, nodes, ompth, otpf, **kwargs):
         ompth(int): omp thread number.
         otpf(str): output filename.
         **kwargs: additional keywords for ad-hoc changes.
-    
+
     """
-    if machine=='summit':
+    if machine == 'summit':
         return summitBatch(proj, time, nodes, otpf, **kwargs)
     else:
         return titanBatch(proj, time, nodes, ompth, otpf, **kwargs)
@@ -355,7 +362,7 @@ def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
     debug: --display-map / --report-bindings
     Rhea max: 48 hours on 16 nodes (2x8 core p/node: -np 256)
     Titan: <125 nodes 2h, <312 nodes 6h...
-    
+
     Args:
         proj(str): project allocation code.
         time(str): walltime request.
@@ -363,7 +370,7 @@ def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
         ompth(int): omp thread number.
         otpf(str): output filename.
         **kwargs: additional keywords for ad-hoc changes.
-    
+
     """
 
     schedlist = []
@@ -376,7 +383,7 @@ def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
     schedlist.append('#PBS -j oe')  # join err and otp
     schedlist.append('#PBS -o {}'.format(otpf))
     if kwargs.get('j1', False):
-        nodes*=2
+        nodes *= 2
         ompth = 8
         launcher = 'aprun -n{} -d{} -j1 ./flash4 &'.format(nodes, ompth)
     else:
@@ -392,7 +399,7 @@ def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
 def summitBatch(proj, time, nodes, otpf, **kwargs):
     """Summit/BSUB submit maker.
     builds a submit.lsf with a typical header, specifying walltime and nodes.
-    
+
     Args:
         proj(str): project allocation code.
         time(str): walltime request.
@@ -400,7 +407,7 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
         smt(int): omp/smt thread number.
         otpf(str): output filename.
         **kwargs: additional keywords for ad-hoc changes.
-    
+
     """
     Ncores = 42
     Ngpu = 6
@@ -432,20 +439,23 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
         schedlist.append('#BSUB -u {}'.format(kwargs['mail']))
     else:
         schedlist.append('#BSUB -u rivas.aguilera@gmail.com')
-    # count nodes from bash NNODES=$(($(cat $LSB_DJOB_HOSTFILE | uniq | wc -l)-1))
+    # count nodes from bash
+    # NNODES=$(($(cat $LSB_DJOB_HOSTFILE | uniq | wc -l)-1))
     # 2 node 7 core + GPU per task 4 threads
-    # launcher = 'stdbuf -o0 jsrun --exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash4 &'
+    # launcher = 'stdbuf -o0 jsrun '
+    # '--exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash4 &'
     launcher = 'jsrun '
-    launcher += '-n{} -r{} -a{} -g{} -c{} -bpacked:{} '.format(RS, defs['RSpN'], defs['mpipRS'], gpupRS, cpRS, cpmpi) 
-    launcher += '-d packed ./flash4 &' 
-    #-n = "Resource set"[rs] as subdivisions of a node
-    #-a  MPI ranks/tasks per rs
-    #-c cpus per rs (physical, non-threaded)
-    #-g gpus per rs
-    #-b bind withing an rs [none, rs or packed number]
-    #-r rs per host=node
-    #-l latency priority (cpu-gpu gpu-cpu)
-    #-d launch distribution (task starting order)
+    launcher += '-n{} -r{} -a{} '.format(RS, defs['RSpN'], defs['mpipRS'])
+    launcher += '-g{} -c{} -bpacked:{} '.format(gpupRS, cpRS, cpmpi)
+    launcher += '-d packed ./flash4 &'
+    # -n = "Resource set"[rs] as subdivisions of a node
+    # -a  MPI ranks/tasks per rs
+    # -c cpus per rs (physical, non-threaded)
+    # -g gpus per rs
+    # -b bind withing an rs [none, rs or packed number]
+    # -r rs per host=node
+    # -l latency priority (cpu-gpu gpu-cpu)
+    # -d launch distribution (task starting order)
     # hdf5 parallel to serial hack
     schedlist.append('module load pgi cuda essl netlib-lapack hdf5/1.8.18')
     # write specific romio_ hints
@@ -454,10 +464,15 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
     schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     schedlist.append('export OMP_SCHEDULE="dynamic"')
     schedlist.append('export OMP_STACKSIZE="2G"')  # def is 512
-    # schedlist.append('export OMPI_LD_PRELOAD_POSTPEND=/ccs/home/walkup/mpitrace/spectrum_mpi/libmpitrace.so')
-    schedlist.append('export OMPI_LD_PRELOAD_POSTPEND=${OLCF_SPECTRUM_MPI_ROOT}/lib/libmpitrace.so')
+    # schedlist.append('export '
+    #                  'OMPI_LD_PRELOAD_POSTPEND='
+    #                  '/ccs/home/walkup/mpitrace/spectrum_mpi/libmpitrace.so')
+    schedlist.append('export '
+                     'OMPI_LD_PRELOAD_POSTPEND='
+                     '${OLCF_SPECTRUM_MPI_ROOT}/lib/libmpitrace.so')
     # warning this makes it extremely slow and faulty
-    # profiler: export OMPI_LD_PRELOAD_POSTPEND=/ccs/home/walkup/mpitrace/spectrum_mpi/libhpmprof.so
+    # profiler: export OMPI_LD_PRELOAD_POSTPEND=
+    # /ccs/home/walkup/mpitrace/spectrum_mpi/libhpmprof.so
     return launcher, 'bsub', '.lsf', schedlist
 
 
@@ -474,12 +489,12 @@ def writeRHints(nodes, buffer=33554432, multi=4):
 
 def writeSchedulerScript(subfile, code, schedcode):
     """writes submit file.
-    
+
     Args:
         subfile(str): submit filename (also set as jobname)
         code(str list): ordered commands for the file.
         schedcode(str list): scheduler directives.
-    
+
     """
     with open(subfile, 'w') as o:
         o.write("\n".join(schedcode))
@@ -495,23 +510,26 @@ def getWalltime(nodes, machine='summit'):
 
 
 def summit(nodes):
-    """lsf uses hh:mm not hh:mm:ss but this is handled by the lsf submit writer."""
-    if nodes<46:
+    """
+    lsf uses hh:mm not hh:mm:ss but this is
+    handled by the lsf submit writer.
+    """
+    if nodes < 46:
         return '02:00:00'
-    elif nodes<92:
+    elif nodes < 92:
         return '06:00:00'
-    elif nodes<922:
+    elif nodes < 922:
         return '12:00:00'
     else:
         return '24:00:00'
 
 
 def titan(nodes):
-    if nodes<125:
+    if nodes < 125:
         return '02:00:00'
-    elif nodes<312:
+    elif nodes < 312:
         return '06:00:00'
-    elif nodes<3749:
+    elif nodes < 3749:
         return '12:00:00'
     else:
         return '24:00:00'
@@ -520,13 +538,13 @@ def titan(nodes):
 def probeFile(file, showrows=3, onlyhead=True):
     """Shows 'showrows' lines from the start, midfile and
     ending of a plaintext file
-    
+
     Args:
         file(str): file path.
         showrows(int): rows to show from each section.
-        onlyhead(bool): only print the top of the file (equivalent to 
-            head -n showrows file).
-    
+        onlyhead(bool): only print the top of the file
+        (equivalent to head -n showrows file).
+
     """
     with open(file, 'r') as f:
         lines = f.readlines()
@@ -543,11 +561,11 @@ def probeFile(file, showrows=3, onlyhead=True):
 
 def pNumbered(rlist, offset):
     """prints numbered lines from a list.
-    
+
     Args:
         rlist(str list): lines to print
         offset(int): first line number.
-    
+
     """
     for i, l in enumerate(rlist):
         print('{}: {}'.format(i+offset, l.strip('\n')))
@@ -558,4 +576,3 @@ def emptyFileTree(stemfolder):
     path = os.path.abspath(root)
     shutil.rmtree(path)
     os.makedirs(path)
-    

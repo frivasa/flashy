@@ -1,2 +1,3 @@
-# init file test for flashy
-
+"""
+flashy module
+"""

@@ -3,30 +3,33 @@ from .utils import chunks, scientify
 from .simulation import simulation
 from .datahaul.plainText import dataMatrix
 import flashy.profile_workshop as pw
-
 _errortags = [
-'reached max wall clock time',
-'DRIVER_ABORT: [XNet] Evolution failed to converge',
-'DRIVER_ABORT: [Eos] Error: too many Newton-Raphson iterations in eos_helmholtz',
-'DRIVER_ABORT: [eos_helm] ERROR: abar is negative.'
+    'reached max wall clock time',
+    'DRIVER_ABORT: [XNet] Evolution failed to converge',
+    'DRIVER_ABORT: [Eos] Error: '
+    'too many Newton-Raphson iterations in eos_helmholtz',
+    'DRIVER_ABORT: [eos_helm] ERROR: abar is negative.'
 ]
 
-def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'], probesim=False):
+
+def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
+                    probesim=False):
     """extracts metadata from all runs found within a code folder."""
-    if folder[-1]!='/':
+    if folder[-1] != '/':
         filename = '{}.csv'.format(os.path.basename(folder))
     else:
         filename = '{}.csv'.format(os.path.basename(os.path.dirname(folder)))
     allvalues = []
     for i, f in enumerate(sorted(os.listdir(folder))):
-        if f==_cdxfolder:
+        if f == _cdxfolder:
             continue
         runpath = os.path.join(folder, f)
         print('Checking:', os.path.basename(runpath))
         tgs, values = getRunMeta(runpath, names=names, probesim=probesim)
         print('\t', values[-2])  # this is the end condition
-        # add relative path, this should break if run from elsewhere than 10.yt_FLASH
-        values.append('=HYPERLINK("{}{}")'.format(_juptree, runpath[3:]))  # remove '../'
+        # add relative path,
+        # WARN: this should break if run from elsewhere than 10.yt_FLASH.
+        values.append('=HYPERLINK("{}{}")'.format(_juptree, runpath[3:]))
         allvalues += values
     tgs.append('url')
     with open(filename, 'w') as otp:
@@ -38,7 +41,8 @@ def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'], probesim=
     print('Wrote:', filename)
 
 
-def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'], probesim=True):
+def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
+               probesim=True):
     """return named parameters plus simulation status."""
     tags = names.copy()
     values = []
@@ -52,7 +56,7 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'], probesim=True
     intfpos = pw.getInterfacePosition(pobj)
     masses = pw.getSummedMasses(pobj)
     interface = pobj.radius[intfpos]
-    values = [sum(list(masses.values())), masses['he4'], 
+    values = [sum(list(masses.values())), masses['he4'],
               pobj.density[0], pobj.density[intfpos], interface]
     # get the match position and height
     x = getattr(sim.pargroup.defaults, 'x_match')['value']
@@ -78,8 +82,7 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'], probesim=True
         lastst = sim.steps[-1]
         endt = lastst.dt+lastst.t
         # check if finished
-        if (maxt-endt)>1e-6:  # log file precision
-            # print('Simtime/Max simtime: {:.2f}/{:.2f} s. Error below:'.format(endt, maxt))
+        if (maxt-endt) > 1e-6:  # log file precision
             errtag, errlog = showerror(sim.otpfiles[-1])
             if '[Eos]' in errtag:
                 comm = '{:e} {:e} {:e}'.format(*eosLocation(errlog))
@@ -117,4 +120,3 @@ def eosLocation(errblock):
         if '(x, y, z)' in l:
             x, y, z = [float(x) for x in l.split()[-3:]]
     return x, y, z
-    

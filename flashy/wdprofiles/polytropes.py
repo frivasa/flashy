@@ -7,12 +7,13 @@ from ..nuclear import convXmass2Abun
 from ..datahaul.plainText import dataMatrix
 _lown = 1.0e-10
 
+
 def buildPolytropic(rstart, pc, rhoc, species=['he4'], xmass=[1.0],
                     gamma=4.0/3, rmax=rsol, mind=1e-5):
-    """Generates a polytropic profile satisfying a given central pressure, density, 
+    """Generates a polytropic profile satisfying a given central pressure, density,
     and heat capacity ratio (index).
     Adds Temperatures based on composition through a Helmholtz free energy EoS.
-    
+
     Args:
         rstart(float): starting radius for the solution.
         pc(float): starting pressure.
@@ -22,23 +23,24 @@ def buildPolytropic(rstart, pc, rhoc, species=['he4'], xmass=[1.0],
         gamma(float): polytrope index (1+1/n = gamma).
         rmax(float): furthest radius to solve the system.
         mind(float): curoff density for generated profile.
-    
+
     Returns:
         dataMatrix: profile object with properties as attributes.
-    
+
     """
     y0 = [rhoc*4.0*np.pi*np.power(rstart, 3.0)/3.0, pc]
     pcons = [pc/np.power(rhoc, gamma), gamma]
-    pheidippides = solve_ivp(fun=lambda t, y: polyHydro(t, y, pcons), method='LSODA',
+    pheidippides = solve_ivp(fun=lambda t, y: polyHydro(t, y, pcons),
+                             method='LSODA',
                              jac=lambda t, y: jac(t, y, pcons),
                              t_span=(rstart, rmax), y0=y0, events=athens)
     rs, ms, ps = pheidippides.t, pheidippides.y[0], pheidippides.y[1]
     ds = np.array([polyDens(p, pcons) for p in ps])
 
     # trim off the edges
-    ncut = np.where(ds>mind)[0][-1]
+    ncut = np.where(ds > mind)[0][-1]
     rs, ms, ps, ds = rs[:ncut], ms[:ncut], ps[:ncut], ds[:ncut]
-    
+
     ts = [polyTemp(p, d, species, xmass) for (p, d) in zip(ps, ds)]
     mult = len(rs)
     keys = ['radius', 'dens', 'pres', 'temp']
@@ -54,7 +56,7 @@ def polyTemp(pres, rho, species, xmass):
     yis, abar, zbar = convXmass2Abun(species, xmass)
     molarmass = np.sum(yis)*1e-3  # turn to SI kg/mole
     # turn dyne to N and cm to m for gas_constant SI -> 1e-7
-    return molarmass*pres/rho/gas_constant*1e-7 
+    return molarmass*pres/rho/gas_constant*1e-7
 
 
 def polyDens(pres, pcons):
@@ -82,18 +84,18 @@ def jac(x, y, pcons):
     mdp = 0
     pdm = -G*den/x/x
     pdp = 0
-    return np.array([[mdm, mdp],[pdm, pdp]])
+    return np.array([[mdm, mdp], [pdm, pdp]])
 
 
 def polyHydro(x, y, pcons):
     """Returns the RHS for hydro+mass conservation subject to a
     Polytropic EoS
     """
-    con1   = 4.0e0 * np.pi
+    con1 = 4.0e0 * np.pi
     c2 = c*c
     # map the input vector
     massg = y[0]
-    pres  = y[1]
+    pres = y[1]
 
     # Poly dens
     den = polyDens(pres, pcons)
@@ -107,5 +109,5 @@ def polyHydro(x, y, pcons):
               (1.0 + (con1*pres*x**3)/(massg*c2)) /\
               (1.0 - (2.0*G*massg)/(x*c2))
         # cor = 1.0
-        dydx.append(-G * massg/x/x* den*cor)
+        dydx.append(-G*massg/x/x*den*cor)
     return dydx

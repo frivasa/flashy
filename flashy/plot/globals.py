@@ -1,32 +1,30 @@
 from ..IOutils import os
 from ..utils import np
 import pkg_resources
+from cycler import cycler
+from matplotlib.ticker import (FuncFormatter,
+                               StrMethodFormatter, ScalarFormatter)
+from matplotlib.colors import LogNorm, NoNorm
 import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import AxesGrid
 # backends for script/parallel ploting
-nonguis = [u'agg', u'cairo', u'gdk', u'pdf', u'pgf', u'ps', u'svg', u'template']
+nonguis = [u'agg', u'cairo', u'gdk', u'pdf',
+           u'pgf', u'ps', u'svg', u'template']
 for nongui in nonguis:
     try:
-        #print "[flash_plot]: Testing", nongui
+        # print "[flash_plot]: Testing", nongui
         mpl.use(nongui, warn=False, force=True)
         from matplotlib import pyplot as plt
         break
     except:
         continue
 # print("[flash.plot]: Using",mpl.get_backend())
-
-# misc imports
-from mpl_toolkits.axes_grid1 import AxesGrid
-# from mpl_toolkits.axes_grid.anchored_artists import AnchoredText
-from matplotlib.ticker import FuncFormatter, StrMethodFormatter, ScalarFormatter
-from matplotlib.colors import LogNorm, NoNorm
-
 # x = {1, 5, 10}
 # (0, (1, x)) dotted
 # (0, (5, x)) dashed
 # (0, (3, x, 1, x)) dash-dot
 # (0, (1, x, 1, x, 1, x)) dash-dot-dot
-from cycler import cycler
-lines = [(0, ()), 
+lines = [(0, ()),
          (0, (1, 5)),
          (0, (5, 5)),
          (0, (3, 5, 1, 5)),
@@ -36,17 +34,18 @@ lines = [(0, ()),
          (0, (3, 1, 1, 1)),
          (0, (3, 1, 1, 1, 1, 1))]
 
-# Colors modified from Sasha Trubetskoy's 
+# Colors modified from Sasha Trubetskoy's
 # simple 20 color list (based on metro lines).
 # https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-colors = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231', 
-          '#911eb4', '#008080', '#e6beff', '#bddc36', '#ccc8a0', 
-          '#800000', '#808080', '#808000', '#46f0f0', '#000080', 
+colors = ['#e6194b', '#3cb44b', '#0082c8', '#000000', '#f58231',
+          '#911eb4', '#008080', '#e6beff', '#bddc36', '#ccc8a0',
+          '#800000', '#808080', '#808000', '#46f0f0', '#000080',
           '#ffe119', '#aa6e28', '#f032e6', '#ffa64d', '#7fbf92', '#f68888']
 cc = (cycler('linestyle', lines)*cycler('color', colors))
 
 # styling
-style = pkg_resources.resource_filename('flashy', '../data/mplstyles/flashydef.mplsty')
+style = pkg_resources.resource_filename('flashy',
+                                        '../data/mplstyles/flashydef.mplsty')
 # mpl.rc('lines', linewidth=2, linestyle='-', marker=None)
 # mpl.rc('font', family='monospace', size=12.0)
 # mpl.rc('text', color='000000')
@@ -63,34 +62,34 @@ style = pkg_resources.resource_filename('flashy', '../data/mplstyles/flashydef.m
 # mpl.rc('savefig', facecolor='ffffff', dpi=100, bbox='tight')
 mpl.rc_file(style)
 mpl.rc('axes', prop_cycle=cc)
-
 # mpl.rc('axes', facecolor='ffffff')
 # mpl.rc('figure', facecolor='E7E0D6')
 
+
 # axes Formatter
 def customFormatter(factor, prec=1, width=2):
-    """create a mpl formatter whith specialized format 
+    """create a mpl formatter whith specialized format
     for plotting labels:
     width(prec) x 10^factor.
     """
     fstr = '{:{width}.{prec}f}'
     exp = 10.0**factor
-    return FuncFormatter(lambda x, pos:fstr.format(x/exp, 
+    return FuncFormatter(lambda x, pos: fstr.format(x/exp,
                          width=width, prec=prec))
 
 
 def writeFig(fig, paths, filetag):
     """writes figure to file according to folders in path.
-    
+
     Args:
         fig(mpl.figure): matplotlib object to store.
         paths(str list): output paths.
         filetag(str): preffix for output file.
-        
+
     Returns:
         (str): destination path of the file.
         (str): file suffix number.
-    
+
     """
     num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
     dest = os.path.join(os.path.dirname(paths[0]), filetag)
@@ -102,20 +101,20 @@ def writeFig(fig, paths, filetag):
     return dest, num
 
 
-# hex/rgb handler from Ben Southgate: 
+# hex/rgb handler from Ben Southgate:
 # https://bsou.io/posts/color-gradients-with-python
 def hex_to_RGB(hex):
     """"#FFFFFF" -> [255,255,255] """
     # Pass 16 to the integer function for change of base
-    return [int(hex[i:i+2], 16) for i in range(1,6,2)]
+    return [int(hex[i:i+2], 16) for i in range(1, 6, 2)]
 
 
 def RGB_to_hex(RGB):
     """[255,255,255] -> "#FFFFFF" """
     # Components need to be integers for hex to make sense
     RGB = [int(x) for x in RGB]
-    return "#"+"".join(["0{0:x}".format(v) if v < 16 else
-            "{0:x}".format(v) for v in RGB])
+    s = ["0{0:x}".format(v) if v < 16 else "{0:x}".format(v) for v in RGB]
+    return "#"+"".join(s)
 
 
 def color_dict(gradient):
@@ -123,10 +122,10 @@ def color_dict(gradient):
     colors in RGB and hex form for use in a graphing function
     defined later on
     """
-    return {"hex":[RGB_to_hex(RGB) for RGB in gradient],
-    "r":[RGB[0] for RGB in gradient],
-    "g":[RGB[1] for RGB in gradient],
-    "b":[RGB[2] for RGB in gradient]}
+    return {"hex": [RGB_to_hex(RGB) for RGB in gradient],
+            "r": [RGB[0] for RGB in gradient],
+            "g": [RGB[1] for RGB in gradient],
+            "b": [RGB[2] for RGB in gradient]}
 
 
 def linear_gradient(start_hex, finish_hex="#FFFFFF", n=10):

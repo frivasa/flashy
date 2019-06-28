@@ -1,4 +1,6 @@
-"""module for handling plain text 1D profiles sorted in columns and with structure:
+"""
+module for handling plain text 1D profiles sorted in
+columns and with the following structure:
 # col names
 length of data(rows int)
 <data block>
@@ -12,11 +14,12 @@ import inspect
 
 class dataMatrix(object):
     """object for interacting with columned data in a plain text file.
-    format for file is strict at the start since it uses np.genfromtxt to handle 
-    the data block. after row 3 any comment is allowed (# marked).
+    format for file is strict at the start since it uses np.genfromtxt
+    to handle the data block. after row 3 any comment is
+    allowed (# marked).
     Essential columns: radius and density.
     Anything with a number becomes a species.
-    
+
     # col names
     length of data(rows int)
     <data block>
@@ -27,9 +30,9 @@ class dataMatrix(object):
     mnames = ['masses', 'm', 'mass']
     tnames = ['temperature', 'temp']
     pnames = ['pressure', 'pres']
-    
+
     classn = ['species', 'data', 'filekeys', 'bulkprops', 'meta']
-    
+
     def __init__(self, filename, comment=''):
         if isinstance(filename, list):
             self.filekeys, self.data = filename[0], filename[1]
@@ -38,7 +41,7 @@ class dataMatrix(object):
         self.species = []
         self.bulkprops = []
         self.meta = {}
-        
+
         # sift data
         skip = []
         n, num = multiIndex(['radius', 'r', 'rad'], self.filekeys)
@@ -57,7 +60,7 @@ class dataMatrix(object):
 
     def __setattr__(self, name, value):
         # run name through the 'dictionary' of names
-#         bulk = True
+        # bulk = True
         if name in self.dnames:
             rname = 'density'
         elif name in self.rnames:
@@ -73,7 +76,7 @@ class dataMatrix(object):
         if rname in self.classn:  # skip init settings
             return super().__setattr__(rname, value)
         if rname not in self.__dict__:
-            if any(char.isdigit() for char in rname) or len(rname)==1:
+            if any(char.isdigit() for char in rname) or len(rname) == 1:
                 self.__dict__['species'].append(rname)
             else:
                 self.__dict__['bulkprops'].append(rname)
@@ -95,18 +98,19 @@ class dataMatrix(object):
             return self.__getattribute__('pressure')
         else:
             return self.__getattribute__(name)
-    
+
     def setMeta(self, comment=''):
         self.meta['mass'] = self.masses[-1]
         self.meta['central dens'] = self.density[0]
         self.meta['radius'] = self.radius[-1]
-        self.meta['resolution'] = (self.radius[-1] - self.radius[0])/len(self.radius)
+        delt = self.radius[-1] - self.radius[0]
+        self.meta['resolution'] = delt/len(self.radius)
         self.meta['points'] = len(self.radius)
         if comment:
             self.meta['comment'] = comment
         elif 'comment' not in self.meta:
             self.meta['comment'] = ''
-    
+
     def printMeta(self):
         for k, v in self.meta.items():
             pformat = '{}: {:}' if isinstance(v, str) else '{}: {:E}'
@@ -115,18 +119,21 @@ class dataMatrix(object):
     def writeProf(self, output, subset=[], autotag=False, Xthresh=1e-15):
         """Write profile to file
         bug: ndarray ninja breaks formatting (np.array([float]))
-        
+
         Args:
             ouput(str): otp filename.
             subset(list): write a subset of keys to file.
             autotag(bool): setup name based on the profile (WDs)
-        
+
         """
         basedir = os.path.dirname(output)
         if autotag:
-            rhoc = '{:2.4e}'.format(self.density[0]).replace('+','').replace('.','p')
-            c12 = '{:2.2f}'.format(self.c12[0]).replace('+','').replace('.','p')
-            o16 = '{:2.2f}'.format(self.o16[0]).replace('+','').replace('.','p')
+            rhoc = '{:2.4e}'.format(self.density[0])
+            rhoc = rhoc.replace('+', '').replace('.', 'p')
+            c12 = '{:2.2f}'.format(self.c12[0])
+            c12 = c12.replace('+', '').replace('.', 'p')
+            o16 = '{:2.2f}'.format(self.o16[0])
+            o16 = o16.replace('+', '').replace('.', 'p')
             filename = 'wd_fermi_helm_{}_{}_{}.dat'.format(rhoc, c12, o16)
         else:
             filename = os.path.basename(output)
@@ -135,7 +142,7 @@ class dataMatrix(object):
             keys = dataMatrix.checkbulkprops(subset)
         else:
             keys = self.bulkprops + self.species
-        print ("Writing: {}".format(" ".join(keys)))
+        print("Writing: {}".format(" ".join(keys)))
         missing = set()
         with open(otp, 'w') as f:
             header = " ".join(keys)
@@ -158,9 +165,10 @@ class dataMatrix(object):
                 f.write("# {}\n".format(self.meta['comment']))
             f.write("# Total Mass {} Msun".format(self.meta['mass']))
         if missing:
-            print ('Missing keys: {} were set to zero.'.format(' '.join(missing)))
-        print ('Wrote: {}'.format(otp))
-    
+            print('Missing keys: '
+                  '{} were set to zero.'.format(' '.join(missing)))
+        print('Wrote: {}'.format(otp))
+
     def checkbulkprops(klist):
         nklist = []
         for k in klist:
@@ -174,22 +182,22 @@ class dataMatrix(object):
             else:
                 # key is something else.
                 nklist.append(k)
-        return nklist 
+        return nklist
 
 
 def spliceProfs(left, right):
     """joins profiles at ends, 'right' takes precedence on overlap.
-    Note: bulkprops should stay ordered unless a new one is added to 
-    datamatrix. Now species mix so one might need to do a sortnuclides 
+    Note: bulkprops should stay ordered unless a new one is added to
+    datamatrix. Now species mix so one might need to do a sortnuclides
     down the road.
-    
+
     Args:
         left(dataMatrix): innermost profile.
         right(dataMatrix): outermost profile.
-    
+
     Returns:
         (dataMatrix): spliced profile.
-    
+
     """
     offs = right.radius[0]
     left = snipProf(left, offs)
@@ -198,11 +206,11 @@ def spliceProfs(left, right):
     dblock = np.column_stack((hsr, hsd))
     lprops = left.bulkprops + left.species
     rprops = right.bulkprops + right.species
-    if lprops==rprops:
+    if lprops == rprops:
         keys = left.filekeys
     else:
-        # set() yields unordered members. 
-        # simply check repeated since they are already ordered from the object. 
+        # set() yields unordered members
+        # simply check repeated since they are already ordered from the object
         keys = []
         for k in lprops+rprops:
             if k not in keys:
@@ -211,7 +219,7 @@ def spliceProfs(left, right):
         try:
             latt = getattr(left, k)
         except AttributeError:
-            latt = np.zeros(len(left.radius))    
+            latt = np.zeros(len(left.radius))
         try:
             ratt = getattr(right, k)
         except AttributeError:
@@ -224,25 +232,25 @@ def spliceProfs(left, right):
 def snipProf(orig, cut, byM=False, left=True, edgecell=False):
     """ cuts a profile, returning a new profile obj.
     conv: center is 0, edge is -1.
-    
+
     Args:
         orig(dataMatrix): dMatrix object to cut.
         cut(float): cut coordinate.
         byM(bool): specify cut is by mass coordinate.
         left(bool): return data at the left/right of the cut.
-        
+
     Returns:
         (dataMatrix): new dMatrix object.
-    
+
     """
     abscissa = orig.masses if byM else orig.radius
     npabs = np.array(abscissa)
     flow = operator.le(npabs, cut) if left else operator.ge(npabs, cut)
-    if np.any(flow)==False:
+    if np.any(flow) is False:
         print('Cut outside the profile, returning whole profile')
         return orig
     allcells = np.where(flow)
-    # remove edge cell 
+    # remove edge cell
     if edgecell:
         cells = (allcells[0][:],) if left else (allcells[0][0:],)
     else:
@@ -266,7 +274,7 @@ def snipProf(orig, cut, byM=False, left=True, edgecell=False):
 
 
 def multiIndex(names, keys):
-    """returns the index of a key with multiple probable names in a 
+    """returns the index of a key with multiple probable names in a
     list. (assumes such key only happens once)"""
     exists = False
     for n in names:
@@ -284,14 +292,14 @@ def multiIndex(names, keys):
 
 def chopFile(filename):
     """Returns header names and a data matrix from a file.
-    
+
     Args:
         filename(str): file path.
-    
+
     Returns:
         (list): lowercase header names.
         (np.array): data matrix of shape (coords, properties)
-    
+
     """
     data = np.genfromtxt(filename, skip_header=2, comments='#')
     header = linecache.getline(filename, 1).strip(' #\n').split()

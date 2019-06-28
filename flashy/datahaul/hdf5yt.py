@@ -6,32 +6,35 @@ from scipy.integrate import trapz
 from yt.funcs import mylog
 mylog.setLevel(50)
 
+
 # custom fields
 def _speed(field, data):
     vx = data['flash', 'velx']
     vy = data['flash', 'vely']
     spd = np.sqrt(vx*vx + vy*vy)
     return spd
-#yt.add_field(("flash","speed"), function=_speed, units="cm/s", take_log=False)
+# yt.add_field(("flash","speed"), function=_speed,
+#              units="cm/s", take_log=False)
 
 
-def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=True,
-               radius=5e11, geom='cartesian', direction=[], srcnames=True):
+def getLineout(fname, fields=['density', 'temperature', 'pressure'],
+               species=True, radius=5e11, geom='cartesian',
+               direction=[], srcnames=True):
     """Returns a np.array with radius, dens, temp, pres and species specified.
-    
+
     Args:
         fname (str): filename to extract data from.
         species (bool): toggle nuclide data.
         radius (float): reach of lineout.
         geom (str): geometry (['cartesian'], 'spherical').
         direction (list of float): angles of lineout.
-            takes x/(x,z) as normals for 2D/3D. 
+            takes x/(x,z) as normals for 2D/3D.
             also sets dimensionality.
-    
+
     Returns:
         dblock (numpy array): matrix with fields as columns.
         species (list of str): names of species in the checkpoint.
-    
+
     """
     ds = yt.load(fname)
     # spherical (r, theta, phi)
@@ -40,14 +43,16 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=Tru
     ray = ds.ray([0.0, 0.0, 0.0], radius*bearing)
     rs = np.argsort(ray['t'])
     dblock = ray[cname][rs].value
-    
+
     for f in fields:
         dblock = np.vstack((dblock, ray[f][rs].value))
     _, sps = getFields(ds.field_list)
     if species:
         for s in sps:
-            # force ('flash', s) to ensure it retireves the checkpoint data instead of a yt variable.
-            dblock = np.vstack((dblock, ray[('flash', "{}".format(s))][rs].value))
+            # force ('flash', s) to ensure it retireves the checkpoint data
+            # instead of a yt variable.
+            dblock = np.vstack((dblock,
+                                ray[('flash', "{}".format(s))][rs].value))
     _, sps = getFields(ds.field_list, srcnames=srcnames)
     return dblock, sps
 
@@ -55,18 +60,18 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'], species=Tru
 def getFields(flist, srcnames=True):
     """filters flash checkpoint field list, extracting species found
     in the checkpoint (including named exceptions, see source).
-    
+
     Args:
         flist(tuple list): ds.derived_field_list from yt.
         srcnames(bool): return original names for species (n, d, t).
-    
+
     Returns:
         fields (list of str): field names in checkpoint.
         species (list of str): nuclide codes as in checkpoint.
-    
+
     """
     fields, species = [], []
-    exceptions = ['n', 'p', 'd', 't' ]
+    exceptions = ['n', 'p', 'd', 't']
     parsedvals = ['n1', 'p1', 'd2', 't3']
     for (t, field) in flist:
         if any(char.isdigit() for char in field):
@@ -86,17 +91,17 @@ def getFields(flist, srcnames=True):
 
 def getMeta(fname, print_stats=False):
     """returns metadata from checkpoint and yt-dereived fields.
-    
+
     Args:
         fname(str): filename to check.
-    
+
     Returns:
         (float): simtime of checkpoint.
         (dict): flash.par dictionary.
         (list of str): fields in checkpoint.
         (list of str): species in checkpoint.
         (list of str): fullpath, filename of checkpoint.
-    
+
     """
     ds = yt.load(fname)
     if print_stats:
@@ -108,18 +113,19 @@ def getMeta(fname, print_stats=False):
 
 def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
     """returns a list of tuples with extrema for given fields(flist).
-    
+
     Args:
         fname(str): filename to probe.
         flist(list of str): fields to query.
-    
+
     Returns:
-        (list of np.arrays): list of paired extrema [min max] for each field queried.
-    
+        (list of np.arrays): list of paired extrema [min max]
+        for each field queried.
+
     """
     ds = yt.load(fname)
     ad = ds.all_data()
-    if len(flist)==1:
+    if len(flist) == 1:
         return [ad.quantities.extrema(flist).value]
     else:
         return [x.value for x in ad.quantities.extrema(flist)]
@@ -128,12 +134,12 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
 def getYields(fname):
     """returns time, summed masses and species in a flash otp file.
     all units are msun or cgs.
-    
+
     Args:
         fname(str): filename to inspect.
-    
+
     Returns:
-        time (float) [s], 
+        time (float) [s],
         species names: (list of str),
         masses: (float list) [msun]
 
@@ -144,14 +150,14 @@ def getYields(fname):
     masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
     total = ad.quantities.total_mass()
     msunMs = [m.value*total[0].value/msol for m in masses]
-    
+
     return ds.current_time.value, species, msunMs
-    
+
 
 def wedge2d(fname, elevation, depth, fields=[]):
-    """cut a wedge in a 2d rectangular domain to perform velocity 
+    """cut a wedge in a 2d rectangular domain to perform velocity
     vs mass fraction measurements.
-    
+
     Args:
         fname(str): file name
         elevation(float): equator-north pole wedge angle.
@@ -160,11 +166,11 @@ def wedge2d(fname, elevation, depth, fields=[]):
 
     Returns:
         (tuple of np.arrays): raw data, [species list].
-    
+
     """
     ds = yt.load(fname)
     domx, domy, _ = ds.domain_width.value
-    
+
     # top cylinder pivoting on the top right of the domain
     # this sets the equator-south pole angle
     alt = np.deg2rad(depth)
@@ -174,21 +180,22 @@ def wedge2d(fname, elevation, depth, fields=[]):
 
     alpha = 0.5*np.pi-alt
     N = domx/np.cos(alpha)
-    delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
+    delta = domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
     h = np.tan(alpha)*domx - 0.5*domy
     normal = [-domx, -0.5*domy - h, 0.0]
 
-    if depth>0.0:
+    if depth > 0.0:
         eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
         height = N - delta+eps
         center = [domx, 0.5*domy, 0.0]
     else:
         height = np.cos(alt)*0.5*domy
-        center = [0.0, 0.5*domy, 0.0]        
+        center = [0.0, 0.5*domy, 0.0]
 
-    cylinder1 = ds.disk(center=ds.arr(center, "code_length"), 
+    cylinder1 = ds.disk(center=ds.arr(center, "code_length"),
                         normal=ds.arr(normal, "code_length"),
-                        radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
+                        # absurd radius to grab all cells.
+                        radius=(10*domy, "code_length"),
                         height=(height, "code_length"))
 
     # bottom cylinder pivoting on the bottom left of the domain
@@ -200,11 +207,11 @@ def wedge2d(fname, elevation, depth, fields=[]):
 
     alpha = 0.5*np.pi-alt
     N = domx/np.cos(alpha)
-    delta =  domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
+    delta = domx/np.cos(alpha) - 0.5*domy/np.sin(alpha)
     h = np.tan(alpha)*domx - 0.5*domy
     normal = [-domx, 0.5*domy + h, 0.0]
 
-    if elevation>0.0:
+    if elevation > 0.0:
         eps = h * np.cos(alpha)*np.cos(alpha)/np.sin(alpha)
         height = N - delta+eps
         center = [domx, -0.5*domy, 0.0]
@@ -214,10 +221,11 @@ def wedge2d(fname, elevation, depth, fields=[]):
 
     cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
                         normal=ds.arr(normal, "code_length"),
-                        radius=(10*domy, "code_length"),  # absurd radius to grab all cells.
+                        # absurd radius to grab all cells.
+                        radius=(10*domy, "code_length"),
                         height=(height, "code_length"))
     wedge = ds.intersection([cylinder1, cylinder2])
-    
+
     # get fields and data from data file
     if not fields:
         _, species = getFields(ds.field_list)
@@ -228,7 +236,7 @@ def wedge2d(fname, elevation, depth, fields=[]):
         rawd = []
         for f in fields:
             rawd.append(wedge[f].value)
-        return rawd, species  # WARNING: this might be humongous. 
+        return rawd, species  # WARNING: this might be humongous.
     else:
         rawd = []
         for f in fields:
@@ -237,9 +245,9 @@ def wedge2d(fname, elevation, depth, fields=[]):
 
 
 def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
-    """cut a wedge in a 3d rectangular domain to perform velocity 
+    """cut a wedge in a 3d rectangular domain to perform velocity
     vs mass fraction measurements.
-    
+
     Args:
         fname(str): file name
         elevation(float): equator-north pole wedge angle.
@@ -250,24 +258,24 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
 
     Returns:
         (tuple of np.arrays): raw data sorted by field.
-    
+
     """
     ds = yt.load(chkp)
     domx, domy, domz = ds.domain_width.value
     rad = 100*np.max(ds.domain_width.value)  # huge radius to grab all cells.
-    inv = -1.0 if antipode else 1.0  # flip selection 
+    inv = -1.0 if antipode else 1.0  # flip selection
 
     tvec, bvec = {
-    'x': [(0.0, 0.5*domy, 0.5*domz), (0.0, 0.5*domy, -0.5*domz)],
-    'y': [(0.5*domx, 0.0, 0.5*domz), (-0.5*domx, 0.0, 0.5*domz)],
-    'z': [(0.5*domx, 0.5*domy, 0.0), (0.5*domx, -0.5*domy, 0.0)]
+        'x': [(0.0, 0.5*domy, 0.5*domz), (0.0, 0.5*domy, -0.5*domz)],
+        'y': [(0.5*domx, 0.0, 0.5*domz), (-0.5*domx, 0.0, 0.5*domz)],
+        'z': [(0.5*domx, 0.5*domy, 0.0), (0.5*domx, -0.5*domy, 0.0)]
     }[reference]
     topv = np.array(tvec)
     botv = np.array(bvec)
 
-    if depth*elevation<0.0:
+    if depth*elevation < 0.0:
         # in this case we are on a quadrant
-        if depth<0.0:
+        if depth < 0.0:
             # upper right, use 2 bottom cylinders:
             # normal bot cylinder up to abs(depth)
             equ = 45 - abs(depth)
@@ -276,8 +284,10 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
             normal = rm.dot(botv)
             height = np.cos(alt)*np.sqrt(botv.dot(botv))
             center = botv*inv
-            cylinder1 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
-                                radius=(10*domy, "code_length"), height=(height, "code_length"))
+            cylinder1 = ds.disk(center=ds.arr(center, "code_length"),
+                                normal=ds.arr(normal, "code_length"),
+                                radius=(10*domy, "code_length"),
+                                height=(height, "code_length"))
             # second cylinder up to elevation but flipped to grab the wedge
             equ = 45 - elevation
             alt = np.deg2rad(equ)
@@ -285,8 +295,10 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
             normal = rm.dot(botv)
             height = np.cos(alt)*np.sqrt(botv.dot(botv))
             center = -botv*inv
-            cylinder2 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
-                                radius=(10*domy, "code_length"), height=(height, "code_length"))
+            cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
+                                normal=ds.arr(normal, "code_length"),
+                                radius=(10*domy, "code_length"),
+                                height=(height, "code_length"))
         else:
             # lower right, use 2 top cylinders:
             # first top goes down to depth and in inverted
@@ -296,17 +308,22 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
             normal = rm.dot(topv)
             height = np.cos(dep)*np.sqrt(topv.dot(topv))
             center = topv*inv
-            cylinder1 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
-                                radius=(rad, "code_length"), height=(height, "code_length"))
+            cylinder1 = ds.disk(center=ds.arr(center, "code_length"),
+                                normal=ds.arr(normal, "code_length"),
+                                radius=(rad, "code_length"),
+                                height=(height, "code_length"))
             # second top cylinder goes down to abs(elevation)
-            equ = 45 - abs(elevation)  # 45 degree offset from center-origin reference
+            # 45 degree offset from center-origin reference
+            equ = 45 - abs(elevation)
             dep = np.deg2rad(equ)
             rm = rot(dep, reference)
             normal = rm.dot(topv)
             height = np.cos(dep)*np.sqrt(topv.dot(topv))
             center = -topv*inv
-            cylinder2 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
-                                radius=(rad, "code_length"), height=(height, "code_length"))
+            cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
+                                normal=ds.arr(normal, "code_length"),
+                                radius=(rad, "code_length"),
+                                height=(height, "code_length"))
     else:
         # default wedge covering the equator
         # top cylinder
@@ -316,8 +333,10 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
         normal = rm.dot(topv)
         height = np.cos(dep)*np.sqrt(topv.dot(topv))
         center = topv*inv
-        cylinder1 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
-                            radius=(rad, "code_length"), height=(height, "code_length"))
+        cylinder1 = ds.disk(center=ds.arr(center, "code_length"),
+                            normal=ds.arr(normal, "code_length"),
+                            radius=(rad, "code_length"),
+                            height=(height, "code_length"))
         # bottom cylinder
         equ = 45 - elevation  # 45 degree offset from center-origin reference
         alt = np.deg2rad(equ)
@@ -326,11 +345,13 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
         normal = rm.dot(botv)
         height = np.cos(alt)*np.sqrt(botv.dot(botv))
         center = botv*inv
-        cylinder2 = ds.disk(center=ds.arr(center, "code_length"), normal=ds.arr(normal, "code_length"),
-                            radius=(rad, "code_length"), height=(height, "code_length"))
+        cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
+                            normal=ds.arr(normal, "code_length"),
+                            radius=(rad, "code_length"),
+                            height=(height, "code_length"))
 
     wedge = ds.intersection([cylinder1, cylinder2])
-    #XXX
+    # XXX
     print('cylinders created, getting data')
     # get fields and data from data file
     if not fields:
@@ -342,7 +363,7 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
         rawd = []
         for f in fields:
             rawd.append(wedge[f].value)
-        return rawd, species  # WARNING: this might be humongous. 
+        return rawd, species  # WARNING: this might be humongous.
     else:
         rawd = []
         for f in fields:
