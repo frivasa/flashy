@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from scipy.constants import *
 from astropy.constants import M_sun, L_sun, R_sun
 # CODATA 2014
@@ -21,8 +22,7 @@ Rg = gas_constant
 
 
 def byMass(radii, dens):
-    """
-    Returns a mass abscissa for plots.
+    """Returns a mass abscissa for plots.
 
     Args:
         radii (list of float): cell edge radii.
@@ -83,8 +83,7 @@ def getBearing(angles, geom):
 
 
 def rot(ang, ref):
-    """
-    Counterclockwise rotation matrix of 'ang'
+    """Counterclockwise rotation matrix of 'ang'
     in 'ref'-axis (thumb direction).
     """
     if ref == 'x':
@@ -223,6 +222,25 @@ def cart2sph(x, y, z):
         phi = np.arctan(y/x)
     tht = np.arccos(z/r)
     return r, tht, phi
+
+
+def interpDiff(x1, y1, x2, y2):
+    """returns the difference between two ordinates
+    subject to the x range of the first via interpolation.
+
+    Args:
+        x1(float list): reference abscissa.
+        y1(float list): comparison ordinate.
+        x2(float list): interpolant ordinate.
+        y2(float list): interpolant abscissa.
+
+    Returns:
+        (float list): raw difference (vs y1, i.e., <0 implies y1<y2)
+
+    """
+    jake = np.interp(x1, x2, y2)  # return f2 values at x1
+    diffs = np.array([y1-j for (y1, j) in zip(y1, jake)])
+    return diffs
 
 
 def percentDiff(x1, y1, x2, y2):

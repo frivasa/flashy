@@ -2,6 +2,8 @@ from ..simulation import readTiming
 from ..IOutils import pairGen
 from .nucplot import plotNuclideGrid, plotReacNet
 from .globals import *
+from ..paramSetup import pd
+from astropy.time import Time
 import plotly.graph_objs as gob
 from plotly.offline import (download_plotlyjs, init_notebook_mode, iplot)
 _foe = 1.0e51
@@ -60,6 +62,7 @@ def plotSlowCoords(sim):
 
 
 def plotRayleighs(sim):
+    """plot cj vs rayleigh for calculated 1D (Lineout) speeds."""
     if not sim.CJ:
         print("plot.simplot: No CJ output in object.")
         return None
@@ -85,7 +88,17 @@ def plotRayleighs(sim):
 
 
 def plotTsteps(sim, burndtfactor=0.0, range=[0, 0]):
-    """build a figure with timestep size vs evolution time."""
+    """build a figure with timestep size vs evolution time.
+
+    Args:
+        sim(simulation): target simulation object.
+        burdtfactor(float): scale burn dt manually.
+        range(int list): index cutoffs for data.
+
+    Returns:
+        (mpl.figure)
+
+    """
     if sum(range) != 0:
         cut = slice(*range)
     else:
@@ -112,6 +125,64 @@ def plotTsteps(sim, burndtfactor=0.0, range=[0, 0]):
     return f
 
 
+def plotIRLsteps(sim, sigma=15.0, checkpoints=False):
+    """plot walltime steps vs size of step.
+
+    Args:
+        sim(simulation): target simulation object.
+
+    Returns:
+        (mpl.figure)
+
+    """
+    timestamps = sim.getStepProp('timestamp')
+    deltas = sim.getStepProp('irldelta')
+    nums = sim.getStepProp('n')
+    astTtype = [Time(t, format='datetime') for t in timestamps]
+    astroTs =  [a.mjd for a in astTtype]
+    tsteps = [d.seconds for d in deltas]
+    f, ax = plt.subplots()
+    ax.scatter(astroTs, tsteps, color='peru', marker='.')
+    # overplot step numbers for outliers
+    locs = np.where(np.array(tsteps) > sigma*sim.irlstep.seconds)[0]
+    for l in locs:
+        ax.text(astroTs[l], tsteps[l]+1.0,  # offset
+                "{}".format(int(nums[l])), fontsize=10,
+                color='royalblue')
+    # overplot checkpoints
+    if checkpoints:
+        timestamps = sim.getStepProp('timestamp', src='chkp')
+        types = sim.getStepProp('filetype', src='chkp')
+        numbers = sim.getStepProp('number', src='chkp')
+        astTtype = [Time(t, format='datetime') for t in timestamps]
+        astroTs =  [a.mjd for a in astTtype]
+        for p, t, n in zip(astroTs, types, numbers):
+            if t == 'checkpoint':
+                c = 'r'
+                l = 'checkpoints'
+                fac = 2.6
+            else:
+                c = 'g'
+                l = 'plotfiles'
+                fac = 2.0
+            ax.axvline(p, c=c, alpha=0.2, label=l)
+            ax.text(p, fac*sim.irlstep.seconds,
+                    "{}".format(n), fontsize=10,
+                    alpha=0.2, color=c)
+        handles, labels = ax.get_legend_handles_labels()
+        handle_list, label_list = [], []
+        for handle, label in zip(handles, labels):
+            if label not in label_list:
+                handle_list.append(handle)
+                label_list.append(label)
+        ax.legend(handle_list, label_list)
+#     ax.xaxis.set_major_formatter(StrMethodFormatter('{x:.2f}'))
+    ax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
+    ax.set_ylabel('Step size (s)')
+    ax.set_xlabel('MJD')
+    return f
+
+
 def plotBlockUse(sim, range=[0, 0]):
     """build a figure with requested blocks vs evolution time.
 
@@ -130,17 +201,22 @@ def plotBlockUse(sim, range=[0, 0]):
     f = plt.figure()
     layout = (3, 1)
     totax = plt.subplot2grid(layout, (0, 0), rowspan=2)
-    totax.loglog(times, blocks, c='k', label='total')
+    if np.max(blocks)/np.min(blocks) < 10.0:
+        totax.semilogx(times, blocks, c='k', label='total')
+    else:
+        totax.loglog(times, blocks, c='k', label='total')
     totax.set_ylabel('Blocks')
-    for tick in totax.get_xticklabels():
-        tick.set_visible(False)
+    stub = [tick.set_visible(False) for tick in totax.get_xticklabels()]
+    stub = [tick.set_visible(False)
+            for tick in totax.get_xticklabels(minor=True)]
     totax.legend()
     othax = plt.subplot2grid(layout, (2, 0), sharex=totax)
-    othax.loglog(times, maxblk, c='r', label='max')
-    othax.loglog(times, minblk, c='b', label='min')
+    othax.semilogx(times, maxblk, c='r', label='max')
+    othax.semilogx(times, minblk, c='b', label='min')
+    othax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
     othax.set_ylabel('Blocks')
     othax.set_xlabel('Time (s)')
-    othax.legend()
+    # othax.legend()
     return f
 
 
@@ -160,9 +236,8 @@ def plotStats(sim):
     return f
 
 
-def plotTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
-    """
-    Plot a nested pie chart with timings nested outwards
+def plotSunburstTiming(sim, which=0, avgProc=True, column=0):
+    """Plot a nested pie chart with timings nested outwards
     # setup plotly from notebook:
     import plotly
     plotly.tools.set_credentials_file(username='NAME', api_key='APKEY')
@@ -176,6 +251,90 @@ def plotTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
         which(int): which timing to plot.
         avgProc(bool): averaged procs (True) or only proc 0 (False).
         column(int): column from timing to plot.
+
+    Returns:
+        (mpl.fig)
+
+    """
+    time, steps, colnames, data = readTiming(sim.timings[which],
+                                             avgProc=avgProc)
+    # split block and get some shape info from it
+    units, deps, fulldata = zip(*data)
+    units = [u.strip() for u in units]
+    colname = colnames[column+1]
+    allvals = [v[column] for v in fulldata]
+    delt = np.diff(deps)
+    delt = np.append(0, delt)
+    # find the families
+    roots = [i for i, d in enumerate(deps) if d == 0]
+    rootblockGen = pairGen(roots+[len(deps)])
+    slices = []
+    for a, b in rootblockGen:
+        slices.append(slice(a, b))
+    # sort the data
+    labels, parents, ids = [], [], []
+    values, metav = [], []
+    for i, slc in enumerate(slices):
+        names = units[slc]
+        itvals = allvals[slc]
+        sdeps = deps[slc]
+        delts = delt[slc]
+        # traverse delts extracting parent trees
+        currp = [""]
+        for j, n in enumerate(delts):
+            if n > 0:
+                currp.append(names[j-n].strip())
+            elif n < 0:
+                for k in range(abs(n)):
+                    del currp[-1]
+            par = '-'.join(currp).strip('-')
+            id = '-'.join(currp[1:]+[names[j]]).strip('-')
+            parents.append(par)
+            ids.append(id)
+        maxval = np.max(itvals)
+        normalization = np.array(itvals)/maxval*100
+        normalization[0] = maxval/time*100
+        values = values + itvals
+        metav = metav + list(normalization)
+        labels = labels + names
+    df = pd.DataFrame(data={'labels': labels, 'parents': parents,
+                            'vals': values, 'meta': metav,
+                            'ids': ids})
+    trace = gob.Sunburst(ids=df.ids, labels=df.labels, values=df.vals,
+                         parents=df.parents, meta=df.meta,
+                         maxdepth=5, branchvalues='remainder',
+                         hovertemplate="<b>%{label}</b><br>" +
+                                       "%{value:.0f}<br>" +
+                                       "%{meta:.4f} <extra></extra>")
+    tsize = 16  # making space for title
+    forstr = "Var:{}<br>Total:{:.2f} Steps:{:d}"
+    tag = forstr.format(colname, time, steps)
+    layout = gob.Layout(margin=gob.layout.Margin(t=tsize*5, l=0, r=0, b=0),
+                        sunburstcolorway=["#636efa", "#EF553B", "#00cc96",
+                                          "#ab63fa", "#19d3f3", "#e763fa",
+                                          "#FECB52", "#FFA15A", "#FF6692"],
+                        extendsunburstcolors=True,
+                        title=tag)
+    fig = gob.Figure(data=[trace], layout=layout)
+    return fig
+
+
+def plotPizzaTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
+    """Plot a nested pie chart with timings nested outwards
+    # setup plotly from notebook:
+    import plotly
+    plotly.tools.set_credentials_file(username='NAME', api_key='APKEY')
+    avgProc False cols:
+        time sec  num calls   secs avg  time pct
+    avgProc True cols:
+        max/proc (s)  min/proc (s) avg/proc (s)   num calls
+
+    Args:
+        sim(flashy.sim): simulation object to extract data from.
+        which(int): which timing to plot.
+        avgProc(bool): averaged procs (True) or only proc 0 (False).
+        column(int): column from timing to plot.
+        clrshift(int): change color list start (change colorscheme).
 
     Returns:
         (mpl.fig)
@@ -198,14 +357,11 @@ def plotTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
     maxdep = max(deps)+1
     delt = np.diff(deps)
     delt = np.append(0, delt)
-
     roots = [i for i, d in enumerate(deps) if d == 0]
     rootblockGen = pairGen(roots+[len(deps)])
-
     slices = []
     for a, b in rootblockGen:
         slices.append(slice(a, b))
-
     traces, mcolors = [], []
     shift = 0
     for i, slc in enumerate(slices):
@@ -251,11 +407,9 @@ def plotTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
                                     'line': {'color': 'black',
                                              'width': 1.0}})
             traces.append(trace)
-
     # finally overplot depth 0
     hnames = [units[i] for i, d in enumerate(deps) if d == 0]
     hvals = [uts[i] for i, d in enumerate(deps) if d == 0]
-
     htrace = gob.Pie(values=hvals, labels=hnames,
                      sort=True, direction='clockwise', opacity=1.0,
                      hole=0.2, hoverinfo='label+value',
@@ -278,4 +432,4 @@ def plotTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
                         autosize=False,
                         height=250*(i+1-shift), width=200*(maxdep-1))
     fig = gob.FigureWidget(data=traces, layout=layout)
-    iplot(fig, filename='test')
+    return fig

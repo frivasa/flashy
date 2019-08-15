@@ -1,50 +1,81 @@
-from ..datahaul.hdf5yt import getLineout
+from .globals import *
+from ..datahaul.hdf5yt import getLineout, probeDomain
 from ..datahaul.hdfdirect import directMeta
 import flashy.utils as ut
-from .globals import *
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
+import flashy.paraMan as pman
 from ..datahaul.plainText import dataMatrix
 from ..nuclear import sortNuclides, elemSplit, decayYield, getMus
 from ..simulation import simulation
-from ..post import nonRelFermi, extRelFermi, speedHisto
+import flashy.post as fp
 from scipy.integrate import trapz
+from flashy.datahaul.parData import glue2dWedges
 
 
-def plotSpeedHistogram(fname, geom='cartesian',
-                       dimension=2, ref='x', antipode=False):
-    """Returns figure with speed vs mass fraction
-    histogram for an equatorial slice (this is only a probe since it
-    does not take the whole hemisphere).
+def plotRadialSpeeds(bview, fname, slices=5, dimension=2, ref='x', antipode=False):
+    kwargs = {'fname': os.path.abspath(fname), 'dimension': dimension,
+              'wedges': slices, 'ref': ref, 'antipode': antipode}
+    res = pman.throwHammer(bview, slices, fp.par_radialSpeeds, **kwargs)
+    dat = glue2dWedges(res.get())
+    f, ax = plt.subplots()
+    ax.scatter(*dat, marker='.', s=0.05)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    t, dt, _, _ = probeDomain(fname)
+    tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
+    ax.set_title('{} ({:.3f} s)'.format(tag, t))
+    return f
+
+
+def plotSpeedHistogram(bview, fname, geom='cartesian',
+                       dimension=2, ref='x', antipode=False, slices=5):
+    """Returns figure with speed vs mass fraction histogram for a file.
 
     Args:
         fname(str): file name.
+        geom(str): specify geometry for 1d file.
+        dimension(int): specify file dimension.
+        ref(str): reference axis (3D only, see datahaul.hdf5yt.wedge3d).
+        antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).
+        slices(int): parallel extraction slices.
 
     Returns:
         (mpl.figure)
 
     """
+    kwargs = {'fname': os.path.abspath(fname), 'dimension': dimension,
+              'wedges': slices, 'ref': ref, 'antipode': antipode}
+    res = pman.throwHammer(bview, slices, fp.par_speedHisto, **kwargs)
+    # retrieve the results and sum the wedges
+    cont =  res.get()
+    bins = cont[0][-1]
+    he, cno = np.zeros(len(bins)), np.zeros(len(bins))
+    ime, ige = np.zeros(len(bins)), np.zeros(len(bins))
+    tmass = np.zeros(len(bins))
+    for wedge in cont:
+        he  += wedge[0]
+        cno += wedge[1]
+        ime += wedge[2]
+        ige += wedge[3]
+        tmass += wedge[0] + wedge[1] + wedge[2] + wedge[3]
+    tmass[tmass==0.0] = 1.0
+    t, dt, _, _ = probeDomain(fname)
+    # build the plot
     f, ax = plt.subplots()
-    he, cnos, imes, iges, bins = speedHisto(fname, geom=geom,
-                                            dimension=dimension,
-                                            ref=ref, antipode=antipode)
-    tmass = he + cnos + imes + iges
-    tmass[tmass == 0.0] = 1.0
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
-                                     weights=np.nan_to_num(iges/tmass),
-                                     histtype='step', log=True, label='IGE')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
-                                     weights=np.nan_to_num(imes/tmass),
-                                     histtype='step', log=True, label='IME')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
-                                     weights=np.nan_to_num(cnos/tmass),
-                                     histtype='step', log=True, label='CNO')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
-                                     weights=np.nan_to_num(he/tmass),
-                                     histtype='step', log=True, label='He')
-    ax.set_ylim([1e-6, 1.5])
-    ax.set_xlim([-0.5e9, 7e9])
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ige)/tmass, 
+                                     histtype='step', log=True, label='IGE', color='red')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ime)/tmass, 
+                                     histtype='step', log=True, label='IME', color='orange')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(cno)/tmass, 
+                                     histtype='step', log=True, label='CNO', color='#808000')
+    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(he)/tmass, 
+                                     histtype='step', log=True, label='He', color='#3CB371')
+    ax.set_ylim([1e-6,1.5])
     ax.axhline(1, ls='--', alpha=0.6, c='k')
+    ax.set_ylabel(u'$X_i$')
+    ax.set_xlabel('Velocity (cm/s)')
+    tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
+    ax.set_title('{} ({:.3f} s)'.format(tag, t))
     lgd = ax.legend()
     return f
 
@@ -239,6 +270,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
 
 def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False,
                     byM=True, direction=[],  xrange=[0.0, 0.0]):
+    """compare fermi temperature to found temperature in a lineout."""
     time, pars, paths, prof = fetchData(fname, direction)
     fig = plotDegen(prof, byM=byM, thresh=thresh, xrange=xrange)
     ax = plt.gca()
@@ -635,9 +667,9 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     # temps
     tdax = yeax.twinx()
     # get fermi temperatures through the lineout
-    # fermT = [ extRelFermi(d)/ut.kb for d in prof.density ]
+    # fermT = [ fp.extRelFermi(d)/ut.kb for d in prof.density ]
     # tdax.plot(xs, prof.temperature/fermT, label='extreme fermT')#, color='k')
-    fermT = [nonRelFermi(d, ye=y)/ut.kb for d, y in zip(prof.density, yes)]
+    fermT = [fp.nonRelFermi(d, ye=y)/ut.kb for d, y in zip(prof.density, yes)]
     pl2 = tdax.semilogy(xs, prof.temperature/fermT,
                         label=r'$\eta=\frac{T}{T_{f}}$',
                         color='#3cb44b', alpha=0.8)
@@ -718,34 +750,3 @@ def drawGrid(ax, gridpoints, alpha=0.6, color='salmon', lw=2.0):
     print('Gridpoints: {}'.format(len(gridpoints)))
     for r in gridpoints:
         ax.axvline(r, alpha=alpha, color=color, lw=lw)
-
-
-def getProfDegen(prof, relativistic=False):
-    """calculates degeneracy parameters for a dmat profile,
-    namely Y_e and \eta = T / T_fermi.
-    \eta near zero implies degeneracy,
-    while \eta >> 1 or negative implies non-degenerate matter.
-
-    Args:
-        prof (dataMatrix): dataMatrix obj.
-
-    Returns:
-        (np.arrays): fermi temps, electron fractions, number fractions
-
-    """
-    # Ye and Yion
-    yes, yis = [], []
-    npnts = len(getattr(prof, prof.species[0]))
-    for i in range(npnts):
-        xis = []
-        for s in prof.species:
-            xis.append(getattr(prof, s)[i])
-        invyi, invye = getMus(prof.species, xis)
-        yes.append(1.0/invye)
-        yis.append(1.0/invyi)
-    # get fermi temperatures through the lineout
-    if relativistic:
-        fermT = [extRelFermi(d)/ut.kb for d in prof.density]
-    else:
-        fermT = [nonRelFermi(d, ye=y)/ut.kb for d, y in zip(prof.density, yes)]
-    return fermT, yes, yis

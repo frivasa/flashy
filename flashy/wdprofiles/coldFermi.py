@@ -18,8 +18,7 @@ from scipy.integrate import solve_ivp
 
 
 def buildFermiHelmhotz(denc, xmass, species, pdens=0, hack=False):
-    """
-    Solves an IVP for a completely degenerate
+    """Solves an IVP for a completely degenerate
     Fermi gas under hydrostatic equilibrium,
     then uses a Helmholtz EoS to assign a temperature
     value to the profile (this is somewhat
@@ -61,8 +60,7 @@ def buildFermiHelmhotz(denc, xmass, species, pdens=0, hack=False):
 
 def buildFermiProfile(denc, ye=0.5, start=1e4,
                       stop=1e10, pdens=400, debug=False):
-    """
-    Solves an IVP for a completely degenerate
+    """Solves an IVP for a completely degenerate
     Fermi gas under hydrostatic equilibrium.
 
     Args:
@@ -114,14 +112,6 @@ def setBC(dens, ye=0.5, start=1e4):
     ms0 = con1 * start**3 * dens
     ps0 = presc - 0.5e0 * con1 * G * start**2 * dens**2
     return [ms0, ps0]
-
-
-# def athens(t, y):
-#     athens.terminal = True
-#     if y[1]<=-1e6:
-#         return 0.0
-#     else:
-#         return 1.0
 
 
 def jac(x, y, denc=1e9):
@@ -213,8 +203,7 @@ def fergas(den, ye):
 
 
 def invert_fergas(den, pres, ye):
-    """
-    given the pressure, ye, and a guess for the density,
+    """given the pressure, ye, and a guess for the density,
     find the density and dpdd
     """
     # local variables

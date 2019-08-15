@@ -40,13 +40,16 @@ class simulation(object):
             self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
             self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
         try:
-            self.steps, self.refs, self.header, self.timings = \
+            self.steps, self.refs, self.chkp, self.header, self.timings = \
                 readLogAndStats(os.path.join(name, _logfile),
                                 os.path.join(name, _statsfile))
         except Exception as e:
             self.steps, self.header, self.timings = [], [], []
         self.time = self.getStepProp('t')
-        self.runtime, self.irlstep = addIRLdeltas(self.steps, outlier=3.0)
+        addIRLdeltas(self.steps, outlier=5.0)
+        deltas = self.getStepProp('irldelta')
+        self.runtime = sum(deltas, datetime.timedelta(0))
+        self.irlstep = np.mean(deltas[:-1])
         # qsub output parsing (.o files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
@@ -116,13 +119,23 @@ class simulation(object):
 
     def addOtp(self, filename):
         otpls = getLines(filename, ') |  ')
-        # get extra dt names from first line
+        # FLASH magically changes de dts shown in the otp
+        # noticeable by printing a new header line
         dtnames = otpls[0].split('|')[-1]
         dtnames = dtnames.split()
+        dtdict = dict(zip(dtnames, [0.0]*len(dtnames)))
         stags = ['slowx', 'slowy', 'slowz']
+        curdtn = dtnames
         nums = np.array([step.n for step in self.steps])
         for otpl in otpls[1:]:
-            num, dtv, slowc = otpBreakdown(otpl)
+            try:
+                num, dtv, slowc = otpBreakdown(otpl)
+            except ValueError:
+                curdtn = otpl.split('|')[-1]
+                curdtn = curdtn.split()
+                continue
+            valdict = dict(zip(curdtn, dtv))
+            dtdict.update(valdict)
             loc = np.where((nums-num) == 0)[0]
             if loc.size > 0:
                 loc = loc[0]
@@ -131,7 +144,9 @@ class simulation(object):
                 # corresponding log step
                 continue
             target = self.steps[loc]
-            for t, v in zip(dtnames+stags, dtv+slowc):
+            for t, v in zip(stags, slowc):
+                setattr(target, t, v)
+            for t, v in dtdict.items():
                 setattr(target, t, v)
         # finally set first log step to zero (log-otp offset)
         for t in dtnames+stags:
@@ -170,8 +185,8 @@ class simulation(object):
         info.append('Checkpoints/Plotfiles: '
                     '{}/{}'.format(len(self.checkpoints), len(self.plotfiles)))
         # simulation figure of merit
-        info += self.getTfom(refsimtime)
-        info += self.getNfom(refstep)
+        # info += self.getTfom(refsimtime)
+        # info += self.getNfom(refstep)
         return '\n'.join(info)
 
     def getTfom(self, refsimt, tol=1e-3):
@@ -247,12 +262,12 @@ class simulation(object):
 
 
 def readLogAndStats(logfile, statsfile):
-    """
-    reads both log and stats file,
+    """reads both log and stats file,
     correlating the data to each simulation step.
     """
     # read log data
-    rsteps, skips, refs, header, timings = readLog(logfile)
+    rsteps, skips, refs, chkps, header, timings = readLog(logfile)
+    
     # read stats data and remove pre-restart values
     data = np.genfromtxt(statsfile, names=True)  # this skips # lines
     for att in data.dtype.names:
@@ -260,12 +275,11 @@ def readLogAndStats(logfile, statsfile):
         purgedAtt = np.delete(data[att], skips)
         for step, p in zip(rsteps, purgedAtt):
             setattr(step, att, p)
-    return rsteps, refs, header, timings
+    return rsteps, refs, chkps, header, timings
 
 
 def readLog(logfile):
-    """
-    read a flash log file, building step objects,
+    """read a flash log file, building step objects,
     grepping the first header, listing available timings
     and associating refinements to the steps.
     The method used here takes into account for
@@ -301,7 +315,7 @@ def readLog(logfile):
     zero = datetime.timedelta(0)
     tags = ['minblocks', 'maxblocks', 'totblocks',
             'leaf_minblocks', 'leaf_maxblocks', 'leaf_totblocks']
-    # find the simsteps where the ref took place
+    # find the simsteps where the refinement took place
     corr = []
     reftime = datetime.datetime.now()
     numreft = np.array([(reftime - rlvl[0]).total_seconds()
@@ -320,10 +334,21 @@ def readLog(logfile):
         ref = tstep()
         setattr(ref, 'n', steps[c].n)
         setattr(ref, 't', steps[c].t)
+        setattr(ref, 'timestamp', steps[c].timestamp)
         for t, v in zip(tags, refdata[i][1:]):
             setattr(ref, t, v)
         refs.append(ref)
-    return realsteps, removedrows, refs, header, timings
+    # checkpoint/plotfile timestamps
+    chkLs = getLines(logfile, "[IO_write")
+    chkdata = [chkBreakdown(rfb) for rfb in blockGenerator(chkLs, step=4)]
+    chkp = []
+    for tst, (typ, num) in chkdata:
+        chst = tstep()
+        setattr(chst, 'timestamp', tst)
+        setattr(chst, 'filetype', typ)
+        setattr(chst, 'number', num)
+        chkp.append(chst)
+    return realsteps, removedrows, refs, chkp, header, timings
 
 
 def addIRLdeltas(steps, outlier=3.0):
@@ -344,7 +369,6 @@ def addIRLdeltas(steps, outlier=3.0):
             setattr(st, 'irldelta', datetime.timedelta(0))
         else:
             setattr(st, 'irldelta', d)
-    return sum(deltas, datetime.timedelta(0)), np.mean(deltas[:-1])
 
 
 class tstep(object):
@@ -359,8 +383,7 @@ class tstep(object):
 
 
 def buildMetaFromLog(log):
-    """
-    Looks up relevant run information from a
+    """Looks up relevant run information from a
     log file to update the simulation object.
     """
     keys = ['network', 'geometry', 'cells', 'maxblocks', 'dimension']
@@ -452,6 +475,17 @@ def clearRestarts(steps):
     return realsteps, remsteps
 
 
+def chkBreakdown(refBlock):
+    """specific breakdown of a checkpoint/plotfile write log entry."""
+    # get tstamp and type from first line
+    tstampstr, _, rest = refBlock[0].partition(']')
+    tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
+    _, _, ftype = rest.partition('=')
+    # get number from second line
+    number = int(refBlock[1][-4:])
+    return tstamp, (ftype, number)
+
+
 def refBreakdown(refBlock):
     """detailed breakdown of the refinement block from a flash log.
     e.g.:
@@ -476,7 +510,7 @@ def refBreakdown(refBlock):
     """
     blockstencil = [2, 5, 8]
     leafbstencil = [3, 7, 11]
-    # get tstep from first line
+    # get tstamp from first line
     tstampstr, _, _ = refBlock[0].partition(']')
     tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
     # block information from lines 3-4
@@ -535,7 +569,7 @@ def otpBreakdown(otpline):
     stepprops, _, pos = stepinfo.strip(' )').partition('(')
     # t and dt already in log so discard
     otpn, _, _ = stepprops.split()
-    x, y, z = pos.split()
+    x, y, z = pos.split(',')
     otpn = int(otpn)+1  # log vs otp offset
     slowc = [float(i.replace(',', '')) for i in [x, y, z]]
     # take the first dt and float it

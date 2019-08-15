@@ -1,6 +1,7 @@
 import os
 import sys
 import shutil
+import io
 import collections as cl
 from .utils import np
 from subprocess import PIPE, Popen
@@ -14,18 +15,24 @@ _cdxfolder = "cdx"
 _otpfolder = "chk"
 _logfile = 'f.log'
 _statsfile = 's.dat'
+_cdxpfol = "cdx/Profiles"
+_proj = 'gen006'
 _juptree = 'http://localhost:1988/tree/'
 # summit has POWER arch
 if os.getenv('HOSTTYPE', 'powerpc64le') == 'powerpc64le':
-    _FLASH_DIR = "/gpfs/alpine/csc198/proj-shared/frivas/00.code/FLASHOR"
-    _AUX_DIR = "/gpfs/alpine/csc198/proj-shared/frivas"
-    _SCRIPT_DIR = "/gpfs/alpine/csc198/proj-shared/"\
-                  "frivas/07.miscellaneous/bash/"
+    _FLASH_DIR = "/gpfs/alpine/{}/proj-shared/"\
+                 "frivas/00.code/FLASHOR".format(_proj)
+    _AUX_DIR = "/gpfs/alpine/{}/proj-shared/"\
+               "frivas".format(_proj)
+    _SCRIPT_DIR = "/gpfs/alpine/{}/proj-shared/"\
+                  "frivas/07.miscellaneous/bash/".format(_proj)
 else:
-    _FLASH_DIR = "/lustre/atlas/proj-shared/csc198/frivas/00.code/FLASHOR"
-    _AUX_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"
-    _SCRIPT_DIR = "/lustre/atlas/proj-shared/csc198/frivas/"\
-                  "07.miscellaneous/bash/"
+    _FLASH_DIR = "/lustre/atlas/proj-shared/{}/"\
+                 "frivas/00.code/FLASHOR".format(_proj)
+    _AUX_DIR = "/lustre/atlas/proj-shared/{}/"\
+               "frivas/".format(_proj)
+    _SCRIPT_DIR = "/lustre/atlas/proj-shared/{}/frivas/"\
+                  "07.miscellaneous/bash/".format(_proj)
 # restore maxint number
 # (removed in p3 due to arbitrary int length, but FORTIE doesn't know...)
 _maxint = 2147483647
@@ -177,6 +184,7 @@ def getFileList(folder, glob='plt', fullpath=False):
 
 
 def rename(path, glob, newname):
+    """rename file subject to glob to newname."""
     templog = getFileList(path, glob=glob, fullpath=True)
     if templog:
         os.rename(templog[0],
@@ -218,12 +226,13 @@ def getBlock(filename, initkey, endkey, skip=0):
                     save = True
             elif save and endkey in l:
                 break
-            if save:
+            if save and len(l.strip(' \n')) > 0:
                 lines.append(l.strip('\n'))
     return list(filter(None, lines))
 
 
 def getRepeatedBlocks(filename, initkey, endkey):
+    """return every key bracketed block of text from a file."""
     blocks = []
     while(True):
         block = getBlock(filename, initkey, endkey, skip=len(blocks))
@@ -235,6 +244,7 @@ def getRepeatedBlocks(filename, initkey, endkey):
 
 
 def blockGenerator(lines, step=5):
+    """generator for line lists of 'step' size."""
     for i in range(0, len(lines), step):
         yield lines[i:i+step]
 
@@ -477,6 +487,7 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
 
 
 def writeRHints(nodes, buffer=33554432, multi=4):
+    """write multithread writing bash file."""
     name = 'romio_h{}'.format(multi*nodes)
     romiofile = os.path.join(_SCRIPT_DIR, name)
     with open(romiofile, 'w') as o:
@@ -510,8 +521,7 @@ def getWalltime(nodes, machine='summit'):
 
 
 def summit(nodes):
-    """
-    lsf uses hh:mm not hh:mm:ss but this is
+    """lsf uses hh:mm not hh:mm:ss but this is
     handled by the lsf submit writer.
     """
     if nodes < 46:
@@ -525,6 +535,7 @@ def summit(nodes):
 
 
 def titan(nodes):
+    """return walltime for machine: titan"""
     if nodes < 125:
         return '02:00:00'
     elif nodes < 312:

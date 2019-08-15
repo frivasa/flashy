@@ -1,5 +1,5 @@
 from .IOutils import _cdxfolder, _juptree, os
-from .utils import chunks, scientify
+from .utils import chunks, scientify, pd
 from .simulation import simulation
 from .datahaul.plainText import dataMatrix
 import flashy.profile_workshop as pw
@@ -13,36 +13,31 @@ _errortags = [
 
 
 def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
-                    probesim=False):
+                    probesim=False, succinct=True):
     """extracts metadata from all runs found within a code folder."""
-    if folder[-1] != '/':
-        filename = '{}.csv'.format(os.path.basename(folder))
-    else:
-        filename = '{}.csv'.format(os.path.basename(os.path.dirname(folder)))
     allvalues = []
     for i, f in enumerate(sorted(os.listdir(folder))):
         if f == _cdxfolder:
             continue
         runpath = os.path.join(folder, f)
-        print('Checking:', os.path.basename(runpath))
-        tgs, values = getRunMeta(runpath, names=names, probesim=probesim)
-        print('\t', values[-2])  # this is the end condition
-        # add relative path,
-        # WARN: this should break if run from elsewhere than 10.yt_FLASH.
-        values.append('=HYPERLINK("{}{}")'.format(_juptree, runpath[3:]))
+        print('\t', os.path.basename(runpath), '\n')
+        tgs, values = getRunMeta(runpath, names=names,
+                                 probesim=probesim, succinct=succinct)
+        print('\t', values[-1], '\n')  # this is the end condition
+        values.append('{}{}'.format(_juptree, runpath[3:]))
+        values.append(os.path.basename(runpath))
         allvalues += values
     tgs.append('url')
-    with open(filename, 'w') as otp:
-        otp.write(','.join(tgs))
-        otp.write('\n')
-        for vals in chunks(allvalues, len(values)):
-            otp.write(','.join([str(x) for x in scientify(vals)]))
-            otp.write('\n')
-    print('Wrote:', filename)
+    tgs.append('name')
+    table = pd.DataFrame()
+    for vals in chunks(allvalues, len(values)):
+        subT = pd.DataFrame([vals], columns=tgs)
+        table = table.append(subT)
+    return table.set_index('name')
 
 
 def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
-               probesim=True):
+               probesim=True, succinct=True):
     """return named parameters plus simulation status."""
     tags = names.copy()
     values = []
@@ -50,21 +45,26 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
     if probesim:
         nodes, info = sim.pargroup.probeSimulation(verbose=False)
         print("\n".join(info[:-3]))
+        print(sim.quickLook(refsimtime=0.05, refstep=80))
     # get properties of profile
-    pprof = ['Tmass', 'HeMass', 'Rho_c', 'Rho_he', 'WDR', 'matchHeight']
-    pobj = dataMatrix(sim.profile)
-    intfpos = pw.getInterfacePosition(pobj)
-    masses = pw.getSummedMasses(pobj)
-    interface = pobj.radius[intfpos]
-    values = [sum(list(masses.values())), masses['he4'],
-              pobj.density[0], pobj.density[intfpos], interface]
-    # get the match position and height
-    x = getattr(sim.pargroup.defaults, 'x_match')['value']
-    y = getattr(sim.pargroup.defaults, 'y_match')['value']
-    z = getattr(sim.pargroup.defaults, 'z_match')['value']
-    r_match = (x*x+y*y+z*z)**0.5
-    values.append(r_match - interface)
-    tags = pprof+tags
+    if not succinct:
+        pprof = ['TotM', 'CoreM', 'EnvM', 'Rho_c', 'Rho_he', 'WDR', 'matchHeight']
+        pobj = dataMatrix(sim.profile)
+        intfpos = pw.getInterfacePosition(pobj)
+        interface = pobj.radius[intfpos]
+        corems = pw.getSummedMasses(pobj, range=(None, intfpos))
+        shellm = pw.getSummedMasses(pobj, range=(intfpos, None))
+        values = [pobj.masses[-1],
+                  sum(list(corems.values())),
+                  sum(list(shellm.values())),
+                  pobj.density[0], pobj.density[intfpos], interface]
+        # get the match position and height
+        x = getattr(sim.pargroup.defaults, 'x_match')['value']
+        y = getattr(sim.pargroup.defaults, 'y_match')['value']
+        z = getattr(sim.pargroup.defaults, 'z_match')['value']
+        r_match = (x*x+y*y+z*z)**0.5
+        values.append(r_match - interface)
+        tags = pprof+tags
     # fill with required parameters first since flash.par is always there
     for n in names:
         fl = getattr(sim.pargroup.defaults, n)['value']
@@ -72,12 +72,10 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
     # add additional metadata
     tags.append('simtime')
     tags.append('Ending Condition')
-    tags.append('Comment')
     maxt = float(sim.pargroup.defaults.tmax['value'])
     if not sim.steps:  # no steps read, so no .log
         simt = 0.0
-        endc = 'No .log file'
-        comm = 'Simulation has not been run.'
+        endc = 'No .log file (sim has not run)'
     else:
         lastst = sim.steps[-1]
         endt = lastst.dt+lastst.t
@@ -85,18 +83,16 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
         if (maxt-endt) > 1e-6:  # log file precision
             errtag, errlog = showerror(sim.otpfiles[-1])
             if '[Eos]' in errtag:
-                comm = '{:e} {:e} {:e}'.format(*eosLocation(errlog))
+                comm = 'EoS: {:e} {:e} {:e}'.format(*eosLocation(errlog))
             else:
-                comm = ''
+                comm = errtag
             simt = endt
-            endc = errtag
+            endc = comm
         else:
             simt = endt
             endc = 'Completed sim.'
-            comm = ''
     values.append(simt)
     values.append(endc)
-    values.append(comm)
     return tags, scientify(values)
 
 

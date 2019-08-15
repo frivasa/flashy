@@ -1,5 +1,5 @@
 import helmholtz
-import flashy.datahaul.hdf5yt as reader
+import flashy.datahaul.hdf5yt as hdf5yt
 from flashy.utils import np
 from flashy.post import getRayleighVelocities
 from flashy.nuclear import convXmass2Abun
@@ -144,7 +144,7 @@ def buildHelmTrojan(fname, offset=1, geom='spherical'):
     """
     props = ['dens', 'temp', 'pres', 'eint']
     nprops = len(props)
-    data, species = reader.getLineout(fname, fields=props,
+    data, species = hdf5yt.getLineout(fname, fields=props,
                                       species=True, geom=geom)
     nspecs = len(species)
     xin, xout, cjin, cjout, time, xmatch = getRayleighVelocities(fname)

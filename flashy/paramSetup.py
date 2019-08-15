@@ -1,9 +1,8 @@
-import pandas as pd
 from .IOutils import (cl, np, fortParse,
                       os, getWalltime,
                       getMachineSubJob, writeSchedulerScript)
 from .IOutils import _cdxfolder, _otpfolder, _logfile, _statsfile
-from .utils import cart2sph
+from .utils import cart2sph, pd
 _FLASHdefaults = 'setup_params'
 _strmax = 49
 pd.set_option('display.max_colwidth', 0)

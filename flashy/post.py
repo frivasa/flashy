@@ -1,4 +1,4 @@
-"""calculates cj velocities for a checkpoint."""
+"""postr processing for otp data."""
 from flashy.datahaul.hdf5yt import getLineout, wedge2d, wedge3d
 from flashy.datahaul.hdfdirect import directMeta
 import flashy.utils as ut
@@ -6,9 +6,9 @@ from .utils import h, m_e, np, c, kb, Avogadro
 from scipy.optimize import newton, minimize
 
 
-def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
-                   dimension=2, ref='x'):
-    """parallelizable wrapper for speedHisto."""
+def par_radialSpeeds(wedgenum, wedges=5, fname='', geom='cartesian',
+                     dimension=2, ref='x', antipode=False):
+    """wedge-parallelizable radial speed extraction."""
     delta = 180.0/wedges
     # slight offset to avoid division by zero.
     cuts = np.linspace(179.9, 0.1, wedges+1)-90
@@ -20,13 +20,17 @@ def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
         start = abs(start)
         stop = abs(stop)
     print(start, stop)
-    return speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
-                      elevation=start, depth=stop, geom=geom,
-                      dimension=dimension, ref=ref)
+    return radialSpeeds(fname, elevation=start, depth=stop,
+                        antipode=antipode, geom=geom,
+                        dimension=dimension, ref=ref)
 
 
 def radialSpeeds(fname, elevation=5, depth=5,
                  geom='cartesian', dimension=2, ref='x', antipode=False):
+    """radius vs radial speed for a wedge centered at the equator.
+    SINGLE WEDGE
+    
+    """
     if dimension == 2:
         rawd = wedge2d(fname, elevation, depth,
                        fields=['x', 'y', 'z', 'velx', 'vely', 'velz'])
@@ -52,6 +56,25 @@ def radialSpeeds(fname, elevation=5, depth=5,
         rawd, _ = getLineout(fname, fields=['velx'], geom=geom, species=False)
         rs, vrs = rawd
     return rs, vrs
+
+
+def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
+                   dimension=2, ref='x', antipode=False):
+    """wedge-parallelizable speedHisto."""
+    delta = 180.0/wedges
+    # slight offset to avoid division by zero.
+    cuts = np.linspace(179.9, 0.1, wedges+1)-90
+    wedges = list(zip(cuts, cuts[1:]))
+    start, stop = wedges[wedgenum]
+    if stop*start > 0.0:
+        stop = -stop
+    else:
+        start = abs(start)
+        stop = abs(stop)
+    print(start, stop)
+    return speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
+                      elevation=start, depth=stop, geom=geom,
+                      dimension=dimension, ref=ref, antipode=antipode)
 
 
 def speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
@@ -181,7 +204,7 @@ def getFittedVelocities(fname, **kwargs):
 
 
 def getRayleighVelocities(fname, direction=[]):
-    """Returns positions of the shock, and both inner and
+    """(1D) Returns positions of the shock, and both inner and
     outer rayleigh line velocities joining
     both sides of the shocked cell.
     (xin, xout, cjin, cjout,
@@ -245,8 +268,7 @@ def getNewtonCJ(fname, inward=False, width=0.8, **kwargs):
 
 
 def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam, width=0.8):
-    """
-    fits CJ velocity to a pair of states by varying
+    """fits CJ velocity to a pair of states by varying
     the speed of the rayleigh line.
 
     Args:
@@ -282,7 +304,7 @@ def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam, width=0.8):
 
 
 def getShockConditions(fname, inward=False, addvar='temp', direction=[]):
-    """Returns bulk conditions at both sides of shock.
+    """(1D) Returns bulk conditions at both sides of shock.
     Conditions are sorted so that output has the form: [ash, shock, fuel]
 
     Args:
@@ -453,8 +475,7 @@ def customFormatter(factor, prec=1, width=2):
 
 def diffHRupper(sp, ph=1e23, vh=0.02, gh1=1.6666, gh2=1.6666, pr=1e22,
                 vr=0.02, env=[0.04, 0.08]):
-    """
-    minimizes hugoniot adiabat - rayleigh line difference,
+    """minimizes hugoniot adiabat - rayleigh line difference,
     starting near a strong detonation.
     (starting from the "top").
     """
@@ -465,8 +486,7 @@ def diffHRupper(sp, ph=1e23, vh=0.02, gh1=1.6666, gh2=1.6666, pr=1e22,
 
 def diffHRlower(sp, ph=1e23, vh=0.02, gh1=1.6666, gh2=1.6666, pr=1e22,
                 vr=0.02, env=[0.04, 0.08]):
-    """
-    minimizes hugoniot adiabat - rayleigh line difference,
+    """minimizes hugoniot adiabat - rayleigh line difference,
     starting near a weak detonation.
     (starting from the "bottom").
     """

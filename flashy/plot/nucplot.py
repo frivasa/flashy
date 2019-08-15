@@ -9,8 +9,7 @@ import flashy.utils as ut
 
 
 def speciesYields(yieldfiles, tags=[], norm='Si', offset=6):
-    """
-    plots abundances for a list of files
+    """plots abundances for a list of files
     or a single file vs solar composition.
     """
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -46,8 +45,7 @@ def speciesYields(yieldfiles, tags=[], norm='Si', offset=6):
 
 
 def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
-    """
-    plots profuction factors for comparable
+    """plots profuction factors for comparable
     species in a pair of yields, or vs solar compositon
     for a single file.
     yieldfiles = [input, reference]
@@ -236,8 +234,7 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35],
 
 def plotReacNet(ax, sunet, matr_shape, forcedZ=0,
                 step=6, xoffset=1, cmap='Blues'):
-    """
-    plots a reaction network based on
+    """plots a reaction network based on
     default files at cdx/Network/netname
     """
     with open(matr_shape) as f:
@@ -283,8 +280,7 @@ def doYouBelieveInMagic(ax, color='brown'):
 
 def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',
              norm='Si', offset=6, reftype='solar', tagspecies=False):
-    """
-    draws abundquery/abundref from a massdict and a filename,
+    """draws abundquery/abundref from a massdict and a filename,
     types of reference are 'solar'(for solar composition)
     and 'yield' (for other sims)
     returns label and line element for legend
@@ -327,8 +323,7 @@ def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',
 
 def plotIsoMasses(ax, mdict, label='W7', color='black',
                   ylims=[1e-18, 1.0], notag=False):
-    """
-    draws isotopic masses vs atomic mass,
+    """draws isotopic masses vs atomic mass,
     returns label and line element for legend
     """
     for k in mdict.keys():
@@ -359,8 +354,7 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
 
 def plotAbun(ax, mdict, norm='H', offset=12.0,
              label='W7', color='black', tagspecies=False):
-    """
-    draws abundances vs atomic number,
+    """draws abundances vs atomic number,
     returns label and line element for legend
     """
     zs, names, mix = convertYield2Abundance(mdict, norm=norm, offset=offset)

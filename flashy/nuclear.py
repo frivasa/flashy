@@ -2,7 +2,8 @@
 mass fractions and Isotope weighing.
 
 """
-from .utils import np, msol, Avogadro, m_e, m_p, amu
+from .utils import (np, msol, Avogadro,
+                    m_e, m_p, amu, electron_volt, erg)
 import pkg_resources
 
 AMDC = pkg_resources.resource_filename('flashy',
@@ -325,6 +326,37 @@ def getMus(species, xmasses):
     mue = 1.0e0/sum([x*z/a for (z, x, a) in zip(Zs, xmasses, As)])
     muion = 1.0/sum([x*(z+1)/a for (z, x, a) in zip(Zs, xmasses, As)])
     return muion, mue
+
+
+def getBinding(speclist, cgs=True, trueA=False):
+    """returns binding energies for a list of nuc codes.
+
+    Args:
+        speclist(str list): nuc codes (e.g.: h1, li7, ni56...).
+        cgs(bool): return plain ergs (True) or MeV/nucleon units.
+
+    returns:
+        (float list): binding energies in erg or MeV/nucleon.
+
+    """
+    # get every binding energy known and subset to required species
+    spdict = readNuclideMasses()
+    splitspec = splitSpecies(speclist, standardize=True, zipped=True)
+    binding = np.array([spdict[elem]['n'][n]['binding']
+                        for (elem, z, n, a) in splitspec])
+    # zips can only run once so reset
+    splitspec = splitSpecies(speclist, standardize=True, zipped=True)
+    if trueA:
+        nucmasses = np.array([spdict[elem]['n'][n]['mass']
+                              for (elem, z, n, a) in splitspec])
+    else:
+        nucmasses = np.array([z+n for (elem, z, n, a) in splitspec])
+    # up to here: binding in keV per nucleon, masses in amu
+    if cgs:  # turn to erg
+        factors = (binding*1e3*electron_volt/erg*nucmasses)
+    else:  # turn to MeV per nucleon (std for nuc phys)
+        factors = binding/1e3
+    return factors
 
 
 def splitSpecies(Spcodes, trueA=True, standardize=False, zipped=False):

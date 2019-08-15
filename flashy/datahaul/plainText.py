@@ -1,5 +1,4 @@
-"""
-module for handling plain text 1D profiles sorted in
+"""module for handling plain text 1D profiles sorted in
 columns and with the following structure:
 # col names
 length of data(rows int)
@@ -230,7 +229,7 @@ def spliceProfs(left, right):
 
 
 def snipProf(orig, cut, byM=False, left=True, edgecell=False):
-    """ cuts a profile, returning a new profile obj.
+    """cuts a profile, returning a new profile obj.
     conv: center is 0, edge is -1.
 
     Args:

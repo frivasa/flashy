@@ -3,11 +3,11 @@ from flashy.nuclear import sortNuclides
 from flashy.IOutils import os, getFileList
 from flashy.utils import np
 from decimal import Decimal
-
 _parameter_keys = ['integer runtime parameters', 'integer scalars',
                    'string runtime parameters', 'string scalars',
                    'logical runtime parameters', 'logical scalars',
                    'real runtime parameters', 'real scalars']
+_parlen = 80
 
 
 def getUNK(file, srcnames=True):
@@ -43,6 +43,37 @@ def getUNK(file, srcnames=True):
             if e in species:
                 species[species.index(e)] = exceptions[i]
     return fields, species
+
+
+def getDictLikeValues(file, title, keys):
+    """fetches parameter like values from a file.
+    e.g.:
+    irp = 'integer runtime parameters'
+    irpkeys = ['lrefine_min', 'lrefine_max', 'nblockx', 'nblocky', 'nblockz']
+
+    rrp = 'real runtime parameters'
+    rrpkeys = ['xmin', 'xmax', 'ymin', 'ymax', 'zmin', 'zmax']
+
+    isc = 'integer scalars'
+    isckeys = ['nxb', 'nyb', 'nzb', 'dimensionality']
+
+    Args:
+        file(str): filename
+        title(str): dataset name
+        keys(str list): keys to be fetched.
+
+    Returns:
+        (float/int/str list): values for keys queried.
+    
+    """
+    finn = h5py.File(file, 'r')
+    data = finn[title]
+    ddict = dict(data.value)
+    values = []
+    for k in keys:
+        bink = ('{:' + str(int(_parlen)) + '}').format(k).encode()
+        values.append(ddict[bink])
+    return values
 
 
 def getPardict(file):

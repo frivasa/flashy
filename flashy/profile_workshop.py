@@ -168,11 +168,12 @@ def getCond(dmatr, where, verbose=True):
     return cradi, cdens, cpres, ctemp, xmasses, splist
 
 
-def getSummedMasses(dmatr):
+def getSummedMasses(dmatr, range=(None, None)):
     """Returns summed masses from all species in the profile.
 
     Args:
         dmatr(dataMatrix): reference profile.
+        range(int tuple): slice indices for mass calculation.
 
     Returns:
         (dict): {species: summed masses}.
@@ -182,12 +183,11 @@ def getSummedMasses(dmatr):
     keys = dmatr.species
     cell_masses = np.diff(dmatr.masses)
     cell_masses = np.insert(cell_masses, 0, dmatr.masses[0])
+    sl = slice(*range)
     for k in keys:
         # check for nans
         line = np.nan_to_num(getattr(dmatr, k), copy=True)
-        yields.append(sum(line*cell_masses))
-    # print('Total Summed Mass: {:e}'.format(sum(yields)))
-    # print('Last Mass Cell: {:e}'.format(dmatr.masses[-1]))
+        yields.append(sum(line[sl]*cell_masses[sl]))
     return dict(zip(keys, yields))
 
 

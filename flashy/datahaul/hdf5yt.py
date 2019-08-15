@@ -1,21 +1,11 @@
 import yt
 from flashy.utils import np, getBearing, byMass, rot
 from flashy.nuclear import sortNuclides, msol
-from scipy.integrate import trapz
+import flashy.datahaul.ytfields as ytf
 # avoid yt warnings
 from yt.funcs import mylog
 mylog.setLevel(50)
-
-
-# custom fields
-def _speed(field, data):
-    vx = data['flash', 'velx']
-    vy = data['flash', 'vely']
-    spd = np.sqrt(vx*vx + vy*vy)
-    return spd
-# yt.add_field(("flash","speed"), function=_speed,
-#              units="cm/s", take_log=False)
-
+_radiusMult = 10
 
 def getLineout(fname, fields=['density', 'temperature', 'pressure'],
                species=True, radius=5e11, geom='cartesian',
@@ -55,6 +45,38 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'],
                                 ray[('flash', "{}".format(s))][rs].value))
     _, sps = getFields(ds.field_list, srcnames=srcnames)
     return dblock, sps
+
+
+def probeDomain(fname):
+    ds = yt.load(fname)
+    t, dt = ds.parameters['time'], ds.parameters['dt']
+    widths = ds.domain_width.value
+    edges = ds.domain_left_edge.value, ds.domain_right_edge.value
+    return t, dt, widths, edges
+
+
+def getSlice(fname, fields=['density', 'temperature', 'pressure'],
+             species=True, radius=5e11, geom='cartesian',
+             direction=[], srcnames=True):
+    """Returns a np.array with radius, dens, temp, pres and species specified.
+
+    Args:
+        fname (str): filename to extract data from.
+        species (bool): toggle nuclide data.
+        radius (float): reach of lineout.
+        geom (str): geometry (['cartesian'], 'spherical').
+        direction (list of float): angles of lineout.
+            takes x/(x,z) as normals for 2D/3D.
+            also sets dimensionality.
+
+    Returns:
+        dblock (numpy array): matrix with fields as columns.
+        species (list of str): names of species in the checkpoint.
+
+    """
+    ds = yt.load(fname)
+    ### stub ####
+    return ds
 
 
 def getFields(flist, srcnames=True):
@@ -133,7 +155,7 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
 
 def getYields(fname):
     """returns time, summed masses and species in a flash otp file.
-    all units are msun or cgs.
+    all units are msun or cgs. # WARN: 2d assumes cylindrical geom.
 
     Args:
         fname(str): filename to inspect.
@@ -147,10 +169,20 @@ def getYields(fname):
     ds = yt.load(fname)
     ad = ds.all_data()
     _, species = getFields(ds.field_list)
-    masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
-    total = ad.quantities.total_mass()
-    msunMs = [m.value*total[0].value/msol for m in masses]
-
+    # 2d glitches due to dz being nonsensical
+    if ds.parameters['dimensionality'] == 2:
+        dx = ad['path_element_x'].value
+        dy = ad['path_element_y'].value
+        x = ad['x'].value
+        cylvol = 2.0*np.pi*dy*dx*x
+        cell_masses = cylvol*ad['density'].value/msol
+        msunMs = []
+        for sp in species:
+            msunMs.append(np.sum(cell_masses*ad[sp].value))
+    else:
+        masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
+        total = ad.quantities.total_mass()
+        msunMs = [m.value*total[0].value/msol for m in masses]
     return ds.current_time.value, species, msunMs
 
 
@@ -169,6 +201,10 @@ def wedge2d(fname, elevation, depth, fields=[]):
 
     """
     ds = yt.load(fname)
+    for f in fields:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
     domx, domy, _ = ds.domain_width.value
 
     # top cylinder pivoting on the top right of the domain
@@ -195,7 +231,7 @@ def wedge2d(fname, elevation, depth, fields=[]):
     cylinder1 = ds.disk(center=ds.arr(center, "code_length"),
                         normal=ds.arr(normal, "code_length"),
                         # absurd radius to grab all cells.
-                        radius=(10*domy, "code_length"),
+                        radius=(_radiusMult*domy, "code_length"),
                         height=(height, "code_length"))
 
     # bottom cylinder pivoting on the bottom left of the domain
@@ -222,7 +258,7 @@ def wedge2d(fname, elevation, depth, fields=[]):
     cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
                         normal=ds.arr(normal, "code_length"),
                         # absurd radius to grab all cells.
-                        radius=(10*domy, "code_length"),
+                        radius=(_radiusMult*domy, "code_length"),
                         height=(height, "code_length"))
     wedge = ds.intersection([cylinder1, cylinder2])
 
@@ -261,6 +297,10 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
 
     """
     ds = yt.load(chkp)
+    for f in fields:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
     domx, domy, domz = ds.domain_width.value
     rad = 100*np.max(ds.domain_width.value)  # huge radius to grab all cells.
     inv = -1.0 if antipode else 1.0  # flip selection
@@ -286,7 +326,7 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
             center = botv*inv
             cylinder1 = ds.disk(center=ds.arr(center, "code_length"),
                                 normal=ds.arr(normal, "code_length"),
-                                radius=(10*domy, "code_length"),
+                                radius=(_radiusMult*domy, "code_length"),
                                 height=(height, "code_length"))
             # second cylinder up to elevation but flipped to grab the wedge
             equ = 45 - elevation
@@ -297,7 +337,7 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
             center = -botv*inv
             cylinder2 = ds.disk(center=ds.arr(center, "code_length"),
                                 normal=ds.arr(normal, "code_length"),
-                                radius=(10*domy, "code_length"),
+                                radius=(_radiusMult*domy, "code_length"),
                                 height=(height, "code_length"))
         else:
             # lower right, use 2 top cylinders:
