@@ -7,7 +7,6 @@ from .utils import np
 from subprocess import PIPE, Popen
 import subprocess as subp
 import operator
-from PIL import Image
 import imageio
 import itertools
 
