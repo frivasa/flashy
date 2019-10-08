@@ -14,7 +14,18 @@ _errortags = [
 
 def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
                     probesim=False, succinct=True):
-    """extracts metadata from all runs found within a code folder."""
+    """extracts metadata from all runs found within a code folder.
+
+    Args:
+        folder(str): run folder path.
+        names(str list): parameter tags to retrieve.
+        probesim(bool): see paramSetup.probeSimulation.
+        succinct(bool): skip match properties and total masses.
+
+    Returns:
+        (pandas.DataFrame): tabulated tags and values for each runname.
+
+    """
     allvalues = []
     for i, f in enumerate(sorted(os.listdir(folder))):
         if f == _cdxfolder:
@@ -24,7 +35,8 @@ def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
         tgs, values = getRunMeta(runpath, names=names,
                                  probesim=probesim, succinct=succinct)
         print('\t', values[-1], '\n')  # this is the end condition
-        values.append('{}{}'.format(_juptree, runpath[3:]))
+        ppath = '{}{}'.format(_juptree, runpath[3:])
+        values.append(ppath)
         values.append(os.path.basename(runpath))
         allvalues += values
     tgs.append('url')
@@ -38,7 +50,18 @@ def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
 
 def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
                probesim=True, succinct=True):
-    """return named parameters plus simulation status."""
+    """return named parameters plus simulation status.
+
+    Args:
+        runpath(str): path to run.
+        names(str list): parameter tags to retrieve.
+        probesim(bool): see paramSetup.probeSimulation.
+        succinct(bool): skip total masses and match dims
+
+    Returns:
+        (str list, float list): par names and values.
+
+    """
     tags = names.copy()
     values = []
     sim = simulation(runpath)
@@ -48,7 +71,8 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
         print(sim.quickLook(refsimtime=0.05, refstep=80))
     # get properties of profile
     if not succinct:
-        pprof = ['TotM', 'CoreM', 'EnvM', 'Rho_c', 'Rho_he', 'WDR', 'matchHeight']
+        pprof = ['TotM', 'CoreM', 'EnvM', 'Rho_c',
+                 'Rho_he', 'WDR', 'matchHeight']
         pobj = dataMatrix(sim.profile)
         intfpos = pw.getInterfacePosition(pobj)
         interface = pobj.radius[intfpos]
@@ -97,7 +121,16 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
 
 
 def showerror(filename, searchlines=20):
-    """artisanal tail to avoid using subprocess"""
+    """artisanal tail to avoid using subprocess.
+
+    Args:
+        filename(str): filepath to probe.
+        searchlines(int): lines to parse.
+
+    Returns:
+        (str, str list): error tag, lines parsed.
+
+    """
     with open(filename, 'r') as f:
         data = f.read()
     lines = data.split('\n')

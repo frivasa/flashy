@@ -28,8 +28,6 @@ def par_radialSpeeds(wedgenum, wedges=5, fname='', geom='cartesian',
 def radialSpeeds(fname, elevation=5, depth=5,
                  geom='cartesian', dimension=2, ref='x', antipode=False):
     """radius vs radial speed for a wedge centered at the equator.
-    SINGLE WEDGE
-    
     """
     if dimension == 2:
         rawd = wedge2d(fname, elevation, depth,
@@ -59,7 +57,7 @@ def radialSpeeds(fname, elevation=5, depth=5,
 
 
 def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
-                   dimension=2, ref='x', antipode=False):
+                   resolution=4e7, dimension=2, ref='x', antipode=False):
     """wedge-parallelizable speedHisto."""
     delta = 180.0/wedges
     # slight offset to avoid division by zero.
@@ -72,12 +70,12 @@ def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
         start = abs(start)
         stop = abs(stop)
     print(start, stop)
-    return speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
+    return speedHisto(fname, resolution=resolution, velrange=[1e9, 5e9],
                       elevation=start, depth=stop, geom=geom,
                       dimension=dimension, ref=ref, antipode=antipode)
 
 
-def speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
+def speedHisto(fname, resolution=4e7, velrange=[1e9, 5e9],
                elevation=5, depth=5, geom='cartesian',
                dimension=2, ref='x', antipode=False):
     """
@@ -88,14 +86,14 @@ def speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
     IME: F Ne Na Mg Al Si P S Cl Al K Ca Sc Ti
     IGE: V Cr Mn Fe Co Ni
 
-    I'm fixing the histogram bin range so that one can mix wedges into a
-    general hemispherical event histogram.
-    # default resolution: 100 km/s (Fink, 2010)
+    histogram bin range is fixed so that one can mix wedges.
+    # recommended resolution: 100 km/s (Fink, 2010)
+    # default resolution: 400 km/s
     # default max velocity: a sixth of c.
 
     Args:
         fname(str): filename.
-        resolution(float): bin size.
+        resolution(float): bin size in cm/s.
         velrange(float list): historgram range.
         elevation(float): equator-north pole degree.
         depth(float): equator-south pole degree.
@@ -177,10 +175,6 @@ def speedHisto(fname, resolution=1e7, velrange=[1e9, 5e9],
                 cnos += weights
             elif species[i] == 'he4':
                 he += weights
-            # mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
-            #                                  weights=weights,
-            #                                  histtype='step',
-            #                                  log=True, label=species[i])
         else:
             continue
     return he, cnos, imes, iges, bins
@@ -217,7 +211,7 @@ def getRayleighVelocities(fname, direction=[]):
     # rad, cs, dens, pres = data[0], data[1], data[2], data[3]
 
     fields = ['sound_speed', 'density', 'pressure']
-    time, pars, _, _, paths = directMeta(fname)
+    time, pars, _, _, _ = directMeta(fname)
     if len(direction) > (pars['dimensionality']-1):
         print("Direction doesn't match dimensionality: "
               "{}".format(pars['dimensionality']))
@@ -324,7 +318,7 @@ def getShockConditions(fname, inward=False, addvar='temp', direction=[]):
 
     """
     fields = ['sound_speed', 'density', 'pressure', addvar]
-    time, pars, _, _, paths = directMeta(fname)
+    time, pars, _, _, _ = directMeta(fname)
     if len(direction) > (pars['dimensionality']-1):
         print("Direction doesn't match dimensionality: "
               "{}".format(pars['dimensionality']))

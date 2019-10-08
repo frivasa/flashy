@@ -4,7 +4,7 @@ from .IOutils import os, sys, io, _otpfolder, _cdxfolder, _cdxpfol
 from traitlets import traitlets
 import flashy.meta as meta
 from IPython.display import clear_output
-_gopts = {'enableColumnReorder': True, 'editable' : False}
+_gopts = {'enableColumnReorder': True, 'editable': False}
 
 
 def getPreRunBox(path):
@@ -13,12 +13,11 @@ def getPreRunBox(path):
     profopts = sorted([x for x in os.listdir(prepath)])
     profs = widgets.Dropdown(options=profopts)
 
-
     def update_profs(*args):
         prepath = '/'.join([path, codever.value, _cdxpfol])
         profopts = sorted([x for x in os.listdir(prepath)])
         profs.options = profopts
-    
+
     codever.observe(update_profs, 'value')
     box = widgets.HBox([codever, profs])
     return box
@@ -26,16 +25,18 @@ def getPreRunBox(path):
 
 def getPickBox(path):
     codever = widgets.Dropdown(options=os.listdir(path))
-    runs = widgets.Dropdown(options=\
-            sorted([x for x in os.listdir(os.path.join(path, codever.value))
-                    if _cdxfolder not in x]))
-    
-    
+    opts = sorted([x for x in
+                   os.listdir(os.path.join(path, codever.value))
+                   if _cdxfolder not in x])
+    runs = widgets.Dropdown(options=opts)
+#             sorted([x for x in os.listdir(os.path.join(path, codever.value))
+#                     if _cdxfolder not in x]))
+
     def update_runs(*args):
         runs.options = \
             sorted([x for x in os.listdir(os.path.join(path, codever.value))
                     if _cdxfolder not in x])
-    
+
     codever.observe(update_runs, 'value')
     box = widgets.HBox([codever, runs])
     return box
@@ -51,7 +52,6 @@ def getChkPickBox(path):
                                            runs.value, _otpfolder)))
     chkopts = list(zip(chkfs, ['/'.join([_otpfolder, v]) for v in chkfs]))
     chks = widgets.Dropdown(options=chkopts)
-
 
     def update_runs(*args):
         ropts = sorted([x for x in
@@ -91,6 +91,7 @@ def metaNavigator(path, **kwargs):
     buttons = widgets.HBox([btnR, btnF])
     miniterm = widgets.Output()
     disp = widgets.VBox([box, buttons, miniterm])
+
     def getNameFromBox(path):
         # read the picked run
         for ch in box.children:
@@ -111,7 +112,7 @@ def metaNavigator(path, **kwargs):
             clear_output()
             print(output)
             for t, v in zip(tags, vals):
-                print('{:20} {:20}'.format(t,v))
+                print('{:20} {:20}'.format(t, v))
 
     def folderHandler(fbtn):
         # meta for a whole folder

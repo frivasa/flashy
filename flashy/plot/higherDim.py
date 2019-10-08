@@ -72,14 +72,7 @@ def slice_cube(fname, grids=False, batch=False,
     if not batch:
         return fig
     else:
-        # checkpoint number 'flash_hdf5_chk_0001'
-        num = ds.parameter_filename[-5:]
-        dest = os.path.join(os.path.dirname(ds.fullpath), filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
 
 
 def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
@@ -157,58 +150,81 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         return fig
     else:
         filetag = 'ytprops'
-        # checkpoint number 'flash_hdf5_chk_0001'
-        num = ds.parameter_filename[-5:]
-        dest = os.path.join(os.path.dirname(ds.fullpath), filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
 
 
-def speeds2D(bview, fname, subset=[0.0, 1e9, -1e9, 1e9],
-             vmin=1e3, vmax=1e9, batch=False):
+def speeds2D(bview, fname, subset=[0.0, 1e4, -1e4, 1e4], wedges=8,
+             vmin=-1e5, vmax=1e5, batch=False, nticks=2):
+    """plots all velocity variables from a 2d file.
+
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file path.
+        subset(float list): domain window for plotting in km.
+        wedges(int): slices for data extraction.
+        vmin(float): minimum velocity.
+        vmax(float): maximum velocity.
+        batch(bool): print to file toggle.
+        nticks(int): ticks for xaxis.
+
+    Returns:
+        (mpl.figure or None)
+    """
     fields = ['velx', 'vely', 'speed']
-    nticks = 2
     dat = []
     for f in fields:
-        t, dt, ext, tmat = get2dPane(bview, fname, f)
+        t, dt, ext, tmat = get2dPane(bview, fname, f, wedges=wedges)
         dat.append(tmat)
-    fig, axs = plt.subplots(nrows=1, ncols=3, dpi=140
-                            , sharey=True, sharex=True, constrained_layout=True)
+    fig, axs = plt.subplots(nrows=1, ncols=3, dpi=150,
+                            sharey=True, sharex=True, constrained_layout=True)
+    fig.suptitle('Simtime: {:.3f}'.format(t))
     for i, ax in enumerate(axs.flat):
-        mshow = axs[i].matshow(dat[i], extent=ext, cmap='RdBu_r'
-                               , norm=LogNorm(vmin=vmin, vmax=vmax))
+        mshow = axs[i].matshow(dat[i]/1e5, cmap='RdBu_r', extent=[x/1e5 for x in ext],
+                               norm=SymLogNorm(linthresh=1e2, linscale=1.0, vmin=vmin, vmax=vmax))
         ax.set_title(fields[i])
         ax.axis(subset)
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.xaxis.set_major_formatter(ScalarFormatter())
         ax.xaxis.set_ticks(np.arange(0.0, np.max(subset), np.max(subset)/nticks))
-    fig.colorbar(mshow, ax=[axs[:]], location='bottom')
-
+        if not i:
+            ax.set_ylabel('km')
+        ax.set_xlabel('km')
+    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='neither')
+    cbar.set_label(u'$km/s$')
     if not batch:
         return fig
     else:
         filetag = 'speeds'
-        # checkpoint number 'flash_hdf5_chk_0001'
-        num = fname[-5:]
-        basedest = os.path.dirname(os.path.dirname(fname))
-        dest = os.path.join(basedest, filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        writeFig(fig, fname, filetag)
 
 
 def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
-           subset=[0.0, 1e9, -1e9, 1e9],
-           vmin=-1e5, vmax=1e5, batch=False):
-    nticks = 4
+           subset=[0.0, 1e9, -1e9, 1e9], cmap='RdBu_r',
+           vmin=-1e5, vmax=1e5, batch=False,
+           nticks=4, wedges=8):
+    """plots deltas with contiguous checkpoint/plotfile 
+    for a list of fields.
+
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file path.
+        fields(str list): fields to process.
+        subset(float list): domain window for plotting.
+        cmap(str): colormap name.
+        vmin(float): minimum value.
+        vmax(float): maximum value.
+        batch(bool): print to file toggle.
+        nticks(int): ticks for xaxis.
+        wedges(int): slices for data extraction.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
     dat = []
     for f in fields:
-        t0, dt, ext, tmat = get2dPane(bview, fname, f)
+        t0, dt, ext, tmat = get2dPane(bview, fname, f, wedges=wedges)
         dat.append(tmat)
     shift = '{}{:04d}'.format(fname[:-4], int(fname[-4:])+1)
     shiftDat = []
@@ -218,28 +234,21 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
     dt = t1 - t0
     delts = [y-x for (x, y) in zip(dat, shiftDat)]
     acc = [x/dt for x in delts]
-    fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=140
-                            , sharey=True, sharex=True, constrained_layout=True)
-    fig.suptitle('Acceleration ({:.3e})'.format(t1))
+    fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=140,
+                            sharey=True, sharex=True, constrained_layout=True)
+    fig.suptitle('Acceleration ({:.3f})'.format(t1))
     for i, ax in enumerate(axs.flat):
-        mshow = axs[i].matshow(acc[i], extent=ext, cmap='RdBu_r', vmin=vmin, vmax=vmax)
+        mshow = axs[i].matshow(acc[i], extent=ext, cmap=cmap,
+                               norm=SymLogNorm(linthresh=1e2, linscale=1.0, vmin=vmin, vmax=vmax))
         ax.set_title(fields[i])
         ax.axis(subset)
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_major_formatter(ScalarFormatter())
         ax.xaxis.set_ticks(np.arange(0.0, np.max(subset), np.max(subset)/nticks))
-    fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
-
+    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
+    
     if not batch:
         return fig
     else:
-        filetag = 'accel'
-        # checkpoint number 'flash_hdf5_chk_0001'
-        num = fname[-5:]
-        basedest = os.path.dirname(os.path.dirname(fname))
-        dest = os.path.join(basedest, filetag)
-        name = os.path.join(dest, '{}{}.png'.format(filetag, num))
-        os.makedirs(dest, exist_ok=True)  # bless you, p3
-        plt.savefig(name, format='png')
-        plt.close(fig)
-        print("Wrote: {}".format(name))
+        filetag = '_'.join(['acc'] + fields)
+        writeFig(fig, fname, filetag)

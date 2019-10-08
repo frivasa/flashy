@@ -1,9 +1,9 @@
+"""nuclide aggregate plots, based on yield files."""
 from ..nuclear import (splitSpecies, convertYield2Abundance,
                        getMassFractions, getAbundances,
                        readSunComp, readYield, sortNuclides,
                        elemSplit, AGSS09, readIsotopicSolar)
 from .globals import *
-from ..datahaul.hdfdirect import directMeta
 from matplotlib.patches import Rectangle
 import flashy.utils as ut
 

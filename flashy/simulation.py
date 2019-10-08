@@ -267,7 +267,7 @@ def readLogAndStats(logfile, statsfile):
     """
     # read log data
     rsteps, skips, refs, chkps, header, timings = readLog(logfile)
-    
+
     # read stats data and remove pre-restart values
     data = np.genfromtxt(statsfile, names=True)  # this skips # lines
     for att in data.dtype.names:

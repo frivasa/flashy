@@ -392,7 +392,7 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
 
     wedge = ds.intersection([cylinder1, cylinder2])
     # XXX
-    print('cylinders created, getting data')
+#     print('cylinders created, getting data')
     # get fields and data from data file
     if not fields:
         _, species = getFields(ds.field_list)

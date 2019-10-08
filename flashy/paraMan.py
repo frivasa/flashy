@@ -23,4 +23,3 @@ def throwHammer(balv, N, func, **kwargs):
     kwargf = functools.partial(func, **kwargs)
     res = balv.map_async(kwargf, range(N))
     return res
-

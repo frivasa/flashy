@@ -12,7 +12,23 @@ from scipy.integrate import trapz
 from flashy.datahaul.parData import glue2dWedges
 
 
-def plotRadialSpeeds(bview, fname, slices=5, dimension=2, ref='x', antipode=False):
+def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
+                     ref='x', antipode=False, batch=False):
+    """Plots Radial speed vs radius for a file.
+    
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file name.
+        slices(int): parallel extraction slices.
+        dimension(int): specify file dimension.
+        ref(str): reference axis (3D only, see datahaul.hdf5yt.wedge3d).
+        antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).
+        batch(bool): write to file and skip returning figure.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
     kwargs = {'fname': os.path.abspath(fname), 'dimension': dimension,
               'wedges': slices, 'ref': ref, 'antipode': antipode}
     res = pman.throwHammer(bview, slices, fp.par_radialSpeeds, **kwargs)
@@ -21,30 +37,42 @@ def plotRadialSpeeds(bview, fname, slices=5, dimension=2, ref='x', antipode=Fals
     ax.scatter(*dat, marker='.', s=0.05)
     ax.set_xscale('log')
     ax.set_yscale('log')
+    ax.set_ylim([1e4, 1e10])
+    ax.set_xlim([1e6, 3e9])
     t, dt, _, _ = probeDomain(fname)
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
     ax.set_title('{} ({:.3f} s)'.format(tag, t))
-    return f
+    ax.set_xlabel('Radius (cm)')
+    ax.set_ylabel('Speed (cm/s)')
+    if batch:
+        filetag = 'radialSp'
+        writeFig(f, fname, filetag)   
+    else:
+        return f
 
 
-def plotSpeedHistogram(bview, fname, geom='cartesian',
-                       dimension=2, ref='x', antipode=False, slices=5):
-    """Returns figure with speed vs mass fraction histogram for a file.
+def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2, resolution=4e7,
+                       ref='x', antipode=False, slices=5, batch=False):
+    """Plots figure with speed vs mass fraction histogram for a file.
 
     Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
         fname(str): file name.
         geom(str): specify geometry for 1d file.
         dimension(int): specify file dimension.
+        resolution(float): bin size in cm/s
         ref(str): reference axis (3D only, see datahaul.hdf5yt.wedge3d).
         antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).
         slices(int): parallel extraction slices.
+        batch(bool): write to file and skip returning figure.
 
     Returns:
-        (mpl.figure)
+        (mpl.figure or None)
 
     """
     kwargs = {'fname': os.path.abspath(fname), 'dimension': dimension,
-              'wedges': slices, 'ref': ref, 'antipode': antipode}
+              'resolution': resolution, 'wedges': slices,
+              'ref': ref, 'antipode': antipode}
     res = pman.throwHammer(bview, slices, fp.par_speedHisto, **kwargs)
     # retrieve the results and sum the wedges
     cont =  res.get()
@@ -70,14 +98,19 @@ def plotSpeedHistogram(bview, fname, geom='cartesian',
                                      histtype='step', log=True, label='CNO', color='#808000')
     mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(he)/tmass, 
                                      histtype='step', log=True, label='He', color='#3CB371')
-    ax.set_ylim([1e-6,1.5])
+    ax.set_ylim([1e-4,1.5])
+    ax.set_xlim([1e8, 3e9])
     ax.axhline(1, ls='--', alpha=0.6, c='k')
     ax.set_ylabel(u'$X_i$')
     ax.set_xlabel('Velocity (cm/s)')
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
     ax.set_title('{} ({:.3f} s)'.format(tag, t))
     lgd = ax.legend()
-    return f
+    if batch:
+        filetag = 'sphisto'
+        writeFig(f, fname, filetag)
+    else:
+        return f
 
 
 def fetchData(fname, direction, fields=[]):
@@ -150,7 +183,7 @@ def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
     if not batch:
         return fig
     else:
-        writeFig(fig, paths, filetag)
+        writeFig(fig, paths[1], filetag)
 
 
 def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
@@ -219,7 +252,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
     if not batch:
         return fig
     else:
-        writeFig(fig, paths, filetag)
+        writeFig(fig, paths[1], filetag)
 
 
 def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
@@ -265,7 +298,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
     if not batch:
         return fig
     else:
-        writeFig(fig, paths, filetag)
+        writeFig(fig, paths[1], filetag)
 
 
 def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False,
@@ -288,7 +321,7 @@ def flashDegeneracy(fname, thresh=1e-6, filetag='deg', batch=False,
     if not batch:
         return fig
     else:
-        writeFig(fig, paths, filetag)
+        writeFig(fig, paths[1], filetag)
 
 
 def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
@@ -394,7 +427,7 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
     if not batch:
         return fig
     else:
-        dest, num = writeFig(fig, paths, filetag)
+        dest, num = writeFig(fig, paths[1], filetag)
         yieldfile = os.path.join(dest, '{}{}.yield'.format(filetag, num))
         with open(yieldfile, 'w') as f:
             f.write('# {}\n'.format(paths[1]))

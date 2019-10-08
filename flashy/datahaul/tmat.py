@@ -13,7 +13,7 @@ def get2dPane(bview, file, prop, wedges=_wedges):
 
     Args:
         bview(ipp.LoadBalancedView): ipp setup workhorse.
-        file(str): relative filename (abspath within)
+        file(str): relative filename.
         prop(str): UNK name to retrieve.
         wedges(int): domain cuts to distribute.
 
@@ -31,7 +31,7 @@ def get2dPane(bview, file, prop, wedges=_wedges):
     ext = [ledge[0], redge[0], ledge[1], redge[1]]
     nmat = buildMat(d[0], *d[1:],  widths, edges)
     return t, dt, ext, np.flip(nmat, 1).T
-    
+
 
 def buildMat(prop, x, y, dx, dy, width, edges):
     mdx = np.min(dx)

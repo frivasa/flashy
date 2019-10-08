@@ -4,7 +4,7 @@ import pkg_resources
 from cycler import cycler
 from matplotlib.ticker import (FuncFormatter,
                                StrMethodFormatter, ScalarFormatter)
-from matplotlib.colors import LogNorm, NoNorm
+from matplotlib.colors import LogNorm, NoNorm, SymLogNorm
 import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import AxesGrid
 # backends for script/parallel ploting
@@ -78,27 +78,33 @@ def customFormatter(factor, prec=1, width=2):
                          width=width, prec=prec))
 
 
-def writeFig(fig, paths, filetag):
-    """writes figure to file according to folders in path.
-
+def writeFig(fig, fpath, filetag):
+    """writes figure to file according to the filepath.
+    Goes back a folder and creates a new one named 'filetag'
+    "/path/to/file/_chkfolder/checkpoint_0001"
+    > num = 0001
+    > dest = /path/to/file/filetag/
+    > name = dest+filetag_num.png
+    
     Args:
         fig(mpl.figure): matplotlib object to store.
-        paths(str list): output paths.
-        filetag(str): preffix for output file.
+        fpath(str): filepath.
+        filetag(str): prefix for output file.
 
     Returns:
         (str): destination path of the file.
         (str): file suffix number.
 
     """
-    num = paths[1][-5:]  # checkpoint number 'flash_hdf5_chk_0001'
-    dest = os.path.join(os.path.dirname(paths[0]), filetag)
-    name = os.path.join(dest, '{}{}.png'.format(filetag, num))
+    num = fpath[-4:]  # checkpoint number 'flash_hdf5_chk_0001'
+    basedest = os.path.dirname(os.path.dirname(fpath))
+    dest = os.path.join(basedest, filetag)
+    name = os.path.join(dest, '{}_{}.png'.format(filetag, num))
     os.makedirs(dest, exist_ok=True)  # bless you, p3
     plt.savefig(name, format='png')
     plt.close(fig)
     print("Wrote: {}".format(name))
-    return dest, num
+    return dest, int(num)
 
 
 # hex/rgb handler from Ben Southgate:
