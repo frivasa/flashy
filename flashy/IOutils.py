@@ -7,7 +7,7 @@ from .utils import np
 from subprocess import PIPE, Popen
 import subprocess as subp
 import operator
-import imageio
+# import imageio
 import itertools
 
 _cdxfolder = "cdx"
@@ -255,27 +255,27 @@ def pairGen(objlist):
     return zip(a, b)
 
 
-def makeGIF(srcfolder, speed=0.2):
-    """Join all png images within a folder in an
-    animated .gif. Outputs at srcfolder/../
-    # reduce size via webm conversion.
-
-    Args:
-        srcfolder (str): folder path
-        speed (float): seconds between frames
-
-    """
-    finns = sorted([x for x in os.listdir(srcfolder) if '.png' in x])
-    outfolder = os.path.dirname(srcfolder)
-    # maim the first file to get a name for the gif
-    outname = os.path.join(os.path.dirname(outfolder),
-                           '{}.gif'.format(finns[0][:-9]))
-    jakes = []
-    for finn in finns:
-        sys.stdout.write(finn + " ")
-        jakes.append(imageio.imread(os.path.join(srcfolder, finn)))
-    imageio.mimsave(outname, jakes, format='gif', duration=speed)
-    print("\n\tSaved: {}".format(outname))
+# def makeGIF(srcfolder, speed=0.2):
+#     """Join all png images within a folder in an
+#     animated .gif. Outputs at srcfolder/../
+#     # reduce size via webm conversion.
+#
+#     Args:
+#         srcfolder (str): folder path
+#         speed (float): seconds between frames
+#
+#     """
+#     finns = sorted([x for x in os.listdir(srcfolder) if '.png' in x])
+#     outfolder = os.path.dirname(srcfolder)
+#     # maim the first file to get a name for the gif
+#     outname = os.path.join(os.path.dirname(outfolder),
+#                            '{}.gif'.format(finns[0][:-9]))
+#     jakes = []
+#     for finn in finns:
+#         sys.stdout.write(finn + " ")
+#         jakes.append(imageio.imread(os.path.join(srcfolder, finn)))
+#     imageio.mimsave(outname, jakes, format='gif', duration=speed)
+#     print("\n\tSaved: {}".format(outname))
 
 
 def fortParse(arg, dec=True):
