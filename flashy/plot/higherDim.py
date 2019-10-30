@@ -141,6 +141,8 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         p.set_zlim(f, mi, mx)
         if linear:
             p.set_log(f, False)
+        else:
+            p.set_log(f, True)
         plot = p.plots[f]
         # plot.figure = fig
         plot.axes = grid[i].axes

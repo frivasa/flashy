@@ -152,7 +152,8 @@ class simulation(object):
         for t in dtnames+stags:
             setattr(self.steps[0], t, 0.0)
 
-    def quickLook(self, refsimtime=0.1, refstep=100, rsets=6, rounding=8):
+    def quickLook(self, retlist=False, refsimtime=0.1,
+                  refstep=100, rsets=6, rounding=8):
         """print a group of general information about the run.
 
         Args:
@@ -187,7 +188,10 @@ class simulation(object):
         # simulation figure of merit
         # info += self.getTfom(refsimtime)
         # info += self.getNfom(refstep)
-        return '\n'.join(info)
+        if retlist:
+            return info
+        else:
+            return '\n'.join(info)
 
     def getTfom(self, refsimt, tol=1e-3):
         """get a figure of merit for the simulation:

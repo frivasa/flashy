@@ -9,7 +9,7 @@ from plotly.offline import (download_plotlyjs, init_notebook_mode, iplot)
 _foe = 1.0e51
 
 
-def plotNetwork(sim, dpi=100):
+def plotNetwork(sim, dpi=100, step=7, aspect=1.0, cmap='Blues'):
     """build a figure with enabled rates in a network."""
     if not sim.netpath:
         print("plot.simplot: Run doesn't use XNet.")
@@ -17,7 +17,8 @@ def plotNetwork(sim, dpi=100):
     f, ax = plt.subplots(figsize=(5, 5), dpi=dpi)
     matsh = os.path.join(sim.netpath, 'matr_shape')
     sunet = os.path.join(sim.netpath, 'sunet')
-    plotReacNet(ax, sunet, matsh, forcedZ=1e4, step=7)
+    plotReacNet(ax, sunet, matsh, forcedZ=1e4,
+                step=step, aspect=aspect, cmap=cmap)
     ax.tick_params(axis='both', which='both',
                    bottom=False, right=False,
                    direction='out', length=2, width=0.5, pad=0.05)
@@ -25,7 +26,7 @@ def plotNetwork(sim, dpi=100):
     ax.xaxis.tick_top()
     for side in ['bottom', 'right', 'top', 'left']:
         ax.spines[side].set_visible(False)
-    f.tight_layout()
+#     f.tight_layout()
     return f
 
 

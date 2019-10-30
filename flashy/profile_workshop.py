@@ -2,7 +2,6 @@ from .utils import np
 from copy import deepcopy
 from .datahaul.helmholtz import getPres
 from .datahaul.plainText import spliceProfs, snipProf
-from .wdprofiles.coldFermi import buildFermiHelmhotz
 from .wdprofiles.polytropes import buildPolytropic
 
 
@@ -166,6 +165,16 @@ def getCond(dmatr, where, verbose=True):
         CO = [v for (s, v) in zip(splist, xmasses) if s in ['c12', 'o16']]
         print('Central C/O: {:>10.4e}'.format(CO[0]/CO[1]))
     return cradi, cdens, cpres, ctemp, xmasses, splist
+
+
+def radius2pos(dmat, radius):
+    """returns expected position of a given
+    radius within a dmat.
+    poistion is beyond the condition dmat<radius,
+    so it is a bit larger.
+    
+    """
+    return np.sum(dmat.radius<radius)
 
 
 def getSummedMasses(dmatr, range=(None, None)):

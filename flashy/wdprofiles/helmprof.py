@@ -59,6 +59,7 @@ def derv(x, y, abar=4.0, zbar=2.0, temp=1e7, genrel=True):
 
 
 def helm(dens, abar=4.0, zbar=2.0, temp=1e7):
+    """get pressure and total energy from a target density."""
     helmobj = hh.helmeos(dens, temp, abar, zbar)
     return helmobj.ptot[0], helmobj.dpd[0], helmobj.etot[0], helmobj.ded[0]
 

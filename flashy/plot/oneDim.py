@@ -264,6 +264,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         fname(str): path of file.
         thresh(float): threshold for species fraction.
         xrange(float list): abscissa range.
+        yrange(float list): bottom axes yrange.
         filetag(str): prefix for batch mode.
         batch(bool): skips returning figure,
         saving it to a structured directory instead.

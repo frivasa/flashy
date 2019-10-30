@@ -233,7 +233,7 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35],
 
 
 def plotReacNet(ax, sunet, matr_shape, forcedZ=0,
-                step=6, xoffset=1, cmap='Blues'):
+                step=4, xoffset=1, cmap='Greens', aspect=1.0):
     """plots a reaction network based on
     default files at cdx/Network/netname
     """
@@ -252,8 +252,9 @@ def plotReacNet(ax, sunet, matr_shape, forcedZ=0,
     nsp = len(names)
     rates = len(x)
     mat = np.zeros((nsp, nsp))
-    mat[x.astype(int)-1, y.astype(int)-1] = z+forcedZ
+    mat[x.astype(int) - 1, y.astype(int) - 1] = z+forcedZ
     ax.imshow(mat, cmap=cmap)
+    ax.set_aspect(aspect)
     # set labels
     ax.set_yticks(np.arange(0, nsp, step))
     labels = names[::step]
@@ -262,10 +263,10 @@ def plotReacNet(ax, sunet, matr_shape, forcedZ=0,
     ax.set_xticks(np.arange(xoffset, nsp, step))
     labels = names[xoffset::step]
     ax.set_xticklabels(['$^{{{}}}{{{}}}$'.format(*t) for t in labels],
-                       fontsize=5, va='baseline')
+                       fontsize=4, va='baseline')
 
     t = '{} Isotopes\n{} Rates'
-    note = ax.annotate(t.format(nsp, rates), xy=(100, 30), fontsize=10)
+    note = ax.annotate(t.format(nsp, rates), xy=(100, 30), fontsize=8)
     return nsp, rates
 
 

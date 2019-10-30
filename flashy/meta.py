@@ -13,13 +13,12 @@ _errortags = [
 
 
 def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
-                    probesim=False, succinct=True):
+                    succinct=True):
     """extracts metadata from all runs found within a code folder.
 
     Args:
         folder(str): run folder path.
         names(str list): parameter tags to retrieve.
-        probesim(bool): see paramSetup.probeSimulation.
         succinct(bool): skip match properties and total masses.
 
     Returns:
@@ -33,7 +32,7 @@ def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
         runpath = os.path.join(folder, f)
         print('\t', os.path.basename(runpath), '\n')
         tgs, values = getRunMeta(runpath, names=names,
-                                 probesim=probesim, succinct=succinct)
+                                 succinct=succinct)
         print('\t', values[-1], '\n')  # this is the end condition
         ppath = '{}{}'.format(_juptree, runpath[3:])
         values.append(ppath)
@@ -49,36 +48,39 @@ def checkCodeFolder(folder, names=['r_match_outer', 't_ignite_outer'],
 
 
 def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
-               probesim=True, succinct=True):
+               succinct=True):
     """return named parameters plus simulation status.
 
     Args:
         runpath(str): path to run.
         names(str list): parameter tags to retrieve.
-        probesim(bool): see paramSetup.probeSimulation.
         succinct(bool): skip total masses and match dims
 
     Returns:
         (str list, float list): par names and values.
 
     """
-    tags = names.copy()
-    values = []
+    # first get the resolution
+    tags = ['resolution']
     sim = simulation(runpath)
-    if probesim:
-        nodes, info = sim.pargroup.probeSimulation(verbose=False)
-        print("\n".join(info[:-3]))
-        print(sim.quickLook(refsimtime=0.05, refstep=80))
-    # get properties of profile
+    qlinfo = sim.quickLook(retlist=True, refsimtime=0.05, refstep=80)
+    spans = [x for x in qlinfo if 'span' in x]
+    resses = 0.0
+    for s in spans:
+        rightc = s.split('resolution: ')[-1]
+        resses += float(rightc.split(',')[0])
+    values = [resses/len(spans)]
+    print("\n".join(qlinfo))
+    # then the properties of the profile if asked (succinct)
     if not succinct:
         pprof = ['TotM', 'CoreM', 'EnvM', 'Rho_c',
-                 'Rho_he', 'WDR', 'matchHeight']
+                 'Rho_he', 'WDR', 'matchHeight', 'Rho_ign']
         pobj = dataMatrix(sim.profile)
         intfpos = pw.getInterfacePosition(pobj)
         interface = pobj.radius[intfpos]
         corems = pw.getSummedMasses(pobj, range=(None, intfpos))
         shellm = pw.getSummedMasses(pobj, range=(intfpos, None))
-        values = [pobj.masses[-1],
+        values = values + [pobj.masses[-1],
                   sum(list(corems.values())),
                   sum(list(shellm.values())),
                   pobj.density[0], pobj.density[intfpos], interface]
@@ -88,12 +90,14 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
         z = getattr(sim.pargroup.defaults, 'z_match')['value']
         r_match = (x*x+y*y+z*z)**0.5
         values.append(r_match - interface)
-        tags = pprof+tags
-    # fill with required parameters first since flash.par is always there
+        values.append(pobj.density[pw.radius2pos(pobj, r_match)])
+        tags = tags + pprof
+    # next, fill with required parameters from flash.par
     for n in names:
         fl = getattr(sim.pargroup.defaults, n)['value']
         values.append(fl)
-    # add additional metadata
+    tags = tags + names.copy()
+    # finally, add additional metadata
     tags.append('simtime')
     tags.append('Ending Condition')
     maxt = float(sim.pargroup.defaults.tmax['value'])
