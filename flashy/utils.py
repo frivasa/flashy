@@ -282,10 +282,13 @@ def scientify(array):
 def getUnit(bulkname):
     """simple cgs unit dictionary for bulk properties."""
     units = {
+        'density': '$\\frac{g}{cm^3}$',
         'temperature': '$K$',
         'pressure': '$\\frac{dyne}{cm^2}$',
         'enuc': '$\\frac{erg}{cm^3t}$',
-        'eint': '$\\frac{erg}{cm^3}$'
+        'eint': '$\\frac{erg}{cm^3}$',
+        'ener': '$\\frac{erg}{cm^3}$',
+        'entr': '$\\frac{erg}{g\cdot K}$'
     }
     try:
         tag = units[bulkname.lower()]

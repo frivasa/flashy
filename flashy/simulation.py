@@ -15,17 +15,20 @@ class simulation(object):
         self.name = os.path.basename(name)
         self.cdx = os.path.join(os.path.dirname(name), _cdxfolder)
         self.chk = os.path.join(name, _otpfolder)
+        
         # parameters (user set and defs)
         self.pargroup = parameterGroup(os.path.join(self.cdx, _FLASHdefaults))
         self.pargroup.setPars(os.path.join(name, _DEFpar))
         prof = self.pargroup.defaults.initialWDFile['value']
         self.profile = os.path.join(self.cdx, prof)
+        
         # backwards compatibility: change names of otp
         if not getFileList(folder, glob=_logfile) == [_logfile]:
             rename(folder, '.log', _logfile)
             rename(folder, '.dat', _statsfile)
         self.pargroup.meta.update(buildMetaFromLog(os.path.join(folder,
                                                                 _logfile)))
+        # network and checkpoints
         self.netpath = os.path.join(self.cdx, 'Networks',
                                     self.pargroup.meta['network'])
         if self.pargroup.meta['geometry'] == 'cylindrical':
@@ -39,27 +42,35 @@ class simulation(object):
         else:
             self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
             self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
+
+        # build step data from FLASH output (log and stats)
         try:
             self.steps, self.refs, self.chkp, self.header, self.timings = \
                 readLogAndStats(os.path.join(name, _logfile),
                                 os.path.join(name, _statsfile))
         except Exception as e:
+            print('flashy.Simulation.simulation: No steps set:', e)
             self.steps, self.header, self.timings = [], [], []
         self.time = self.getStepProp('t')
         addIRLdeltas(self.steps, outlier=5.0)
         deltas = self.getStepProp('irldelta')
         self.runtime = sum(deltas, datetime.timedelta(0))
         self.irlstep = np.mean(deltas[:-1])
-        # qsub output parsing (.o files)
+
+        # Add qsub output (.o files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
         # treat files as overwriting addenda to the timesteps
         if self.otpfiles:
             for f in self.otpfiles:
                 self.addOtp(f)
+
+        # CJ file (if any)
         glob = 'shockDetect_'  # cj output parsing (specific .dat files)
         self.CJ = getFileList(folder, glob=glob, fullpath=True)
-        yieldf = os.path.join(folder, 'spec')   # yield files
+        
+        # yields (if any)
+        yieldf = os.path.join(folder, 'spec')
         try:
             glob = '.yield'
             self.yields = getFileList(yieldf, glob=glob, fullpath=True)
@@ -271,7 +282,7 @@ def readLogAndStats(logfile, statsfile):
     """
     # read log data
     rsteps, skips, refs, chkps, header, timings = readLog(logfile)
-
+    
     # read stats data and remove pre-restart values
     data = np.genfromtxt(statsfile, names=True)  # this skips # lines
     for att in data.dtype.names:
@@ -312,6 +323,7 @@ def readLog(logfile):
     # log steps
     steps = [stepBreakdown(sline) for sline in getLines(logfile, 'step: ')]
     realsteps, removedrows = clearRestarts(steps)
+
     # refinement data
     refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
     refdata = [refBreakdown(rfb) for rfb in blockGenerator(refinementLines)]
@@ -468,15 +480,25 @@ def clearRestarts(steps):
 
     """
     numbers = np.array([step.n for step in steps])  # get step numbers
-    checkdelt = np.diff(numbers - len(numbers))  # find restarts
+    totnstp = len(numbers)
+    checkdelt = np.diff(numbers - totnstp)  # find restarts
+    skipmask = np.append(checkdelt, 1)
     restartpos = np.where(checkdelt != 1)[0]  # get restart positions
     repsteps = abs(checkdelt[restartpos])+1  # get wasted steps
-    remsteps = []
-    for pos, reps in zip(restartpos, repsteps):
-        for i in range(int(reps)):
-            remsteps.append(pos-i)
-    realsteps = [st for i, st in enumerate(steps) if i not in remsteps]
-    return realsteps, remsteps
+    if repsteps.any():
+        remsteps = []
+        for pos, reps in zip(restartpos, repsteps):
+            rr = int(reps)
+            skipmask[pos-rr+1:pos+1] = 312  # any value greater than one
+            for i in range(int(reps)):
+                remsteps.append(pos-i)
+        realmask = np.where(skipmask > 1)
+        realsteps = np.array(steps)[realmask[0]]
+        # this method is incredibly slow for large skipped steps
+        #  realsteps = [st for i, st in enumerate(steps) if i not in remsteps]
+        return realsteps, remsteps
+    else:
+        return steps, []
 
 
 def chkBreakdown(refBlock):

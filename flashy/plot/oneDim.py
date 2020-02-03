@@ -1,8 +1,10 @@
-from .globals import *
+from .globals import (np, os, mpl, plt,
+                      StrMethodFormatter, customFormatter,
+                      writeFig)
 from ..datahaul.hdf5yt import getLineout, probeDomain
 from ..datahaul.hdfdirect import directMeta
 import flashy.utils as ut
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import flashy.paraMan as pman
 from ..datahaul.plainText import dataMatrix
 from ..nuclear import sortNuclides, elemSplit, decayYield, getMus
@@ -10,6 +12,70 @@ from ..simulation import simulation
 import flashy.post as fp
 from scipy.integrate import trapz
 from flashy.datahaul.parData import glue2dWedges
+
+
+def plot2DtauRatio(bview, fname, factor=0.1, wedges=5, batch=False):
+    """Plots sound crossing timescale to burning
+    timescale for a file.
+    
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file name.
+        wedges(int): parallel extraction slices.
+        batch(bool): write to file and skip returning figure.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    time, pars, _, _, paths = directMeta(fname)
+    dx, tauC, tauE = fp.get2Dtaus(bview, fname, wedges=wedges)
+    f, ax = plt.subplots()
+    ax.scatter(dx/1e5, tauC/(factor*tauE), marker='.', label=u'$\\tau_s/\\tau_e$')
+    ax.set_xscale('log')
+    tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
+    ax.set_title('{} ({:.3f} s)'.format(tag, time))
+    ax.set_xlabel('Scale (km)')
+    ax.set_ylabel(u'$\\tau_s/\\tau_e$')
+    lgd = ax.legend()
+    if batch:
+        filetag = 'timescales'
+        writeFig(f, fname, filetag)   
+    else:
+        return f
+
+
+def plot2Dtaus(bview, fname, wedges=5, batch=False):
+    """Plots sound crossing timescale to burning
+    timescale for a file.
+    
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file name.
+        wedges(int): parallel extraction slices.
+        batch(bool): write to file and skip returning figure.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    time, pars, _, _, paths = directMeta(fname)
+    dx, tauC, tauE = fp.get2Dtaus(bview, fname, wedges=wedges)
+    f, ax = plt.subplots()
+    ax.scatter(dx, tauC, marker='.', label=u'$\\tau_s$')
+    ax.scatter(dx, tauE, marker='.', label=u'$\\tau_e$')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
+    ax.set_title('{} ({:.3f} s)'.format(tag, time))
+    ax.set_xlabel('Scale (cm)')
+    ax.set_ylabel('Tau (s)')
+    lgd = ax.legend()
+    if batch:
+        filetag = 'timescales'
+        writeFig(f, fname, filetag)   
+    else:
+        return f
 
 
 def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
@@ -38,7 +104,7 @@ def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.set_ylim([1e4, 1e10])
-    ax.set_xlim([1e6, 3e9])
+    ax.set_xlim([2e7, 2e10])
     t, dt, _, _ = probeDomain(fname)
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
     ax.set_title('{} ({:.3f} s)'.format(tag, t))
@@ -51,8 +117,9 @@ def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
         return f
 
 
-def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2, resolution=4e7,
-                       ref='x', antipode=False, slices=5, batch=False):
+def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2,
+                       resolution=4e7, ref='x', antipode=False, slices=5,
+                       massfrac=False, showtotal=False, batch=False):
     """Plots figure with speed vs mass fraction histogram for a file.
 
     Args:
@@ -80,6 +147,7 @@ def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2, resolution=4
     he, cno = np.zeros(len(bins)), np.zeros(len(bins))
     ime, ige = np.zeros(len(bins)), np.zeros(len(bins))
     tmass = np.zeros(len(bins))
+    # wedge data already in mass units
     for wedge in cont:
         he  += wedge[0]
         cno += wedge[1]
@@ -90,18 +158,33 @@ def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2, resolution=4
     t, dt, _, _ = probeDomain(fname)
     # build the plot
     f, ax = plt.subplots()
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ige)/tmass, 
-                                     histtype='step', log=True, label='IGE', color='red')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ime)/tmass, 
-                                     histtype='step', log=True, label='IME', color='orange')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(cno)/tmass, 
-                                     histtype='step', log=True, label='CNO', color='#808000')
-    mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(he)/tmass, 
-                                     histtype='step', log=True, label='He', color='#3CB371')
-    ax.set_ylim([1e-4,1.5])
-    ax.set_xlim([1e8, 3e9])
-    ax.axhline(1, ls='--', alpha=0.6, c='k')
-    ax.set_ylabel(u'$X_i$')
+    if massfrac:
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ige)/tmass, 
+                                         histtype='step', log=True, label='IGE', color='red')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ime)/tmass, 
+                                         histtype='step', log=True, label='IME', color='orange')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(cno)/tmass, 
+                                         histtype='step', log=True, label='CNO', color='#808000')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(he)/tmass, 
+                                         histtype='step', log=True, label='He', color='#3CB371')
+        ax.set_ylabel(u'$X_i$')
+        ax.set_ylim([1e-4, 1.5])
+        ax.axhline(1, ls='--', alpha=0.6, c='k')
+    else:
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=ige/ut.msol, 
+                                         histtype='step', log=True, label='IGE', color='red')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=ime/ut.msol, 
+                                         histtype='step', log=True, label='IME', color='orange')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=cno/ut.msol, 
+                                         histtype='step', log=True, label='CNO', color='#808000')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=he/ut.msol,
+                                         histtype='step', log=True, label='He', color='#3CB371')
+        if showtotal:
+            mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=tmass/ut.msol,
+                                             histtype='step', log=True, label='Total', color='#000000')
+        ax.set_ylabel(u'$M_{\\odot}$')
+        ax.set_ylim([1e-4, 1.0])
+    ax.set_xlim([0e0, 3e9])
     ax.set_xlabel('Velocity (cm/s)')
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
     ax.set_title('{} ({:.3f} s)'.format(tag, t))
@@ -257,7 +340,8 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
 
 def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
                  yrange=[0.0, 0.0], filetag='prof', batch=False,
-                 byM=True, direction=[], grid=False):
+                 byM=True, direction=[], grid=False,
+                 fields=['pressure', 'temperature'], extgrid=''):
     """Plot bulk properties and species in a chekpoint through a ray.
 
     Args:
@@ -272,12 +356,15 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         direction(float list): list of spherical angles (alt, azimuth),
         empty for 1D.
         grid(bool): add radial positions as a line grid.
+        fields(str list): specify fields for lower plot.
+        extgrid(str): filename for external grid points.
 
     Returns:
         (mpl figure) or (None)
 
     """
-    time, pars, paths, prof = fetchData(fname, direction)
+    time, pars, paths, prof = fetchData(fname, direction,
+                                        fields=['density']+fields)
     fig = plotDMatMerged(prof, byM=byM, thresh=thresh, xrange=xrange)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
@@ -296,6 +383,10 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
     if grid:
         for ax in fig.axes:
             drawGrid(ax, prof.radius)
+    if extgrid:
+        exgrdm = dataMatrix(extgrid)
+        for ax in fig.axes:
+            drawGrid(ax, exgrdm.radius)
     if not batch:
         return fig
     else:
@@ -541,7 +632,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
 
 
 def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
-                   byM=True, alpha=1.0, marker=False):
+                   byM=True, alpha=1.0, marker=False, botplotshift=5):
     """plots main properties of a profile in only two axes, merging
     thermodynamic properties.
 
@@ -550,6 +641,9 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
         thresh (float): ymin for species fraction plot.
         xrange (list of float): if set, change the range of the plots.
         byM (bool): abundance plot xaxis (by Mass or by Radius).
+        alpha(float): species plot alpha.
+        marker(bool): enable bottom plot cell marker.
+        botplotshift(int): order of magnitude shift for bottom plot.
 
     """
     fig = plt.figure()
@@ -597,18 +691,20 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
     ylabels = ['$\\frac{g}{cm^3}$']
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
     tdax.tick_params(labelbottom=False)
-
     for i, p in enumerate(plotp):
         u = ut.getUnit(p)
         if p == 'pressure':
-            tdax.plot(xs, getattr(prof, p)/1e16, label=p.capitalize())
-            ylabels.append(u+'$\\times10^{-16}$')
-        else:
-            tdax.plot(xs, getattr(prof, p), label=p.capitalize())
+            labl = p.capitalize()+'$\cdot 10^{{-18}}$'
+            tdax.plot(xs, getattr(prof, p)/1e18, label=labl)
             ylabels.append(u)
-        # spacer = labelspace if '\\' in u else labelspace - 0.02
-    # tdax.set_ylabel('{}({})'.format(p.capitalize(), u),
-    #                 rotation=90, size=13, labelpad=0)
+        else:
+            attv = getattr(prof, p)
+            if np.max(attv)<=0:
+                continue
+            expo = np.floor(np.log10(np.max(attv)))-botplotshift
+            labl = p.capitalize()+'$\cdot 10^{{-{}}}$'.format(int(expo))
+            tdax.plot(xs, getattr(prof, p)/np.power(10, expo), label=labl)
+            ylabels.append(u)
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
     tdax.tick_params(labelbottom=False)
     tdax.set_xlabel(xlab)

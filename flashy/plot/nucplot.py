@@ -3,7 +3,9 @@ from ..nuclear import (splitSpecies, convertYield2Abundance,
                        getMassFractions, getAbundances,
                        readSunComp, readYield, sortNuclides,
                        elemSplit, AGSS09, readIsotopicSolar)
-from .globals import *
+# from .globals import *
+from .globals import (np, os, mpl, plt,
+                      StrMethodFormatter, LogNorm)
 from matplotlib.patches import Rectangle
 import flashy.utils as ut
 

@@ -55,30 +55,6 @@ def probeDomain(fname):
     return t, dt, widths, edges
 
 
-def getSlice(fname, fields=['density', 'temperature', 'pressure'],
-             species=True, radius=5e11, geom='cartesian',
-             direction=[], srcnames=True):
-    """Returns a np.array with radius, dens, temp, pres and species specified.
-
-    Args:
-        fname (str): filename to extract data from.
-        species (bool): toggle nuclide data.
-        radius (float): reach of lineout.
-        geom (str): geometry (['cartesian'], 'spherical').
-        direction (list of float): angles of lineout.
-            takes x/(x,z) as normals for 2D/3D.
-            also sets dimensionality.
-
-    Returns:
-        dblock (numpy array): matrix with fields as columns.
-        species (list of str): names of species in the checkpoint.
-
-    """
-    ds = yt.load(fname)
-    ### stub ####
-    return ds
-
-
 def getFields(flist, srcnames=True):
     """filters flash checkpoint field list, extracting species found
     in the checkpoint (including named exceptions, see source).
@@ -155,7 +131,9 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
 
 def getYields(fname):
     """returns time, summed masses and species in a flash otp file.
-    all units are msun or cgs. # WARN: 2d assumes cylindrical geom.
+    all units are msun or cgs.
+    1D assumes spherical geometry
+    2D assumes cylindrical geometry.
 
     Args:
         fname(str): filename to inspect.
@@ -170,7 +148,21 @@ def getYields(fname):
     ad = ds.all_data()
     _, species = getFields(ds.field_list)
     # 2d glitches due to dz being nonsensical
-    if ds.parameters['dimensionality'] == 2:
+    if ds.parameters['dimensionality'] == 1:
+        dx = ad['path_element_x'].value
+        x = ad['x'].value
+        fac = 4.0/3.0*np.pi
+        rdiff = np.diff(x)
+        rdiff = np.append(rdiff, rdiff[-1])
+        skewed = 0.5*rdiff + x
+        skewed = np.insert(skewed, 0, 0.0)
+        rcub = skewed**3
+        vols = fac*np.diff(rcub)
+        cell_masses = vols*ad['density'].value/msol
+        msunMs = []
+        for sp in species:
+            msunMs.append(np.sum(cell_masses*ad[sp].value))
+    elif ds.parameters['dimensionality'] == 2:
         dx = ad['path_element_x'].value
         dy = ad['path_element_y'].value
         x = ad['x'].value
@@ -189,6 +181,8 @@ def getYields(fname):
 def wedge2d(fname, elevation, depth, fields=[]):
     """cut a wedge in a 2d rectangular domain to perform velocity
     vs mass fraction measurements.
+    Assumes cylindrical geometry to calculate accurate cell_mass
+    default fields: vx, vy, vz, cell_mass and species
 
     Args:
         fname(str): file name
@@ -265,6 +259,12 @@ def wedge2d(fname, elevation, depth, fields=[]):
     # get fields and data from data file
     if not fields:
         _, species = getFields(ds.field_list)
+        # calculate cylindrical volumes (dz and z are non-sensical in 2D)
+        dx = wedge['path_element_x'].value
+        dy = wedge['path_element_y'].value
+        r = wedge['x'].value
+        cylvol = 2.0*np.pi*dy*dx*r
+        cell_masses = cylvol*wedge['density'].value
         fields = ['velx', 'vely', 'velz', 'cell_mass'] + species
         # rawd 0 1 2 3 fixed.
         # offset = 4
@@ -272,6 +272,9 @@ def wedge2d(fname, elevation, depth, fields=[]):
         rawd = []
         for f in fields:
             rawd.append(wedge[f].value)
+        rawd[3] = cell_masses
+        # XXX
+        print('CHANGED WEDGE')
         return rawd, species  # WARNING: this might be humongous.
     else:
         rawd = []
@@ -283,6 +286,7 @@ def wedge2d(fname, elevation, depth, fields=[]):
 def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
     """cut a wedge in a 3d rectangular domain to perform velocity
     vs mass fraction measurements.
+    default fields: vx, vy, vz, cell_mass and species
 
     Args:
         fname(str): file name
@@ -392,7 +396,7 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
 
     wedge = ds.intersection([cylinder1, cylinder2])
     # XXX
-#     print('cylinders created, getting data')
+    # print('cylinders created, getting data')
     # get fields and data from data file
     if not fields:
         _, species = getFields(ds.field_list)

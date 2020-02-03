@@ -1,9 +1,41 @@
-"""postr processing for otp data."""
+"""post processing for otp data."""
 from flashy.datahaul.hdf5yt import getLineout, wedge2d, wedge3d
 from flashy.datahaul.hdfdirect import directMeta
 import flashy.utils as ut
 from .utils import h, m_e, np, c, kb, Avogadro
 from scipy.optimize import newton, minimize
+import flashy.datahaul.parData as pd
+import flashy.paraMan as pman
+from .IOutils import os
+
+
+def get2Dtaus(bview, fname, wedges=5):
+    """calculates soundspeed timescale and burning timescale
+    for every cell in the domain.
+    
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file name.
+        wedges(int): parallel extraction slices.
+
+    Returns:
+        (np.array): [tauC, tauE]
+
+    """
+    # get data from file in wedges and join everything into 'dat'
+    kwargs = {'fname': os.path.abspath(fname), 'wedges': wedges, 
+              'fields': ['dx', 'gamc', 'pres', 'dens', 'eint', 'enuc']}
+    res = pman.throwHammer(bview, wedges, pd.par_wedge2d, **kwargs)
+    dat = pd.glue2dWedges(res.get())
+    # work on data
+    soundspeeds = np.sqrt(dat[1]*dat[2]/dat[3])
+    tauC = dat[0]/soundspeeds
+    tauE = dat[4]/dat[5]
+    filter = np.logical_not(np.isnan(tauE))
+    tauE = tauE[filter]
+    tauC = tauC[filter]
+    # output as a plot friendly zip
+    return dat[0][filter], tauC, tauE
 
 
 def par_radialSpeeds(wedgenum, wedges=5, fname='', geom='cartesian',
@@ -103,7 +135,7 @@ def speedHisto(fname, resolution=4e7, velrange=[1e9, 5e9],
         antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).
 
     Returns:
-        np.array list: He, CNO, IME, IGE, bin limits.
+        np.array list: Masses for He, CNO, IME, IGE, and bin limits.
 
     """
     # split into wedges process each, then read outputs...
@@ -120,6 +152,7 @@ def speedHisto(fname, resolution=4e7, velrange=[1e9, 5e9],
 
     offset = len(rawd)-len(species)
 
+    # TODO: CORRECT CELL VOLUMES DEPENDING ON GEOMETRY
     vx2 = np.power(rawd[0][:], 2)
     vy2 = np.power(rawd[1][:], 2)
     vz2 = np.power(rawd[2][:], 2)
@@ -134,7 +167,9 @@ def speedHisto(fname, resolution=4e7, velrange=[1e9, 5e9],
 
     sortedcells = sorted(celltpls)
     speeds, massgrid = zip(*sortedcells)
-
+    # massgrid = [[Mh1_0, Mhe4_0,...], [Mh1_1, Mhe4_1,...]]
+    # respecting increasing speed order
+    
     # get ranges for histogram bins
     vmin, vmax = velrange
     binnum = int((vmax - vmin)/resolution)
@@ -157,16 +192,17 @@ def speedHisto(fname, resolution=4e7, velrange=[1e9, 5e9],
         np.zeros(len(bins)), np.zeros(len(bins)), np.zeros(len(bins))
     for i in range(len(species)):
         if species[i] in ap13:  # main species filter
-            # print('Plotting {}'.format(species[i]))
             weights = [0]
             start = 0
             for c in counts:
-                # get the specific species mass in the bin
+                # since the data is already sorted by speed
+                # counts follows the data in each bin
                 totalspmass = sum([m[i] for m in massgrid[start:start+c]])
-                # force-assign the value to the bin
+                # force the summed data value as histo "weight"
                 weights.append(totalspmass)
                 start += c
             weights = np.array(weights)
+            # finally sum the array of masses to the corresponding histo
             if species[i] in ige:
                 iges += weights
             elif species[i] in ime:

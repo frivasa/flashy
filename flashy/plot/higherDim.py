@@ -1,5 +1,8 @@
 # TDL separate datahaul elements from plotting routines
-from .globals import *
+# from .globals import *
+from .globals import (np, os, AxesGrid, plt,
+                      SymLogNorm, ScalarFormatter,
+                      writeFig)
 from flashy.datahaul.hdf5yt import getFields, yt
 from yt.funcs import mylog  # avoid yt warnings
 mylog.setLevel(50)
@@ -78,26 +81,27 @@ def slice_cube(fname, grids=False, batch=False,
 def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
               center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
               linear=False, mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9],
-              mark=[], cmap=''):
+              mark=[], cmap='', dpi=100):
     """YT 2D plots of a specified list of fields through a slice
     perpedicular to the z-axis.
 
     Args:
-        fname (str): filename to plot.
-        mhead (bool): mark the position of the matchhead.
-        grids (bool): overplot the grid structure.
-        batch (bool): if true save figure to file instead of returning it.
-        fields (list of str): list of named fields to plot.
-        linear (bool): set linear or log scale(false).
-        mins (float list): minima of scale for each field.
+        fname(str): filename to plot.
+        mhead(bool): mark the position of the matchhead.
+        grids(bool): overplot the grid structure.
+        batch(bool): if true save figure to file instead of returning it.
+        fields(list of str): list of named fields to plot.
+        linear(bool): set linear or log scale(false).
+        mins(float list): minima of scale for each field.
         maxs (float list): maxima of scale for each field.
-        mark (float list): mark a (x,y) coordinate in the plot.
-        cmap (str): matplotlib colormap for the plot.
+        mark(float list): mark a (x,y) coordinate in the plot.
+        cmap(str): matplotlib colormap for the plot.
+        dpi(float): dpi of figure returned/saved.
 
     """
     ds = yt.load(fname)
     size = len(fields)
-    fig = plt.figure(figsize=(5*size, 10))
+    fig = plt.figure(figsize=(5*size, 10), dpi=dpi)
     grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
                     nrows_ncols=(1, size),
                     axes_pad=1.2, label_mode="L", 

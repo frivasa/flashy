@@ -420,8 +420,15 @@ class parameterGroup(object):
         """returns default values that have been changed through
         reading pars or manually changed
         """
-        group = [z for z in self.defaults.items()
-                 if len(str(z[1]['value'])) > 0]
+        group = []
+        for z in self.defaults.items():
+            try:
+                checkval = z[1]['value']
+            except:
+                print('Orphaned parameter')
+                print(z)
+            if len(str(checkval)) > 0:
+                group.append(z)
         if onlyvals:
             return dict([(a, b['value']) for (a, b) in group])
         else:
@@ -466,14 +473,14 @@ def comDicts(d1, d2):
 
 def getProfilePrefix(string):
     """returns a prefix for a runfolder from a given profile filename
-    profile format: wdSource_shellSource_mass_shellmass.dat
+    profile format: wdSource_shellSource_mass_shellmass_suffix.dat
 
     """
     profilename = os.path.basename(string[:-4])
     try:
         wd, shell, wdm, shm = profilename.split('_')
     except ValueError:
-        return 'custom'
+        return 'ctm'
     code = wd[0]+shell[0]
     mass = getFloat(wdm)
     shma = getFloat(shm)

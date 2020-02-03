@@ -1,7 +1,9 @@
 from ..simulation import readTiming
 from ..IOutils import pairGen
 from .nucplot import plotNuclideGrid, plotReacNet
-from .globals import *
+# from .globals import *
+from .globals import (linear_gradient, np, os, plt,
+                      StrMethodFormatter, colors)
 from ..paramSetup import pd
 from astropy.time import Time
 import plotly.graph_objs as gob
