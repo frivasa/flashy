@@ -12,6 +12,14 @@ flashy.wdprofiles.coldFermi module
     :undoc-members:
     :show-inheritance:
 
+flashy.wdprofiles.helmprof module
+---------------------------------
+
+.. automodule:: flashy.wdprofiles.helmprof
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 flashy.wdprofiles.polytropes module
 -----------------------------------
 

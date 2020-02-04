@@ -282,7 +282,7 @@ def readLogAndStats(logfile, statsfile):
     """
     # read log data
     rsteps, skips, refs, chkps, header, timings = readLog(logfile)
-    
+
     # read stats data and remove pre-restart values
     data = np.genfromtxt(statsfile, names=True)  # this skips # lines
     for att in data.dtype.names:
@@ -489,14 +489,14 @@ def clearRestarts(steps):
         remsteps = []
         for pos, reps in zip(restartpos, repsteps):
             rr = int(reps)
-            skipmask[pos-rr+1:pos+1] = 312  # any value greater than one
+            skipmask[pos-rr+1:pos+1] = 5  # any value greater than one
             for i in range(int(reps)):
                 remsteps.append(pos-i)
         realmask = np.where(skipmask > 1)
         realsteps = np.array(steps)[realmask[0]]
         # this method is incredibly slow for large skipped steps
         #  realsteps = [st for i, st in enumerate(steps) if i not in remsteps]
-        return realsteps, remsteps
+        return list(realsteps), remsteps
     else:
         return steps, []
 

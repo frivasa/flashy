@@ -62,6 +62,7 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
     """
     # first get the resolution
     tags = ['resolution']
+    print(runpath)
     sim = simulation(runpath)
     qlinfo = sim.quickLook(retlist=True, refsimtime=0.05, refstep=80)
     spans = [x for x in qlinfo if 'span' in x]
