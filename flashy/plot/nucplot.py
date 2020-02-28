@@ -1,18 +1,31 @@
 """nuclide aggregate plots, based on yield files."""
 from ..nuclear import (splitSpecies, convertYield2Abundance,
                        getMassFractions, getAbundances,
-                       readSunComp, readYield, sortNuclides,
+                       Avogadro, readSunComp,
+                       readYield, sortNuclides,
                        elemSplit, AGSS09, readIsotopicSolar)
-# from .globals import *
-from .globals import (np, os, mpl, plt,
+from .globals import (np, os, mpl, plt, writeFig,
                       StrMethodFormatter, LogNorm)
 from matplotlib.patches import Rectangle
 import flashy.utils as ut
+from ..datahaul.hdf5yt import getYields, getLineout
+from ..datahaul.hdfdirect import directMeta
 
 
 def speciesYields(yieldfiles, tags=[], norm='Si', offset=6):
     """plots abundances for a list of files
     or a single file vs solar composition.
+
+    Args:
+        yieldfiles(str list): yield filenames.
+        tags(str list): yield source names.
+        norm(str): normalization element.
+        offset(float): log of the abundance offset
+            (generally 12 for H, 6 for Si).
+
+    Returns:
+        (mpl.figure)
+
     """
     fig, ax = plt.subplots(figsize=(10, 5))
     if isinstance(yieldfiles, list):
@@ -51,6 +64,17 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
     species in a pair of yields, or vs solar compositon
     for a single file.
     yieldfiles = [input, reference]
+
+    Args:
+        yieldfiles(str list): yield filenames.
+        tags(str list): yield source names.
+        norm(str): normalization element.
+        offset(float): log of the abundance offset
+            (generally 12 for H, 6 for Si).
+
+    Returns:
+        (mpl.figure)
+
     """
     fig, ax = plt.subplots(figsize=(10, 5))
     if isinstance(yieldfiles, list):
@@ -74,7 +98,16 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
 
 
 def nuclideYields(files, tags):
-    """plot mass fractions for each nuclide in a yield file."""
+    """plot mass fractions for each nuclide in a yield file.
+
+    Args:
+        files(str list or str): yield filename(s).
+        tags(str list or str): yield source name(s).
+
+    Returns:
+        (mpl.figure)
+
+    """
     if isinstance(files, list):
         fig, ax = plt.subplots(figsize=(10, 5))
         plabels = []
@@ -97,6 +130,122 @@ def nuclideYields(files, tags):
                                      label='AGSS09', color='orange'))
         lg = ax.legend(*zip(*plabels))
         return fig
+
+
+def plotCompositionTrajectory(fname, dpi=100, thresh=1e-4,
+                              batch=False, maxtime=1.0):
+    """plots composition vs time for a list of filenames assumed from the input.
+
+    Args:
+        fname(str list or str): yield filename(s).
+        dpi(str list or str): yield source name(s).
+        thresh(float): mass fraction limit.
+        batch(bool): plot to file or return figure.
+        maxtime(float): righthand limit for plot.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    # build a filelist from the stem filename:
+    # chekpoint_0002 >> 2
+    end = int(fname[-4:]) + 1
+    times, masses = [], []
+    for i in range(end):
+        subf = '{}{:04d}'.format(fname[:-4], i)
+        # get the mass yields (corrected for volume and density)
+        t, _, _, _, _ = directMeta(subf)
+        datablock, species = getLineout(subf, species=True, geom='spherical')
+        times.append(t)
+        if not i:
+            dens0 = datablock[1][0]
+            temp0 = datablock[2][0]
+        mass = []
+        for j, sp in enumerate(species):
+            # single block, (r, rho, T, pres, species) => 4
+            mass.append(datablock[4+j][0])
+        masses.append(mass)
+
+    f, a = plt.subplots(dpi=dpi)
+    for i, sp in enumerate(species):
+        props = next(a._get_lines.prop_cycler)
+        tag = '$^{{{}}}{}$'.format(*elemSplit(sp, invert=True))
+        ordinate = [y[i] for y in masses]
+        if np.max(ordinate) < thresh:
+            continue
+        else:
+            line = plt.semilogy(times, ordinate,
+                                marker='.', label=tag,
+                                color=props['color'],
+                                ls=props['linestyle'])
+    xl = a.set_xlabel('Time(s)')
+    yl = a.set_ylabel('$X_i$')
+    ylm = a.set_ylim([thresh, 2.0])
+    xlm = a.set_xlim([-0.05, maxtime])
+    imgtag = u'$\\rho_0$ = {:.2E}\nT_0 = {:.2E}'.format(dens0, temp0)
+    note = a.annotate(imgtag, xy=(0.0, 0.0),
+                      xytext=(0.2, 0.90), size=12,
+                      textcoords='figure fraction',
+                      xycoords='figure fraction')
+    lgd = a.legend(ncol=4, loc='upper left', bbox_to_anchor=(1.02, 1.0),
+                   columnspacing=0.0, labelspacing=0.0, markerfirst=False,
+                   numpoints=3, handletextpad=0.0)
+    if batch:
+        writeFig(f, fname, 'comp_traj')
+    else:
+        return f
+
+
+def plotFlowMatrix(fname, dpi=100, edge=1e34,
+                   linthresh=1e32, batch=False):
+    """builds a flow matrix with a given checkpoint and its succesor in number.
+
+    Args:
+        fname(str): checkpoint to be used.
+        dpi(int): dpi of output figure.
+        edge(float): limits of flow of particles.
+        linthresh(float): SymLog scale "start"
+            (-edge  -linthresh 0 +linthresh +edge).
+        batch(bool): write to file(true) or return figure(false).
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    # get the mass yields (corrected for volume and density) for both files
+    t1, species, masses1 = getYields(fname)
+    shift = '{}{:04d}'.format(fname[:-4], int(fname[-4:])+1)
+    # print(shift)
+    t2, _, masses2 = getYields(shift)
+    deltaT = t2 - t1
+    deltaM = np.array(masses2) - np.array(masses1)
+    # convert to particles via species masses
+    names, prot, neut, nucmass = splitSpecies(species, standardize=True)
+    fluxes = ut.msol*deltaM/nucmass*Avogadro
+    f, a = plt.subplots(dpi=dpi)
+    sq = plotNuclideGrid(a, species, xmass=fluxes, sym=True, time=t1,
+                         cmmin=-edge, cmmax=edge,
+                         cmap='coolwarm', linthresh=linthresh)
+    cax = f.add_axes([0.12, 0.9, 0.8, 0.037])  # left, bot, width, height
+    norm = mpl.colors.SymLogNorm(vmin=-edge, vmax=edge, linthresh=linthresh)
+    cbar1 = mpl.colorbar.ColorbarBase(
+        cax, cmap='coolwarm', norm=norm, orientation='horizontal')
+    cax.xaxis.set_ticks_position('top')
+    datablock, sps = getLineout(fname, species=False, geom='spherical')
+    dens = datablock[1][0]
+    temp = datablock[2][0]
+
+    imgtag = u'$\\rho$ = {:.2E}\nT = {:.2E}'.format(dens, temp)
+    # trick to make an empty handle
+    sq = plt.Rectangle((0, 0), 1, 1, fill=False,
+                       edgecolor='none', visible=False)
+    leg = a.legend(handles=[sq], labels=[imgtag],
+                   loc=(0.0, 0.83), frameon=False)
+
+    if batch:
+        writeFig(f, fname, 'flows')
+    else:
+        return f
 
 
 def plotGridYield(yieldfile, dpi=150, cmap='Oranges',
@@ -150,7 +299,7 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35],
                     n_range=[-2, 38], boxsize=1.0, cmmin=1.0e-5,
                     cmmax=0.9, cmap='Blues', addtags=True, tagsonright=False,
                     noedge=False, frameless=False, forceColor=False,
-                    fColor='peru'):
+                    fColor='peru', sym=False, linthresh=1e10):
     """Plots a list of species on a grid.
 
     Args:
@@ -169,14 +318,20 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35],
         noedge(bool): remove nuclide marker edges.
         frameless(bool): remove frames, only show arrows.
         forceColor(bool): force a single color for all species.
-        fColor(str): Hex or name of color to force
+        fColor(str): Hex or name of color to force.
+        sym(bool): use symmetrical log (for neg values).
+        linthresh(float): linthresh for symlognorm.
 
     Returns:
         (mpl.rectangle): handle for mpl legend.
 
     """
     cmap = mpl.cm.get_cmap(cmap)
-    norm = mpl.colors.LogNorm(vmin=cmmin, vmax=cmmax)
+    if sym:
+        norm = mpl.colors.SymLogNorm(vmin=cmmin, vmax=cmmax,
+                                     linthresh=linthresh)
+    else:
+        norm = mpl.colors.LogNorm(vmin=cmmin, vmax=cmmax)
     if len(xmass) > 0:
         xis = xmass
         a = ax.annotate("{:.5f} s".format(time),
@@ -238,6 +393,20 @@ def plotReacNet(ax, sunet, matr_shape, forcedZ=0,
                 step=4, xoffset=1, cmap='Greens', aspect=1.0):
     """plots a reaction network based on
     default files at cdx/Network/netname
+
+    Args:
+        ax(mpl.axes): axes to draw on.
+        sunet(str): filename with species names.
+        matr_shape(str): filename with reaction tags.
+        forcedZ(int): offset for reaction values.
+        step(int): element name skip size.
+        xoffset(int): element name tag start offset.
+        cmap(str): mpl.colormap name.
+        aspect(float): skewing of squares in plot.
+
+    Returns:
+        (int, int): number of species and number of rates found.
+
     """
     with open(matr_shape) as f:
         for i, line in enumerate(f):
@@ -273,7 +442,16 @@ def plotReacNet(ax, sunet, matr_shape, forcedZ=0,
 
 
 def doYouBelieveInMagic(ax, color='brown'):
-    """Draws a magical grid of stability."""
+    """Draws a magical grid of stability.
+
+    Args:
+        ax(mpl.axes): axes to draw upon.
+        color(str): color of grid.
+
+    Returns:
+        (mpl.line2D): last grid line for legend use.
+
+    """
     cadabra = [2, 8, 20, 28, 50, 82, 126]
     for abra in cadabra:
         ax.axhline(abra, alpha=0.4, color=color, ls=':')
@@ -287,6 +465,21 @@ def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',
     types of reference are 'solar'(for solar composition)
     and 'yield' (for other sims)
     returns label and line element for legend
+
+    Args:
+        ax(mpl.axes): axes to draw upon.
+        querym(str): yield file to use.
+        refname(str): solar yield file to use.
+        label(str): tag for plot.
+        norm(str): reference element.
+        offset(float): log of the abundance offset
+            (generally 12 for H, 6 for Si).
+        reftype(str): is the ref 'solar' or a pure 'yield'?
+        tagspecies(bool): plot species names on plot.
+
+    Returns:
+        (mpl.line2D[0], str): line object for legend, tag of plot.
+
     """
     zs, ns, ab = convertYield2Abundance(querym, norm=norm, offset=offset)
     if reftype == 'solar':
@@ -328,6 +521,18 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
                   ylims=[1e-18, 1.0], notag=False):
     """draws isotopic masses vs atomic mass,
     returns label and line element for legend
+
+    Args:
+        ax(mpl.axes): axes to draw on.
+        mdict(dict): dictionary of species and properties.
+        label(str): plot label.
+        color(str): line color.
+        ylims(float list): mass fraction limits.
+        notag(bool): skip species tag on line.
+
+    Returns:
+        (mpl.line2D[0], str): line object for legend, tag of plot.
+
     """
     for k in mdict.keys():
         zz = mdict[k]['z']
@@ -359,6 +564,19 @@ def plotAbun(ax, mdict, norm='H', offset=12.0,
              label='W7', color='black', tagspecies=False):
     """draws abundances vs atomic number,
     returns label and line element for legend
+
+    Args:
+        ax(mpl.axes): axes to draw on.
+        mdict(dict): dictionary of species and properties.
+        norm(str): reference element.
+        offset(float): abundance offset
+        label(str): plot label.
+        color(str): line color.
+        tagpsecies(bool): plot element names.
+
+    Returns:
+        (mpl.line2D[0], str): line object for legend, tag of plot.
+
     """
     zs, names, mix = convertYield2Abundance(mdict, norm=norm, offset=offset)
     line = ax.plot(zs, mix, color=color, label=label, marker='.', ls=':', lw=1)
@@ -378,7 +596,14 @@ def plotAbun(ax, mdict, norm='H', offset=12.0,
 
 
 def speciesGrid(ax, spcodes, yoffset=5.0):
-    """draws a grid of the specified species on target ax."""
+    """draws a grid of the specified species on target ax.
+
+    Args:
+        ax(mpl.axes): axes to draw on.
+        spcodes(str list): list of species.
+        yoffset(float): line tag offset in plot.
+
+    """
     Sp, Zs, Ns, As = splitSpecies(spcodes)
     for i, sp in enumerate(Sp):
         props = next(ax._get_lines.prop_cycler)
@@ -386,11 +611,23 @@ def speciesGrid(ax, spcodes, yoffset=5.0):
         ax.text(Zs[i]+0.1, ax.get_ylim()[0]+yoffset,
                 '${}$'.format(sp), size=10, horizontalalignment='left',
                 verticalalignment='bottom', color=props['color'])
-    return 0
 
 
 def getNuclideGridNames(names, zs, ns, rightside=False):
-    """Retuns tags and positions for a nuclide grid."""
+    """Retuns tags and their positions for
+    a nuclide rectangle grid.
+
+    Args:
+        names(str list): species names.
+        zs(int list): proton numbers.
+        ns(int list): neutron numbers.
+        rightside(bool): tags on the right of rectangles.
+
+    Returns:
+        (str list, float list, float list):
+            unique tags and their plot positions.
+
+    """
     if 'p' in names and 'H' in names:
         names[names.index('p')] = 'H'  # change proton name to void H tag
     if rightside:

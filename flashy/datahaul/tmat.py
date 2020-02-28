@@ -8,7 +8,7 @@ _wedges = 5
 
 def get2dPane(bview, file, prop, wedges=_wedges):
     """get a 2d matrix with prop values from a file,
-    paralelizing the extraction of the data and 
+    paralelizing the extraction of the data and
     returning timestamp, dt and physical extents
 
     Args:
@@ -54,11 +54,11 @@ def buildMat(prop, x, y, dx, dy, width, edges):
     diyv = 0.5*dy/mdy
     dix = [int(x) for x in dixv]
     diy = [int(x) for x in diyv]
-    
+
     for k, (i, j) in enumerate(zip(xpos, ypos)):
         # check only x since blocks are squares
-        if dix[k]==0:
+        if dix[k] == 0:
             matrix[i, j] = prop[k]
         else:
-            matrix[i-dix[k]:i+dix[k], j-diy[k]:j+diy[k]]= prop[k]
+            matrix[i-dix[k]:i+dix[k], j-diy[k]:j+diy[k]] = prop[k]
     return matrix

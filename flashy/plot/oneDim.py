@@ -4,7 +4,6 @@ from .globals import (np, os, mpl, plt,
 from ..datahaul.hdf5yt import getLineout, probeDomain
 from ..datahaul.hdfdirect import directMeta
 import flashy.utils as ut
-# import matplotlib.pyplot as plt
 import flashy.paraMan as pman
 from ..datahaul.plainText import dataMatrix
 from ..nuclear import sortNuclides, elemSplit, decayYield, getMus
@@ -17,7 +16,7 @@ from flashy.datahaul.parData import glue2dWedges
 def plot2DtauRatio(bview, fname, factor=0.1, wedges=5, batch=False):
     """Plots sound crossing timescale to burning
     timescale for a file.
-    
+
     Args:
         bview(ipp.LoadBalancedView): ipp setup workhorse.
         fname(str): file name.
@@ -31,7 +30,8 @@ def plot2DtauRatio(bview, fname, factor=0.1, wedges=5, batch=False):
     time, pars, _, _, paths = directMeta(fname)
     dx, tauC, tauE = fp.get2Dtaus(bview, fname, wedges=wedges)
     f, ax = plt.subplots()
-    ax.scatter(dx/1e5, tauC/(factor*tauE), marker='.', label=u'$\\tau_s/\\tau_e$')
+    ax.scatter(dx/1e5, tauC/(factor*tauE), marker='.',
+               label=u'$\\tau_s/\\tau_e$')
     ax.set_xscale('log')
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
     ax.set_title('{} ({:.3f} s)'.format(tag, time))
@@ -40,7 +40,7 @@ def plot2DtauRatio(bview, fname, factor=0.1, wedges=5, batch=False):
     lgd = ax.legend()
     if batch:
         filetag = 'timescales'
-        writeFig(f, fname, filetag)   
+        writeFig(f, fname, filetag)
     else:
         return f
 
@@ -48,7 +48,7 @@ def plot2DtauRatio(bview, fname, factor=0.1, wedges=5, batch=False):
 def plot2Dtaus(bview, fname, wedges=5, batch=False):
     """Plots sound crossing timescale to burning
     timescale for a file.
-    
+
     Args:
         bview(ipp.LoadBalancedView): ipp setup workhorse.
         fname(str): file name.
@@ -73,7 +73,7 @@ def plot2Dtaus(bview, fname, wedges=5, batch=False):
     lgd = ax.legend()
     if batch:
         filetag = 'timescales'
-        writeFig(f, fname, filetag)   
+        writeFig(f, fname, filetag)
     else:
         return f
 
@@ -81,7 +81,7 @@ def plot2Dtaus(bview, fname, wedges=5, batch=False):
 def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
                      ref='x', antipode=False, batch=False):
     """Plots Radial speed vs radius for a file.
-    
+
     Args:
         bview(ipp.LoadBalancedView): ipp setup workhorse.
         fname(str): file name.
@@ -112,7 +112,7 @@ def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
     ax.set_ylabel('Speed (cm/s)')
     if batch:
         filetag = 'radialSp'
-        writeFig(f, fname, filetag)   
+        writeFig(f, fname, filetag)
     else:
         return f
 
@@ -142,46 +142,60 @@ def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2,
               'ref': ref, 'antipode': antipode}
     res = pman.throwHammer(bview, slices, fp.par_speedHisto, **kwargs)
     # retrieve the results and sum the wedges
-    cont =  res.get()
+    cont = res.get()
     bins = cont[0][-1]
     he, cno = np.zeros(len(bins)), np.zeros(len(bins))
     ime, ige = np.zeros(len(bins)), np.zeros(len(bins))
     tmass = np.zeros(len(bins))
     # wedge data already in mass units
     for wedge in cont:
-        he  += wedge[0]
+        he += wedge[0]
         cno += wedge[1]
         ime += wedge[2]
         ige += wedge[3]
         tmass += wedge[0] + wedge[1] + wedge[2] + wedge[3]
-    tmass[tmass==0.0] = 1.0
+    tmass[tmass == 0.0] = 1.0
     t, dt, _, _ = probeDomain(fname)
     # build the plot
     f, ax = plt.subplots()
     if massfrac:
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ige)/tmass, 
-                                         histtype='step', log=True, label='IGE', color='red')
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(ime)/tmass, 
-                                         histtype='step', log=True, label='IME', color='orange')
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(cno)/tmass, 
-                                         histtype='step', log=True, label='CNO', color='#808000')
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=np.nan_to_num(he)/tmass, 
-                                         histtype='step', log=True, label='He', color='#3CB371')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
+                                         weights=np.nan_to_num(ige)/tmass,
+                                         histtype='step', log=True,
+                                         label='IGE', color='red')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
+                                         weights=np.nan_to_num(ime)/tmass,
+                                         histtype='step', log=True,
+                                         label='IME', color='orange')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
+                                         weights=np.nan_to_num(cno)/tmass,
+                                         histtype='step', log=True,
+                                         label='CNO', color='#808000')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins),
+                                         weights=np.nan_to_num(he)/tmass,
+                                         histtype='step', log=True,
+                                         label='He', color='#3CB371')
         ax.set_ylabel(u'$X_i$')
         ax.set_ylim([1e-4, 1.5])
         ax.axhline(1, ls='--', alpha=0.6, c='k')
     else:
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=ige/ut.msol, 
-                                         histtype='step', log=True, label='IGE', color='red')
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=ime/ut.msol, 
-                                         histtype='step', log=True, label='IME', color='orange')
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=cno/ut.msol, 
-                                         histtype='step', log=True, label='CNO', color='#808000')
-        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=he/ut.msol,
-                                         histtype='step', log=True, label='He', color='#3CB371')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), log=True,
+                                         weights=ige/ut.msol, histtype='step',
+                                         label='IGE', color='red')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), log=True,
+                                         weights=ime/ut.msol, histtype='step',
+                                         label='IME', color='orange')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), log=True,
+                                         weights=cno/ut.msol, histtype='step',
+                                         label='CNO', color='#808000')
+        mpln, mplbins, patches = ax.hist(bins, bins=len(bins), log=True,
+                                         weights=he/ut.msol, histtype='step',
+                                         label='He', color='#3CB371')
         if showtotal:
-            mpln, mplbins, patches = ax.hist(bins, bins=len(bins), weights=tmass/ut.msol,
-                                             histtype='step', log=True, label='Total', color='#000000')
+            mpln, mplbins, patches = ax.hist(bins,
+                                             bins=len(bins), histtype='step',
+                                             weights=tmass/ut.msol, log=True,
+                                             label='Total', color='#000000')
         ax.set_ylabel(u'$M_{\\odot}$')
         ax.set_ylim([1e-4, 1.0])
     ax.set_xlim([0e0, 3e9])
@@ -340,7 +354,7 @@ def PARsimProfile(fname, simfolder='', thresh=1e-4, xrange=[0.0, 0.0],
 
 def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
                  yrange=[0.0, 0.0], filetag='prof', batch=False,
-                 byM=True, direction=[], grid=False,
+                 byM=True, direction=[], grid=False, points=False,
                  fields=['pressure', 'temperature'], extgrid=''):
     """Plot bulk properties and species in a chekpoint through a ray.
 
@@ -356,6 +370,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         direction(float list): list of spherical angles (alt, azimuth),
         empty for 1D.
         grid(bool): add radial positions as a line grid.
+        points(bool): draw y-points in graphs.
         fields(str list): specify fields for lower plot.
         extgrid(str): filename for external grid points.
 
@@ -365,7 +380,8 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
     """
     time, pars, paths, prof = fetchData(fname, direction,
                                         fields=['density']+fields)
-    fig = plotDMatMerged(prof, byM=byM, thresh=thresh, xrange=xrange)
+    fig = plotDMatMerged(prof, byM=byM, thresh=thresh,
+                         xrange=xrange, marker=points)
     ax = plt.gca()
     a = ax.annotate("{:.5f} s".format(time),
                     xy=(0.0, 0.0), xytext=(0.82, 0.10), size=12,
@@ -486,7 +502,6 @@ def flashSpecies(fname, thresh=1e-6, filetag='spec', batch=False,
 
     # decay yield
     names, decmasses = decayYield(*zip(*massfiletuples))
-
     # plot mass vs speed
     ax3 = plt.subplot2grid(layout, (2, 0), colspan=2)
     nbins = 60
@@ -642,7 +657,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
         xrange (list of float): if set, change the range of the plots.
         byM (bool): abundance plot xaxis (by Mass or by Radius).
         alpha(float): species plot alpha.
-        marker(bool): enable bottom plot cell marker.
+        marker(bool): enable plot cell marker.
         botplotshift(int): order of magnitude shift for bottom plot.
 
     """
@@ -665,7 +680,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
     # Species
     spax = plt.subplot2grid(layout, (0, 0), colspan=2)
     skip = plotSpecies(spax, prof, byMass=byM, thresh=thresh,
-                       plotall=False, alpha=alpha)
+                       plotall=False, alpha=alpha, marker=marker)
     # remove last(lowest) yticklabel to avoid overlap
     spax.get_yticklabels()[1].set_visible(False)
     lgd = spax.legend(ncol=ncol, loc='upper left', bbox_to_anchor=(1.00, 1.02),
@@ -683,11 +698,11 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
         spax.set_xscale('log')
     # Thermodynamical variables (reference is, as always, density)
     if marker:
-        marker = '.'
+        mark = '.'
     else:
-        marker = None
+        mark = None
     tdax = plt.subplot2grid(layout, (1, 0), colspan=2, sharex=spax)
-    tdax.semilogy(xs, prof.density, label='Density', marker=marker)
+    tdax.semilogy(xs, prof.density, label='Density', marker=mark)
     ylabels = ['$\\frac{g}{cm^3}$']
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
     tdax.tick_params(labelbottom=False)
@@ -695,15 +710,16 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
         u = ut.getUnit(p)
         if p == 'pressure':
             labl = p.capitalize()+'$\cdot 10^{{-18}}$'
-            tdax.plot(xs, getattr(prof, p)/1e18, label=labl)
+            tdax.plot(xs, getattr(prof, p)/1e18, label=labl, marker=mark)
             ylabels.append(u)
         else:
             attv = getattr(prof, p)
-            if np.max(attv)<=0:
+            if np.max(attv) <= 0:
                 continue
             expo = np.floor(np.log10(np.max(attv)))-botplotshift
             labl = p.capitalize()+'$\cdot 10^{{-{}}}$'.format(int(expo))
-            tdax.plot(xs, getattr(prof, p)/np.power(10, expo), label=labl)
+            tdax.plot(xs, getattr(prof, p)/np.power(10, expo),
+                      label=labl, marker=mark)
             ylabels.append(u)
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
     tdax.tick_params(labelbottom=False)
@@ -820,7 +836,8 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     return fig
 
 
-def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False, alpha=1.0):
+def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4,
+                plotall=False, alpha=1.0, marker=False):
     """draws species from a profile object.
 
     Args:
@@ -828,16 +845,22 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False, alpha=1.0):
         dmatr(dataMatrix): profile object to extract data.
         byMass(bool): plot by Mass or radius (toggle).
         thresh(float): lower bound for plot.
+        marker(bool): draw points in graph.
 
     """
     if byMass:
         absc = 'mass'
     else:
         absc = 'radius'
+    if marker:
+        mark = '.'
+    else:
+        mark = None
     skip = []
     if plotall:
         for s in dmatr.species:
-            line = simplePlot(ax, dmatr, absc, s, log=True, alpha=alpha)
+            line = simplePlot(ax, dmatr, absc, s, marker=mark,
+                              log=True, alpha=alpha)
             line[0].set_label(s)
     else:
         for i, s in enumerate(dmatr.species):
@@ -848,6 +871,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, plotall=False, alpha=1.0):
             else:
                 tag = '$^{{{}}}{}$'.format(*elemSplit(s, invert=True))
                 line = simplePlot(ax, dmatr, absc, s,
+                                  marker=mark,
                                   log=True, color=props['color'],
                                   ls=props['linestyle'], alpha=alpha)
                 line[0].set_label(tag)

@@ -15,31 +15,34 @@ _otpfolder = "chk"
 _logfile = 'f.log'
 _statsfile = 's.dat'
 _cdxpfol = "cdx/Profiles"
-_proj = 'gen006'
+_metaname = "meta.txt"
+_deftree = 'FLASHOR'
+_proj = 'gen006'  # proj where tree is hosted
 _juptree = 'http://localhost:1988/tree/'
 # summit has POWER arch
 if os.getenv('HOSTTYPE', 'powerpc64le') == 'powerpc64le':
     _FLASH_DIR = "/gpfs/alpine/{}/proj-shared/"\
-                 "frivas/00.code/FLASHOR".format(_proj)
+                 "frivas/00.code/{}".format(_proj, _deftree)
     _AUX_DIR = "/gpfs/alpine/{}/proj-shared/"\
                "frivas".format(_proj)
     _SCRIPT_DIR = "/gpfs/alpine/{}/proj-shared/"\
                   "frivas/07.miscellaneous/bash/".format(_proj)
 else:
     _FLASH_DIR = "/lustre/atlas/proj-shared/{}/"\
-                 "frivas/00.code/FLASHOR".format(_proj)
+                 "frivas/00.code/{}".format(_proj, _deftree)
     _AUX_DIR = "/lustre/atlas/proj-shared/{}/"\
                "frivas/".format(_proj)
     _SCRIPT_DIR = "/lustre/atlas/proj-shared/{}/frivas/"\
                   "07.miscellaneous/bash/".format(_proj)
 # restore maxint number
-# (removed in p3 due to arbitrary int length, but FORTIE doesn't know...)
+# (removed in p3 due to arbitrary int length, but FORTRAN doesn't know.)
 _maxint = 2147483647
 
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList': 'true'},
-               nbs=[16, 16, 16], geometry='cylindrical', maxbl=500):
-    """calls ./setup at _FLASH_DIR with given parameters,
+               nbs=[16, 16, 16], geometry='cylindrical',
+               maxbl=500, codetree='FLASHOR'):
+    """prints adequate ./setup at _FLASH_DIR with given parameters,
     writing the code to runfolder. (FLASH setup script runs only on py 2.X).
 
     Arguments:
@@ -49,14 +52,17 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList': 'true'},
         nbs(int tuple): cells per block for setup per dimension.
         geometry(str): cartesian, spherical, cylindrical(default).
         maxbl(int): maximum blocks per proc. elem.
-        manual(bool): skip terminal call, print command.
+        codetree(string): force flash ver. (e.g. FLASHOR > FLASH5).
 
     """
     if not runfolder:
-        net = 'ap13'
-        if 'xnet' in kwargs:
-            if kwargs['xnet'] is True:
-                net = kwargs['xnetData'].split('_')[-1]
+        # theres only ap13, ap19 or xnet so treat by cases
+        if '+xnet' in kwargs.keys():
+            net = kwargs['xnetData'].split('_')[-1]
+        elif '+a19' in kwargs.keys():
+            net = 'ap19'
+        else:
+            net = 'ap13'
         # first 'three' without a 't' based on # speakers is
         # Mandarin -> German -> Japanese
         dnum = {1: 'one', 2: 'two', 3: 'san'}[len(nbs)]
@@ -96,6 +102,7 @@ def setupFLASH(module, runfolder='', kwargs={'threadBlockList': 'true'},
     # kwstr = ' '.join(['{}={}'.format(k,v) for (k, v) in kwargs.items()])
     comm = comm + kwstr
     print('\nGenerated run name: {}\n'.format(name))
+    comm = comm.replace(_deftree, codetree)
     print(comm)
     # p = Popen(['/bin/bash'], stdin=PIPE, stdout=PIPE)
     # out, err = p.communicate(input=comm.encode())
@@ -394,9 +401,9 @@ def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
     if kwargs.get('j1', False):
         nodes *= 2
         ompth = 8
-        launcher = 'aprun -n{} -d{} -j1 ./flash4 &'.format(nodes, ompth)
+        launcher = 'aprun -n{} -d{} -j1 ./flash5 &'.format(nodes, ompth)
     else:
-        launcher = 'aprun -n{} -d{} ./flash4 &'.format(nodes, ompth)
+        launcher = 'aprun -n{} -d{} ./flash5 &'.format(nodes, ompth)
     if 'mail' in kwargs:
         schedlist.append('#PBS -M {}'.format(kwargs['mail']))
         schedlist.append('#PBS -m {}'.format(kwargs['abe']))
@@ -452,11 +459,11 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
     # NNODES=$(($(cat $LSB_DJOB_HOSTFILE | uniq | wc -l)-1))
     # 2 node 7 core + GPU per task 4 threads
     # launcher = 'stdbuf -o0 jsrun '
-    # '--exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash4 &'
+    # '--exit-on-error -n12 -g1 -a1 -c7 -bpacked:7 ./flash5 &'
     launcher = 'jsrun '
     launcher += '-n{} -r{} -a{} '.format(RS, defs['RSpN'], defs['mpipRS'])
     launcher += '-g{} -c{} -bpacked:{} '.format(gpupRS, cpRS, cpmpi)
-    launcher += '-d packed ./flash4 &'
+    launcher += '-d packed ./flash5 &'
     # -n = "Resource set"[rs] as subdivisions of a node
     # -a  MPI ranks/tasks per rs
     # -c cpus per rs (physical, non-threaded)

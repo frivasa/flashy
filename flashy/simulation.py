@@ -1,5 +1,5 @@
 from .utils import np
-from .IOutils import os, getFileList, rename, _cdxfolder
+from .IOutils import os, getFileList, rename, _cdxfolder, _metaname
 from .IOutils import blockGenerator, getLines, getBlock, getRepeatedBlocks
 import datetime
 import tempfile
@@ -15,13 +15,13 @@ class simulation(object):
         self.name = os.path.basename(name)
         self.cdx = os.path.join(os.path.dirname(name), _cdxfolder)
         self.chk = os.path.join(name, _otpfolder)
-        
+
         # parameters (user set and defs)
         self.pargroup = parameterGroup(os.path.join(self.cdx, _FLASHdefaults))
         self.pargroup.setPars(os.path.join(name, _DEFpar))
         prof = self.pargroup.defaults.initialWDFile['value']
         self.profile = os.path.join(self.cdx, prof)
-        
+
         # backwards compatibility: change names of otp
         if not getFileList(folder, glob=_logfile) == [_logfile]:
             rename(folder, '.log', _logfile)
@@ -68,7 +68,7 @@ class simulation(object):
         # CJ file (if any)
         glob = 'shockDetect_'  # cj output parsing (specific .dat files)
         self.CJ = getFileList(folder, glob=glob, fullpath=True)
-        
+
         # yields (if any)
         yieldf = os.path.join(folder, 'spec')
         try:
@@ -196,6 +196,14 @@ class simulation(object):
                     '{} ({:.2f})'.format(limblks, limblks/nodes))
         info.append('Checkpoints/Plotfiles: '
                     '{}/{}'.format(len(self.checkpoints), len(self.plotfiles)))
+        # finally read meta (if any)
+        try:
+            cwd = os.path.dirname(self.chk)
+            with open(os.path.join(cwd, _metaname)) as f:
+                metalines = [l.strip('\n') for l in f]
+            info += metalines
+        except OSError:
+            info.append('No {} for this run.'.format(_metaname))
         # simulation figure of merit
         # info += self.getTfom(refsimtime)
         # info += self.getNfom(refstep)

@@ -12,7 +12,7 @@ from .IOutils import os
 def get2Dtaus(bview, fname, wedges=5):
     """calculates soundspeed timescale and burning timescale
     for every cell in the domain.
-    
+
     Args:
         bview(ipp.LoadBalancedView): ipp setup workhorse.
         fname(str): file name.
@@ -23,7 +23,7 @@ def get2Dtaus(bview, fname, wedges=5):
 
     """
     # get data from file in wedges and join everything into 'dat'
-    kwargs = {'fname': os.path.abspath(fname), 'wedges': wedges, 
+    kwargs = {'fname': os.path.abspath(fname), 'wedges': wedges,
               'fields': ['dx', 'gamc', 'pres', 'dens', 'eint', 'enuc']}
     res = pman.throwHammer(bview, wedges, pd.par_wedge2d, **kwargs)
     dat = pd.glue2dWedges(res.get())
@@ -169,7 +169,7 @@ def speedHisto(fname, resolution=4e7, velrange=[1e9, 5e9],
     speeds, massgrid = zip(*sortedcells)
     # massgrid = [[Mh1_0, Mhe4_0,...], [Mh1_1, Mhe4_1,...]]
     # respecting increasing speed order
-    
+
     # get ranges for histogram bins
     vmin, vmax = velrange
     binnum = int((vmax - vmin)/resolution)

@@ -1,14 +1,13 @@
-# TDL separate datahaul elements from plotting routines
-# from .globals import *
 from .globals import (np, os, AxesGrid, plt,
                       SymLogNorm, ScalarFormatter,
                       writeFig)
 from flashy.datahaul.hdf5yt import getFields, yt
 from yt.funcs import mylog  # avoid yt warnings
-mylog.setLevel(50)
 import flashy.datahaul.ytfields as ytf
 import flashy.paraMan as pman
 from flashy.datahaul.tmat import get2dPane
+mylog.setLevel(50)
+
 
 def slice_cube(fname, grids=False, batch=False,
                frame=1e9, center=[0.0, 0.0, 0.0], sliceAxis='z',
@@ -31,6 +30,9 @@ def slice_cube(fname, grids=False, batch=False,
         mark(float list): mark a (x,y) coordinate in the plot.
         cmap(str): matplotlib colormap for the plot.
         filetag(str): override default filetag (ytprops).
+
+    Returns:
+        (mpl.figure or None)
 
     """
     ds = yt.load(fname)
@@ -98,13 +100,16 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         cmap(str): matplotlib colormap for the plot.
         dpi(float): dpi of figure returned/saved.
 
+    Returns:
+        (mpl.figure or None)
+
     """
     ds = yt.load(fname)
     size = len(fields)
     fig = plt.figure(figsize=(5*size, 10), dpi=dpi)
     grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
                     nrows_ncols=(1, size),
-                    axes_pad=1.2, label_mode="L", 
+                    axes_pad=1.2, label_mode="L",
                     share_all=True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
     # check for custom fields and add them to yt.
@@ -112,7 +117,7 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
             yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
-
+    print(fields)
     p = yt.SlicePlot(ds, 'z', list(fields))
     if sum(center) == 0.0:
         p.set_center((frame*0.5, 0.0))
@@ -175,6 +180,7 @@ def speeds2D(bview, fname, subset=[0.0, 1e4, -1e4, 1e4], wedges=8,
 
     Returns:
         (mpl.figure or None)
+
     """
     fields = ['velx', 'vely', 'speed']
     dat = []
@@ -185,18 +191,23 @@ def speeds2D(bview, fname, subset=[0.0, 1e4, -1e4, 1e4], wedges=8,
                             sharey=True, sharex=True, constrained_layout=True)
     fig.suptitle('Simtime: {:.3f}'.format(t))
     for i, ax in enumerate(axs.flat):
-        mshow = axs[i].matshow(dat[i]/1e5, cmap='RdBu_r', extent=[x/1e5 for x in ext],
-                               norm=SymLogNorm(linthresh=1e2, linscale=1.0, vmin=vmin, vmax=vmax))
+        mshow = axs[i].matshow(dat[i]/1e5, cmap='RdBu_r',
+                               extent=[x/1e5 for x in ext],
+                               norm=SymLogNorm(linthresh=1e2,
+                                               linscale=1.0,
+                                               vmin=vmin, vmax=vmax))
         ax.set_title(fields[i])
         ax.axis(subset)
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_major_formatter(ScalarFormatter())
         ax.xaxis.set_major_formatter(ScalarFormatter())
-        ax.xaxis.set_ticks(np.arange(0.0, np.max(subset), np.max(subset)/nticks))
+        ax.xaxis.set_ticks(np.arange(0.0, np.max(subset),
+                                     np.max(subset)/nticks))
         if not i:
             ax.set_ylabel('km')
         ax.set_xlabel('km')
-    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='neither')
+    cbar = fig.colorbar(mshow, ax=[axs[:]],
+                        location='bottom', extend='neither')
     cbar.set_label(u'$km/s$')
     if not batch:
         return fig
@@ -209,7 +220,7 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
            subset=[0.0, 1e9, -1e9, 1e9], cmap='RdBu_r',
            vmin=-1e5, vmax=1e5, batch=False,
            nticks=4, wedges=8):
-    """plots deltas with contiguous checkpoint/plotfile 
+    """plots deltas with contiguous checkpoint/plotfile
     for a list of fields.
 
     Args:
@@ -245,14 +256,17 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
     fig.suptitle('Acceleration ({:.3f})'.format(t1))
     for i, ax in enumerate(axs.flat):
         mshow = axs[i].matshow(acc[i], extent=ext, cmap=cmap,
-                               norm=SymLogNorm(linthresh=1e2, linscale=1.0, vmin=vmin, vmax=vmax))
+                               norm=SymLogNorm(linthresh=1e2,
+                                               linscale=1.0,
+                                               vmin=vmin, vmax=vmax))
         ax.set_title(fields[i])
         ax.axis(subset)
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_major_formatter(ScalarFormatter())
-        ax.xaxis.set_ticks(np.arange(0.0, np.max(subset), np.max(subset)/nticks))
+        ax.xaxis.set_ticks(np.arange(0.0, np.max(subset),
+                                     np.max(subset)/nticks))
     cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
-    
+
     if not batch:
         return fig
     else:

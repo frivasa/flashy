@@ -85,7 +85,7 @@ def writeFig(fig, fpath, filetag):
     > num = 0001
     > dest = /path/to/file/filetag/
     > name = dest+filetag_num.png
-    
+
     Args:
         fig(mpl.figure): matplotlib object to store.
         fpath(str): filepath.

@@ -64,7 +64,7 @@ def getDictLikeValues(file, title, keys):
 
     Returns:
         (float/int/str list): values for keys queried.
-    
+
     """
     finn = h5py.File(file, 'r')
     data = finn[title]

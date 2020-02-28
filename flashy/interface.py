@@ -104,7 +104,7 @@ def metaNavigator(path, **kwargs):
         stdout = sys.stdout
         sys.stdout = io.StringIO()
         print('\n\t', name)
-        tags, vals = meta.getRunMeta(name)
+        tags, vals = meta.getRunMeta(name, **kwargs)
         # get output and restore sys.stdout
         output = sys.stdout.getvalue()
         sys.stdout = stdout

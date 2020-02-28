@@ -82,9 +82,10 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
         corems = pw.getSummedMasses(pobj, range=(None, intfpos))
         shellm = pw.getSummedMasses(pobj, range=(intfpos, None))
         values = values + [pobj.masses[-1],
-                  sum(list(corems.values())),
-                  sum(list(shellm.values())),
-                  pobj.density[0], pobj.density[intfpos], interface]
+                           sum(list(corems.values())),
+                           sum(list(shellm.values())),
+                           pobj.density[0],
+                           pobj.density[intfpos], interface]
         # get the match position and height
         x = getattr(sim.pargroup.defaults, 'x_match')['value']
         y = getattr(sim.pargroup.defaults, 'y_match')['value']

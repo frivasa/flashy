@@ -172,9 +172,9 @@ def radius2pos(dmat, radius):
     radius within a dmat.
     poistion is beyond the condition dmat<radius,
     so it is a bit larger.
-    
+
     """
-    return np.sum(dmat.radius<radius)
+    return np.sum(dmat.radius < radius)
 
 
 def getSummedMasses(dmatr, range=(None, None)):

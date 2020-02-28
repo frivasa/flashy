@@ -1,4 +1,5 @@
 import yt
+from yt.utilities.exceptions import YTFieldNotFound
 from flashy.utils import np, getBearing, byMass, rot
 from flashy.nuclear import sortNuclides, msol
 import flashy.datahaul.ytfields as ytf
@@ -6,6 +7,7 @@ import flashy.datahaul.ytfields as ytf
 from yt.funcs import mylog
 mylog.setLevel(50)
 _radiusMult = 10
+
 
 def getLineout(fname, fields=['density', 'temperature', 'pressure'],
                species=True, radius=5e11, geom='cartesian',
@@ -41,13 +43,29 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'],
         for s in sps:
             # force ('flash', s) to ensure it retireves the checkpoint data
             # instead of a yt variable.
-            dblock = np.vstack((dblock,
-                                ray[('flash', "{}".format(s))][rs].value))
+            try:
+                dblock = np.vstack((dblock,
+                                    ray[('flash',
+                                         "{}".format(s))][rs].value))
+            except YTFieldNotFound:
+                dblock = np.vstack((dblock,
+                                    ray[('flash',
+                                         "{:<4}".format(s))][rs].value))
     _, sps = getFields(ds.field_list, srcnames=srcnames)
     return dblock, sps
 
 
 def probeDomain(fname):
+    """Returns main domain properties from a file.
+
+    Args:
+        fname(str): filename path.
+
+    Returns:
+        (float, float, float list, float list):
+            time, timestep, domain widths, domain edges
+
+    """
     ds = yt.load(fname)
     t, dt = ds.parameters['time'], ds.parameters['dt']
     widths = ds.domain_width.value
@@ -149,15 +167,22 @@ def getYields(fname):
     _, species = getFields(ds.field_list)
     # 2d glitches due to dz being nonsensical
     if ds.parameters['dimensionality'] == 1:
-        dx = ad['path_element_x'].value
-        x = ad['x'].value
+        try:
+            dx = ad['path_element_x'].value
+            x = ad['x'].value
+        except YTFieldNotFound:
+            dx = ad['path_element_r'].value
+            x = ad['r'].value
         fac = 4.0/3.0*np.pi
-        rdiff = np.diff(x)
-        rdiff = np.append(rdiff, rdiff[-1])
-        skewed = 0.5*rdiff + x
-        skewed = np.insert(skewed, 0, 0.0)
-        rcub = skewed**3
-        vols = fac*np.diff(rcub)
+        if len(x) > 1:
+            rdiff = np.diff(x)
+            rdiff = np.append(rdiff, rdiff[-1])
+            skewed = 0.5*rdiff + x
+            skewed = np.insert(skewed, 0, 0.0)
+            rcub = skewed**3
+            vols = fac*np.diff(rcub)
+        else:
+            vols = np.array([fac*ad['dr'].value])
         cell_masses = vols*ad['density'].value/msol
         msunMs = []
         for sp in species:

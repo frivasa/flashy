@@ -142,7 +142,7 @@ def plotIRLsteps(sim, sigma=15.0, checkpoints=False):
     deltas = sim.getStepProp('irldelta')
     nums = sim.getStepProp('n')
     astTtype = [Time(t, format='datetime') for t in timestamps]
-    astroTs =  [a.mjd for a in astTtype]
+    astroTs = [a.mjd for a in astTtype]
     tsteps = [d.seconds for d in deltas]
     f, ax = plt.subplots()
     ax.scatter(astroTs, tsteps, color='peru', marker='.')
@@ -158,7 +158,7 @@ def plotIRLsteps(sim, sigma=15.0, checkpoints=False):
         types = sim.getStepProp('filetype', src='chkp')
         numbers = sim.getStepProp('number', src='chkp')
         astTtype = [Time(t, format='datetime') for t in timestamps]
-        astroTs =  [a.mjd for a in astTtype]
+        astroTs = [a.mjd for a in astTtype]
         for p, t, n in zip(astroTs, types, numbers):
             if t == 'checkpoint':
                 c = 'r'
