@@ -1,6 +1,6 @@
 from .globals import (np, os, AxesGrid, plt,
                       SymLogNorm, ScalarFormatter,
-                      writeFig)
+                      customFormatter, writeFig)
 from flashy.datahaul.hdf5yt import getFields, yt
 from yt.funcs import mylog  # avoid yt warnings
 import flashy.datahaul.ytfields as ytf
@@ -95,7 +95,7 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         fields(list of str): list of named fields to plot.
         linear(bool): set linear or log scale(false).
         mins(float list): minima of scale for each field.
-        maxs (float list): maxima of scale for each field.
+        maxs(float list): maxima of scale for each field.
         mark(float list): mark a (x,y) coordinate in the plot.
         cmap(str): matplotlib colormap for the plot.
         dpi(float): dpi of figure returned/saved.
@@ -117,7 +117,7 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
             yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
-    print(fields)
+    
     p = yt.SlicePlot(ds, 'z', list(fields))
     if sum(center) == 0.0:
         p.set_center((frame*0.5, 0.0))
@@ -157,10 +157,168 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
+    # try to add metadata, if not just return.
+    try:
+        mrad = ds.parameters['x_match']**2
+        mrad += ds.parameters['y_match']**2
+        mrad += ds.parameters['z_match']**2
+        mrad = np.sqrt(mrad)/1e5  # km
+        msize = ds.parameters['r_match_outer']/1e5
+
+        # figure out resolution only on 'x'
+        res = ds.domain_width[0].value
+        res /= ds.parameters['nxb']
+        res /= ds.parameters['nblockx']
+        maxres = res/2**(ds.parameters['lrefine_max']-1)/1e5
+        norres = res/2**(ds.parameters['refnogenlevel']-1)/1e5
+        metadata = "Max resolution:{:20.0f} km\n".format(maxres)
+        metadata += "non ENUC res.:{:19.0f} km\n".format(norres)
+        metadata += "Match at (radius):{:8.0f}({:2.0f}) km".format(mrad, msize)
+        fig.axes[0].set_title(metadata)
+        for i, ax in enumerate(fig.axes):
+            ax.xaxis.set_major_formatter(customFormatter(9, prec=1))
+            ax.set_xlabel('x (1000 km)')
+            if not i:
+                ax.yaxis.set_major_formatter(customFormatter(9, prec=1))
+                ax.set_ylabel('y (1000 km)')
+    except KeyError:
+        pass
     if not batch:
         return fig
     else:
         filetag = 'ytprops'
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
+
+
+def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
+              center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+              linear=False, mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9],
+              mark=[], cmap='', dpi=100, fac=8):
+    """Bloated mainProps method to add max speed and other overlays.
+    YT 2D plots of a specified list of fields through a slice
+    perpedicular to the z-axis.
+
+    Args:
+        fname(str): filename to plot.
+        mhead(bool): mark the position of the matchhead.
+        grids(bool): overplot the grid structure.
+        batch(bool): if true save figure to file instead of returning it.
+        fields(list of str): list of named fields to plot.
+        linear(bool): set linear or log scale(false).
+        mins(float list): minima of scale for each field.
+        maxs(float list): maxima of scale for each field.
+        mark(float list): mark a (x,y) coordinate in the plot.
+        cmap(str): matplotlib colormap for the plot.
+        dpi(float): dpi of figure returned/saved.
+        fac(int): custom formatter exponent factor(cm to km = 5)
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 10), dpi=dpi)
+    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
+                    nrows_ncols=(1, size),
+                    axes_pad=1.2, label_mode="L",
+                    share_all=True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    # check for custom fields and add them to yt. force speed
+    # because max speed calculation uses it.
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+
+    # in situ calculations
+    ad = ds.all_data()
+    mvpos = ad['speed'].argmax()
+    maxsp = ad['speed'].value[mvpos]
+    mvlocx, mvlocy = ad['x'].value[mvpos], ad['y'].value[mvpos]
+    
+    p = yt.SlicePlot(ds, 'z', list(fields))
+    p.set_font({'family':'monospace'})
+    if sum(center) == 0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
+    p.set_width((frame, 2*frame))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    if mhead:
+        x_match = ds.parameters['x_match']
+        y_match = ds.parameters['y_match']
+        p.annotate_marker((x_match, y_match), coord_system='plot',
+                          plot_args={'color': 'black', 's': 30})
+    if mark:
+        xm, ym = mark
+        p.annotate_marker((xm, ym), coord_system='plot', marker='o',
+                          plot_args={'color': 'green', 's': 30,
+                                     'facecolors': "None"})
+    
+    p.annotate_marker((mvlocx, mvlocy),
+                      coord_system='plot', marker='o',
+                      plot_args={'color': 'white', 's': 30,
+                                 'facecolors': "None"})
+    if grids:
+        p.annotate_grids()
+    pvars = zip(fields, mins, maxs)
+    for i, (f, mi, mx) in enumerate(pvars):
+        if cmap:
+            p.set_cmap(f, cmap)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
+        p.set_zlim(f, mi, mx)
+        if linear:
+            p.set_log(f, False)
+        else:
+            p.set_log(f, True)
+        plot = p.plots[f]
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+    p._setup_plots()
+    
+    # match size and radius
+    mrad = ds.parameters['x_match']**2
+    mrad += ds.parameters['y_match']**2
+    mrad += ds.parameters['z_match']**2
+    mrad = np.sqrt(mrad)/1e5  # factor to km
+    msize = ds.parameters['r_match_outer']/1e5
+    # number of species
+    _, sps = getFields(ds.field_list)
+    # figure out resolution only on 'x'
+    res = ds.domain_width[0].value
+    res /= ds.parameters['nxb']
+    res /= ds.parameters['nblockx']
+    maxres = res/2**(ds.parameters['lrefine_max']-1)/1e5
+    norres = res/2**(ds.parameters['refnogenlevel']-1)/1e5
+    name = os.path.basename(ds.parameters['initialwdfile'])
+    datb = "{}\n".format(name)
+    datb += "Max(nonENUC) res:{:2.0f}({:2.0f})km\n".format(maxres, norres)
+    datb += "Match(radius):{:5.0f}({:2.0f})km\n".format(mrad, msize)
+    datb += "Species: {:16d}".format(len(sps))
+    fig.axes[0].set_title(datb)
+    # add time and max speed
+    datb = "Time: {:19.7f} s\n".format(float(ds.current_time))
+    datb += "Max Speed: {:11.0f} km/s".format(maxsp/1e5)
+    fig.axes[1].set_title(datb)
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    for i, ax in enumerate(fig.axes):
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
+    if not batch:
+        return fig
+    else:
+        filetag = 'ytmeta'
         writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
 
 
@@ -272,3 +430,19 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
     else:
         filetag = '_'.join(['acc'] + fields)
         writeFig(fig, fname, filetag)
+
+
+def reformatTag(tag):
+    """turns yt species colobar tag into Chemical notation."""
+    if any([a.isdigit() for a in tag]):
+        name = ''.join([l for l in tag if l.isalpha()])
+        name = name.lstrip('rm')
+        name = ''.join(name).capitalize()
+        mass = ''.join([l for l in tag if l.isdigit()])
+        nlab = u"$^{{{}}}{{{}}}$".format(mass, name)
+        if len(name + mass) > 4:
+            return tag, False
+        else:
+            return nlab, True
+    else:
+        return tag, False

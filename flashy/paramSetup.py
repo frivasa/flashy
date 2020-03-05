@@ -177,8 +177,13 @@ class parameterGroup(object):
     def vuvuzela(self):
         """Sound the horn of ERROR."""
         try:
-            dkeys = [z[0] for z in self.defaults.items()
-                     if len(str(z[1]['value'])) > 0]
+            dkeys = []
+            for k, v in self.defaults.items():
+                if not isinstance(v, dict):
+                    print("Set param not in defaults:", k)
+                    continue
+                if len(str(v['value'])) > 0:
+                    dkeys.append(k)
         except TypeError:
             raise Exception('Parsing Error: this is due to set parameters '
                             'which do not exist in params_setup '
@@ -425,8 +430,7 @@ class parameterGroup(object):
             try:
                 checkval = z[1]['value']
             except:
-                print('Orphaned parameter')
-                print(z)
+                continue
             if len(str(checkval)) > 0:
                 group.append(z)
         if onlyvals:
