@@ -1,15 +1,14 @@
 from ..simulation import readTiming
 from ..IOutils import pairGen
-from .nucplot import plotNuclideGrid, plotReacNet
-# from .globals import *
-from .globals import (linear_gradient, np, os, plt,
-                      StrMethodFormatter, colors)
 from ..paramSetup import pd
+from .nucplot import plotNuclideGrid, plotReacNet
+from .globals import (linear_gradient, log,
+                      np, os, plt, colors,
+                      StrMethodFormatter)
 from astropy.time import Time
 import plotly.graph_objs as gob
 from plotly.offline import (download_plotlyjs, init_notebook_mode, iplot)
 _foe = 1.0e51
-
 
 def plotNetwork(sim, dpi=100, step=7, aspect=1.0, cmap='Blues'):
     """build a figure with enabled rates in a network."""

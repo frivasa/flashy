@@ -3,6 +3,7 @@ import sys
 import shutil
 import io
 import collections as cl
+import logging
 from .utils import np
 from subprocess import PIPE, Popen
 import subprocess as subp
@@ -37,6 +38,14 @@ else:
 # restore maxint number
 # (removed in p3 due to arbitrary int length, but FORTRAN doesn't know.)
 _maxint = 2147483647
+log = logging.getLogger(__name__)
+handler = logging.StreamHandler(stream=sys.stdout)
+logstr = "[%(levelname)-8s] %(name)s: %(message)s"
+formatter = logging.Formatter(logstr)
+handler.setFormatter(formatter)
+log.addHandler(handler)
+log.setLevel(20)
+# (50, 10, -10): critical, error, warn, info, debug
 
 
 def setupFLASH(module, runfolder='', kwargs={'threadBlockList': 'true'},

@@ -1,12 +1,13 @@
-from .globals import (np, os, AxesGrid, plt,
+from .globals import (np, os, AxesGrid, plt, log,
                       SymLogNorm, ScalarFormatter,
                       customFormatter, writeFig)
 from flashy.datahaul.hdf5yt import getFields, yt
 from yt.funcs import mylog  # avoid yt warnings
 import flashy.datahaul.ytfields as ytf
 import flashy.paraMan as pman
-from flashy.datahaul.tmat import get2dPane
+import flashy.datahaul.tmat as tmat
 mylog.setLevel(50)
+log.name = __name__
 
 
 def slice_cube(fname, grids=False, batch=False,
@@ -193,7 +194,7 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
 def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
               center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
               linear=False, mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9],
-              mark=[], cmap='', dpi=100, fac=8):
+              mark=[], cmaps=['RdBu_r'], linthresh=1e15, dpi=100, fac=8):
     """Bloated mainProps method to add max speed and other overlays.
     YT 2D plots of a specified list of fields through a slice
     perpedicular to the z-axis.
@@ -203,12 +204,13 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         mhead(bool): mark the position of the matchhead.
         grids(bool): overplot the grid structure.
         batch(bool): if true save figure to file instead of returning it.
-        fields(list of str): list of named fields to plot.
-        linear(bool): set linear or log scale(false).
+        fields(str list): list of named fields to plot.
+        linear(bool list): set linear or log scale(false).
         mins(float list): minima of scale for each field.
         maxs(float list): maxima of scale for each field.
         mark(float list): mark a (x,y) coordinate in the plot.
-        cmap(str): matplotlib colormap for the plot.
+        cmaps(str): matplotlib colormap for the plot.
+        linthresh(float): symlog linea area around 0.
         dpi(float): dpi of figure returned/saved.
         fac(int): custom formatter exponent factor(cm to km = 5)
 
@@ -236,6 +238,10 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     mvpos = ad['speed'].argmax()
     maxsp = ad['speed'].value[mvpos]
     mvlocx, mvlocy = ad['x'].value[mvpos], ad['y'].value[mvpos]
+    for f in fields:
+        fstr = '{} range: {:E} {:E}'
+        log.debug(fstr.format(f, *ad.quantities.extrema(f).value))
+        
     
     p = yt.SlicePlot(ds, 'z', list(fields))
     p.set_font({'family':'monospace'})
@@ -263,17 +269,20 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
                                  'facecolors': "None"})
     if grids:
         p.annotate_grids()
-    pvars = zip(fields, mins, maxs)
-    for i, (f, mi, mx) in enumerate(pvars):
-        if cmap:
-            p.set_cmap(f, cmap)
+    pvars = zip(fields, mins, maxs, linear, cmaps)
+    for i, (f, mi, mx, lin, cm) in enumerate(pvars):
+        if cm:
+            p.set_cmap(f, cm)
         else:
             p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
         p.set_zlim(f, mi, mx)
-        if linear:
+        if lin:
             p.set_log(f, False)
         else:
-            p.set_log(f, True)
+            if mi < 0 or mx < 0:
+                p.set_log(f, True , linthresh=linthresh)
+            else:
+                p.set_log(f, True)    
         plot = p.plots[f]
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
@@ -343,8 +352,8 @@ def speeds2D(bview, fname, subset=[0.0, 1e4, -1e4, 1e4], wedges=8,
     fields = ['velx', 'vely', 'speed']
     dat = []
     for f in fields:
-        t, dt, ext, tmat = get2dPane(bview, fname, f, wedges=wedges)
-        dat.append(tmat)
+        t, dt, ext, dattmat = tmat.get2dPane(bview, fname, f, wedges=wedges)
+        dat.append(dattmat)
     fig, axs = plt.subplots(nrows=1, ncols=3, dpi=150,
                             sharey=True, sharex=True, constrained_layout=True)
     fig.suptitle('Simtime: {:.3f}'.format(t))
@@ -399,13 +408,13 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
     """
     dat = []
     for f in fields:
-        t0, dt, ext, tmat = get2dPane(bview, fname, f, wedges=wedges)
-        dat.append(tmat)
+        t0, dt, ext, dattmat = tmat.get2dPane(bview, fname, f, wedges=wedges)
+        dat.append(dattmat)
     shift = '{}{:04d}'.format(fname[:-4], int(fname[-4:])+1)
     shiftDat = []
     for f in fields:
-        t1, dt, ext, tmat = get2dPane(bview, shift, f)
-        shiftDat.append(tmat)
+        t1, dt, ext, dattmat = tmat.get2dPane(bview, shift, f)
+        shiftDat.append(dattmat)
     dt = t1 - t0
     delts = [y-x for (x, y) in zip(dat, shiftDat)]
     acc = [x/dt for x in delts]
@@ -429,6 +438,145 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
         return fig
     else:
         filetag = '_'.join(['acc'] + fields)
+        writeFig(fig, fname, filetag)
+
+
+def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
+                        compdir='', cmap='RdBu_r',
+                        subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
+                        vmin=-1e9, vmax=1e9, batch=False,
+                        fac=8):
+    """(Non-parallel). Plots deltas with contiguous checkpoint/plotfile
+    for a list of fields. 
+
+    Args:
+        fname(str): file path.
+        fields(str list): fields to process.
+        compdir(str): folderpath for comparison run.
+        subset(float list): domain window for plotting.
+        cmap(str): colormap name.
+        linthresh(float): linear range around zero.
+        vmin(float): minimum value.
+        vmax(float): maximum value.
+        batch(bool): print to file toggle.
+        nticks(int): ticks for xaxis.
+        wedges(int): slices for data extraction.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    dat = []
+    log.debug('Beginning first run')
+    for f in fields:
+        t0, dt, ext, dattmat = tmat.SINGLE_get2dPane(fname, f)
+        dat.append(dattmat)
+    log.debug('finished first run')
+    shift = os.path.join(compdir, os.path.basename(fname))
+    shiftDat = []
+    for f in fields:
+        t1, dt, ext, dattmat = tmat.SINGLE_get2dPane(shift, f)
+        shiftDat.append(dattmat)
+    log.debug('finished second run')
+    delts = [y-x for (x, y) in zip(dat, shiftDat)]
+    log.debug('beginning to plot')
+    fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=90,
+                            sharey=True, sharex=True, constrained_layout=True)
+    for i, ax in enumerate(axs.flat):
+        mshow = axs[i].matshow(delts[i], extent=ext, cmap=cmap,
+                               norm=SymLogNorm(linthresh=linthresh,
+                                               linscale=0.8,
+                                               vmin=vmin, vmax=vmax))
+        ax.set_title(fields[i])
+        ax.axis(subset)
+        ax.xaxis.set_ticks_position('bottom')
+#         ax.yaxis.set_major_formatter(ScalarFormatter())
+#         ax.xaxis.set_ticks(np.arange(0.0, np.max(subset),
+#                                      np.max(subset)/nticks))
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
+    
+    log.warning('assuming filename folder structure: {}'.format(fname))
+    finn = '/'.join(fname.split('/')[-4:-2])
+    jake = '/'.join(compdir.split('/')[-3:-1])
+    suptitle = '{}\n{}\n'.format(finn, jake)
+    suptitle += '\n{:.5f}'.format(t0)
+    fig.suptitle(suptitle)
+    
+    if not batch:
+        return fig
+    else:
+        filetag = '_'.join(['delta'] + [s.strip() for s in fields])
+        writeFig(fig, fname, filetag)
+
+
+def delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
+           compdir='', cmap='RdBu_r',
+           subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
+           vmin=-1e9, vmax=1e9, batch=False,
+           nticks=4, wedges=8):
+    """plots deltas with contiguous checkpoint/plotfile
+    for a list of fields.
+
+    Args:
+        bview(ipp.LoadBalancedView): ipp setup workhorse.
+        fname(str): file path.
+        fields(str list): fields to process.
+        compdir(str): folderpath for comparison run.
+        subset(float list): domain window for plotting.
+        cmap(str): colormap name.
+        linthresh(float): linear range around zero.
+        vmin(float): minimum value.
+        vmax(float): maximum value.
+        batch(bool): print to file toggle.
+        nticks(int): ticks for xaxis.
+        wedges(int): slices for data extraction.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    dat = []
+    for f in fields:
+        t0, dt, ext, datmat = tmat.get2dPane(bview, fname, f, wedges=wedges)
+        dat.append(datmat)
+    shift = os.path.join(compdir, os.path.basename(fname))
+    shiftDat = []
+    for f in fields:
+        t1, dt, ext, datmat = tmat.get2dPane(bview, shift, f)
+        shiftDat.append(datmat)
+    delts = [y-x for (x, y) in zip(dat, shiftDat)]
+    fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=90,
+                            sharey=True, sharex=True, constrained_layout=True)
+    for i, ax in enumerate(axs.flat):
+        mshow = axs[i].matshow(delts[i], extent=ext, cmap=cmap,
+                               norm=SymLogNorm(linthresh=linthresh,
+                                               linscale=0.8,
+                                               vmin=vmin, vmax=vmax))
+        ax.set_title(fields[i])
+        ax.axis(subset)
+        ax.xaxis.set_ticks_position('bottom')
+        ax.yaxis.set_major_formatter(ScalarFormatter())
+        ax.xaxis.set_ticks(np.arange(0.0, np.max(subset),
+                                     np.max(subset)/nticks))
+    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
+    
+    log.warning('assuming filename folder structure: {}'.format(fname))
+    finn = '/'.join(fname.split('/')[-4:-2])
+    jake = '/'.join(compdir.split('/')[-3:-1])
+    suptitle = '{}\n{}\n'.format(finn, jake)
+    suptitle += '\n{:.5f}'.format(t0)
+    fig.suptitle(suptitle)
+    
+    if not batch:
+        return fig
+    else:
+        filetag = '_'.join(['delta'] + [s.strip() for s in fields])
         writeFig(fig, fname, filetag)
 
 

@@ -1,5 +1,5 @@
 from .utils import np
-from .IOutils import os, getFileList, rename, _cdxfolder, _metaname
+from .IOutils import os, log, getFileList, rename, _cdxfolder, _metaname
 from .IOutils import blockGenerator, getLines, getBlock, getRepeatedBlocks
 import datetime
 import tempfile
@@ -7,6 +7,7 @@ from .paramSetup import (parameterGroup, _FLASHdefaults,
                          _otpfolder, _statsfile, _logfile)
 from flashy.datahaul.hdfdirect import turn2cartesian
 _DEFpar = 'flash.par'  # default par name
+log.name = __name__
 
 
 class simulation(object):
@@ -49,8 +50,10 @@ class simulation(object):
                 readLogAndStats(os.path.join(name, _logfile),
                                 os.path.join(name, _statsfile))
         except Exception as e:
-            print('flashy.Simulation.simulation: No steps set:', e)
+            log.critical('No steps set.', exc_info=True)
             self.steps, self.header, self.timings = [], [], []
+        
+        log.debug("Setting up time deltas")
         self.time = self.getStepProp('t')
         addIRLdeltas(self.steps, outlier=5.0)
         deltas = self.getStepProp('irldelta')
@@ -290,7 +293,7 @@ def readLogAndStats(logfile, statsfile):
     """
     # read log data
     rsteps, skips, refs, chkps, header, timings = readLog(logfile)
-
+    log.debug("finished reading {}".format(logfile))    
     # read stats data and remove pre-restart values
     data = np.genfromtxt(statsfile, names=True)  # this skips # lines
     for att in data.dtype.names:
@@ -298,6 +301,7 @@ def readLogAndStats(logfile, statsfile):
         purgedAtt = np.delete(data[att], skips)
         for step, p in zip(rsteps, purgedAtt):
             setattr(step, att, p)
+    log.debug("Stats read and removed repeated steps.")
     return rsteps, refs, chkps, header, timings
 
 
@@ -545,15 +549,23 @@ def refBreakdown(refBlock):
     blockstencil = [2, 5, 8]
     leafbstencil = [3, 7, 11]
     # get tstamp from first line
-    tstampstr, _, _ = refBlock[0].partition(']')
+    try:
+        tstampstr, _, _ = refBlock[0].partition(']')
+    except IndexError:
+        log.debug("ref block timestamp fail: \n{}".format('\n'.join(refBlock)))
+        tstampstr = '[ 01-01-2000  20:20:20.200 '
     tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
     # block information from lines 3-4
-    _, _, blockstr = refBlock[2].partition(']')
-    min, max, tot = [int(x) for i, x in enumerate(blockstr.split())
-                     if i in blockstencil]
-    _, _, blockstr = refBlock[3].partition(']')
-    lmin, lmax, ltot = [int(x) for i, x in enumerate(blockstr.split())
-                        if i in leafbstencil]
+    try:
+        _, _, blockstr = refBlock[2].partition(']')
+        min, max, tot = [int(x) for i, x in enumerate(blockstr.split())
+                         if i in blockstencil]
+        _, _, blockstr = refBlock[3].partition(']')
+        lmin, lmax, ltot = [int(x) for i, x in enumerate(blockstr.split())
+                            if i in leafbstencil]
+    except IndexError:
+        log.debug("ref block numbers fail: \n{}".format('\n'.join(refBlock)))
+        min, max, tot, lmin, lmax, ltot = 1, 2, 3, 4, 5, 6
     return tstamp, min, max, tot, lmin, lmax, ltot
 
 

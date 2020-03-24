@@ -165,6 +165,7 @@ def getYields(fname):
     ds = yt.load(fname)
     ad = ds.all_data()
     _, species = getFields(ds.field_list)
+    species = [s.ljust(4) for s in species]
     # 2d glitches due to dz being nonsensical
     if ds.parameters['dimensionality'] == 1:
         try:

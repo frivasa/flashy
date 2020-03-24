@@ -1,5 +1,5 @@
 from .IOutils import (cl, np, fortParse,
-                      os, getWalltime,
+                      os, getWalltime, log,
                       getMachineSubJob, writeSchedulerScript)
 from .IOutils import _cdxfolder, _otpfolder, _logfile, _statsfile
 from .utils import cart2sph, pd
@@ -400,18 +400,17 @@ class parameterGroup(object):
             runname = "_".join([prefix, runname])
         if suffix:
             runname = "_".join([runname, suffix])
-        print('Run name generated: {}'.format(runname))
+        log.info('Run name generated: {}'.format(runname))
         self.defaults.run_comment = runname
         # check length of runname for FLASH output str
         # limit and add a number to the run
         if len(runname) > _strmax:
-            print('paramSetup.generateRunName.WARNING: '
-                  'Run name too long for FLASH. '
-                  'clipping to {} chars.'.format(_strmax))
+            log.info('Run name too long for FLASH. '
+                     'clipping to {} chars.'.format(_strmax))
             runname = runname[:_strmax]
         num = len(os.listdir(os.path.split(checkpath)[0]))-1
         runname = "{:02}{}".format(num, runname)
-        print('Run name used: {}'.format(runname))
+        log.info('Run name used: {}'.format(runname))
 
         self.defaults.geometry = self.meta['geometry']
         # separate auxiliary files from checkpoints to stripe otp folder.
@@ -562,8 +561,7 @@ def readSetupParams(filename):
                 pardict[par]['comment'] = " ".join(reversed(comment))
                 comment = []
     except FileNotFoundError:
-        print('paramSetup.readSetupParams: '
-              'Defaults file not found, returning empty dict.')
+        log.info('Defaults file not found, returning empty dict.')
         pass  # return an empty dictionary
     return setp
 

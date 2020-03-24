@@ -1,9 +1,30 @@
-from flashy.IOutils import np
+from flashy.IOutils import np, log
 import flashy.paraMan as pman
 import flashy.datahaul.parData as pd
-from flashy.datahaul.hdf5yt import probeDomain
+from flashy.datahaul.hdf5yt import probeDomain, wedge2d
 _nullval = -123.4
 _wedges = 5
+
+
+def SINGLE_get2dPane(file, prop):
+    """non-parallel get2dPane."""
+    fields = [prop, 'x', 'y', 'dx', 'dy']
+    wData = []
+    cuts = np.linspace(179.9, 0.1, 4) - 90  # 3 wedges
+    wedges = list(zip(cuts, cuts[1:]))
+    log.debug('Reading wedges')
+    for start, stop in wedges:
+        if stop*start > 0.0:
+            wData.append(wedge2d(file, start, -stop, fields))
+        else:
+            wData.append(wedge2d(file, abs(start), abs(stop), fields))
+        log.debug('Finished wedge: {} {}'.format(start, stop))
+    d = pd.glue2dWedges(wData)
+    t, dt, widths, edges = probeDomain(file)
+    ledge, redge = edges
+    ext = [ledge[0], redge[0], ledge[1], redge[1]]
+    nmat = buildMat(d[0], *d[1:],  widths, edges)
+    return t, dt, ext, np.flip(nmat, 1).T
 
 
 def get2dPane(bview, file, prop, wedges=_wedges):
