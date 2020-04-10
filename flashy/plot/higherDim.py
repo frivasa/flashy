@@ -4,7 +4,6 @@ from .globals import (np, os, AxesGrid, plt, log,
 from flashy.datahaul.hdf5yt import getFields, yt
 from yt.funcs import mylog  # avoid yt warnings
 import flashy.datahaul.ytfields as ytf
-import flashy.paraMan as pman
 import flashy.datahaul.tmat as tmat
 mylog.setLevel(50)
 log.name = __name__
@@ -193,12 +192,19 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
 
 def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
               center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
-              linear=False, mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9],
-              mark=[], cmaps=['RdBu_r'], linthresh=1e15, dpi=100, fac=8):
+              linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+              maxs=[6e7, 3e+25, 8e9], mark=[], cmaps=['RdBu_r']*3,
+              linthresh=1e15, dpi=90, fac=8, enucthresh=1e19):
     """Bloated mainProps method to add max speed and other overlays.
     YT 2D plots of a specified list of fields through a slice
     perpedicular to the z-axis.
 
+    meta.txt structure:
+    time timedelta
+    maxspeed xlocation ylocation
+    (energy rel in dt over threshold) (peak energy release) threshold 
+    (listed plot variable ranges)
+    
     Args:
         fname(str): filename to plot.
         mhead(bool): mark the position of the matchhead.
@@ -212,7 +218,7 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         cmaps(str): matplotlib colormap for the plot.
         linthresh(float): symlog linea area around 0.
         dpi(float): dpi of figure returned/saved.
-        fac(int): custom formatter exponent factor(cm to km = 5)
+        fac(int): custom formatter exponent factor(cm to km = 5).
 
     Returns:
         (mpl.figure or None)
@@ -220,12 +226,13 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     """
     ds = yt.load(fname)
     size = len(fields)
-    fig = plt.figure(figsize=(5*size, 10), dpi=dpi)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
     grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
                     nrows_ncols=(1, size),
                     axes_pad=1.2, label_mode="L",
                     share_all=True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
     # check for custom fields and add them to yt. force speed
     # because max speed calculation uses it.
     for f in fields + ['speed']:
@@ -238,10 +245,31 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     mvpos = ad['speed'].argmax()
     maxsp = ad['speed'].value[mvpos]
     mvlocx, mvlocy = ad['x'].value[mvpos], ad['y'].value[mvpos]
+    delT = ds.parameters['dt']
+    mline = '{:.10E}'.format(float(ds.current_time))
+    mline += ' {:.10E}'.format(delT)
+    metatxt.append(mline)
+    mline = '{:.10E} {:.10E} {:.10E}'.format(maxsp, mvlocx, mvlocy)
+    metatxt.append(mline)
+    # get energy release for enuc regions over a threshold
+    log.warning('Assuming cylindrical slice')
+    mask = np.where(ad['enuc'].value > enucthresh)
+    dx = ad['path_element_x'].value
+    dy = ad['path_element_y'].value
+    r = ad['x'].value
+    cylvol = 2.0*np.pi*dy*dx*r
+    cell_masses = cylvol*ad['density'].value
+    energyRelease = ad['enuc'].value*cell_masses
+    delT = ds.parameters['dt']
+    lump = np.sum(energyRelease[mask]*delT)
+    metastring = '{:.10E} {:.10E} {:.10E}'
+    metatxt.append(metastring.format(lump, np.max(energyRelease), enucthresh))
+    
     for f in fields:
-        fstr = '{} range: {:E} {:E}'
-        log.debug(fstr.format(f, *ad.quantities.extrema(f).value))
-        
+        fstr = '{} range: {:.10E} {:.10E}'
+        exts = fstr.format(f, *ad.quantities.extrema(f).value)
+        log.debug(exts)
+        metatxt.append(exts)
     
     p = yt.SlicePlot(ds, 'z', list(fields))
     p.set_font({'family':'monospace'})
@@ -288,7 +316,7 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
     
-    # match size and radius
+    # match size and location radius
     mrad = ds.parameters['x_match']**2
     mrad += ds.parameters['y_match']**2
     mrad += ds.parameters['z_match']**2
@@ -328,7 +356,8 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         return fig
     else:
         filetag = 'ytmeta'
-        writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename),
+                 filetag, meta='\n'.join(metatxt))
 
 
 def speeds2D(bview, fname, subset=[0.0, 1e4, -1e4, 1e4], wedges=8,
@@ -447,7 +476,7 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
                         vmin=-1e9, vmax=1e9, batch=False,
                         fac=8):
     """(Non-parallel). Plots deltas with contiguous checkpoint/plotfile
-    for a list of fields. 
+    for a list of fields.
 
     Args:
         fname(str): file path.
@@ -459,27 +488,25 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
         vmin(float): minimum value.
         vmax(float): maximum value.
         batch(bool): print to file toggle.
-        nticks(int): ticks for xaxis.
-        wedges(int): slices for data extraction.
 
     Returns:
         (mpl.figure or None)
 
     """
     dat = []
-    log.debug('Beginning first run')
+    log.debug('Beginning first file')
     for f in fields:
         t0, dt, ext, dattmat = tmat.SINGLE_get2dPane(fname, f)
         dat.append(dattmat)
-    log.debug('finished first run')
+    log.debug('Finished first file')
     shift = os.path.join(compdir, os.path.basename(fname))
     shiftDat = []
     for f in fields:
         t1, dt, ext, dattmat = tmat.SINGLE_get2dPane(shift, f)
         shiftDat.append(dattmat)
-    log.debug('finished second run')
+    log.debug('Finished second file')
     delts = [y-x for (x, y) in zip(dat, shiftDat)]
-    log.debug('beginning to plot')
+    log.debug('Deltas done. Plotting')
     fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=90,
                             sharey=True, sharex=True, constrained_layout=True)
     for i, ax in enumerate(axs.flat):
@@ -490,9 +517,6 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
         ax.set_title(fields[i])
         ax.axis(subset)
         ax.xaxis.set_ticks_position('bottom')
-#         ax.yaxis.set_major_formatter(ScalarFormatter())
-#         ax.xaxis.set_ticks(np.arange(0.0, np.max(subset),
-#                                      np.max(subset)/nticks))
     for i, ax in enumerate(fig.axes):
         ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
         ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
@@ -501,7 +525,7 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
             ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
     cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
     
-    log.warning('assuming filename folder structure: {}'.format(fname))
+    log.warning('Assuming filename folder structure: {}'.format(fname))
     finn = '/'.join(fname.split('/')[-4:-2])
     jake = '/'.join(compdir.split('/')[-3:-1])
     suptitle = '{}\n{}\n'.format(finn, jake)
@@ -519,7 +543,7 @@ def delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
            compdir='', cmap='RdBu_r',
            subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
            vmin=-1e9, vmax=1e9, batch=False,
-           nticks=4, wedges=8):
+           nticks=4, wedges=8, fac=8):
     """plots deltas with contiguous checkpoint/plotfile
     for a list of fields.
 
@@ -561,9 +585,12 @@ def delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
         ax.set_title(fields[i])
         ax.axis(subset)
         ax.xaxis.set_ticks_position('bottom')
-        ax.yaxis.set_major_formatter(ScalarFormatter())
-        ax.xaxis.set_ticks(np.arange(0.0, np.max(subset),
-                                     np.max(subset)/nticks))
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
     cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
     
     log.warning('assuming filename folder structure: {}'.format(fname))

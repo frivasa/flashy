@@ -4,6 +4,7 @@ mass fractions and Isotope weighing.
 """
 from .utils import (np, msol, Avogadro,
                     m_e, m_p, amu, electron_volt, erg)
+from .IOutils import log
 import pkg_resources
 
 AMDC = pkg_resources.resource_filename('flashy',
@@ -104,6 +105,7 @@ def readDecays():
 
 
 def decayYield(names, masses):
+    """decays masses from radioactive species to stable 'solar' species."""
     snames, solZ, solA, scodes = readDecays()
     sunsp = len(snames)
     _, Zs, Ns, As = splitSpecies([s.capitalize() for s in names],
@@ -156,6 +158,21 @@ def normalizeYield(mdict, norm='H', offset=12.0):
 
 
 def convertYield2Abundance(mdict, norm='H', offset=12.0):
+    """Converts species masses in msun to elemental masses
+    weighting by solar system abundance percentages.
+    It is assumed species have decayed to comparable species
+    in the solar neighborhood.
+    
+    Args:
+        mdict(dict):
+        norm(str): abundance reference.
+        offset(int): abundance scale offset.
+
+    Returns:
+        (int list, str list, float list):
+            Atomic numbers, Element names, Abundances
+    
+    """
     percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
     names, percs = zip(*percdata)
     sp, z, n, a = splitSpecies(names)  # , standardize=True)
@@ -175,16 +192,18 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
         zz = mdict[k]['z']
         particles = 0
         for n in mdict[k]['n']:
+            spec = '{}{}'.format(k, zz+n)
             if k not in sundict:
+                log.warning('{} not in AGSS09_ISO'.format(spec))
                 particles += 0.0
             elif n not in sundict[k]['n']:
+                log.warning('{} not in AGSS09_ISO'.format(spec))
                 particles += 0.0
             else:
                 nom = sundict[k]['n'][n]*mdict[k]['n'][n]*msol
                 denom = nucmass[k]['n'][n]['mass']
                 particles += nom/denom*Avogadro
         partdict[k] = particles
-
     nrm = partdict[norm]
     otp = []
     for k, v in partdict.items():

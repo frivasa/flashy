@@ -1,6 +1,7 @@
 import yt
 from yt.utilities.exceptions import YTFieldNotFound
 from flashy.utils import np, getBearing, byMass, rot
+from flashy.IOutils import log
 from flashy.nuclear import sortNuclides, msol
 import flashy.datahaul.ytfields as ytf
 # avoid yt warnings
@@ -188,6 +189,7 @@ def getYields(fname):
         msunMs = []
         for sp in species:
             msunMs.append(np.sum(cell_masses*ad[sp].value))
+        log.warning('Assumed spherical cells for volume')
     elif ds.parameters['dimensionality'] == 2:
         dx = ad['path_element_x'].value
         dy = ad['path_element_y'].value
@@ -197,6 +199,7 @@ def getYields(fname):
         msunMs = []
         for sp in species:
             msunMs.append(np.sum(cell_masses*ad[sp].value))
+        log.warning('Assumed cylindrical cells for volume')
     else:
         masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
         total = ad.quantities.total_mass()
@@ -299,13 +302,13 @@ def wedge2d(fname, elevation, depth, fields=[]):
         for f in fields:
             rawd.append(wedge[f].value)
         rawd[3] = cell_masses
-        # XXX
-        print('CHANGED WEDGE')
+        log.warning('Wedge modified (cylindrical masses)')
         return rawd, species  # WARNING: this might be humongous.
     else:
         rawd = []
         for f in fields:
             rawd.append(wedge[f].value)
+        log.info('Wedge unmodified')
         return rawd
 
 

@@ -1,7 +1,8 @@
 from .IOutils import (cl, np, fortParse,
                       os, getWalltime, log,
                       getMachineSubJob, writeSchedulerScript)
-from .IOutils import _cdxfolder, _otpfolder, _logfile, _statsfile
+from .IOutils import (_metaname, _cdxfolder, _otpfolder,
+                      _logfile, _statsfile)
 from .utils import cart2sph, pd
 _FLASHdefaults = 'setup_params'
 _strmax = 49
@@ -217,12 +218,23 @@ class parameterGroup(object):
         nblocks = [getattr(self.defaults, k)['value'] for k in keys[0::step]]
         mins = [getattr(self.defaults, k)['value'] for k in keys[1::step]]
         maxs = [getattr(self.defaults, k)['value'] for k in keys[2::step]]
-        # print(mins, maxs, nblocks)
         return [float(n) for n in nblocks],\
                [float(m) for m in mins],\
                [float(m) for m in maxs]
 
     def probeSimulation(self, frac=0.4, forcePEs=0, verbose=True):
+        """returns metadata from simulation and extents as a block of 
+        strings.
+
+        Args:
+            frac(float): reduce total assumed PEs by frac.
+            forcePEs(int): force a specific number of PEs.
+            verbose(bool): print to sys.
+
+        Returns:
+            (int, str list): nodes picked/calculated, block of metadata.
+
+        """
         if not isinstance(self.meta['maxblocks'], float):
             dim, cells, maxbl = self.readMeta()
         else:
@@ -234,7 +246,7 @@ class parameterGroup(object):
         sotp = []
         for i in range(dim):
             dname = {0: 'x', 1: 'y', 2: 'z'}[i]
-            span = maxs[i]-mins[i]
+            span = maxs[i] - mins[i]
             limblcks = np.power(2, (rmax-1))*float(nblocks[i])
             limcells = limblcks*float(cells[i])
             # minspan = span/limcells
@@ -250,12 +262,10 @@ class parameterGroup(object):
         # mult(spans)/mult(nblocks)/mult(cells)
         # /2^(ref-1)/2^(ref-1) = area of cell
         # ref 1 is nblocks, therefore ref-1
-        # cells per block might change if blocks are rectangular (not cubes)
+        # cells per block might change if blocks are not cubes
         sotp.append('Max Blocks per PE: {:>12.0f}'.format(float(maxbl)))
         sotp.append('Max Refinement:{:>16.0f}'.format(rmax))
         sotp.append('Max blocks/cells:{:>14.4E}/{:.4E}'.format(tblcks, tcells))
-        # this is not correct
-        # sotp.append('Resolution: {:E}'.format(np.sqrt(area/tcells)))
         if forcePEs:
             sotp.append('forced PEs: {:0.0f}'.format(forcePEs))
             nodes = forcePEs
@@ -270,9 +280,9 @@ class parameterGroup(object):
         return nodes, sotp
 
     def writeRunFiles(self, frac=0.4, forcePEs=0, terse=True, ddt=False,
-                      multisub=True, prefix='', suffix='',
-                      IOwindow=120, forceWallT='',
-                      proj='csc198', machine='titan', **kwargs):
+                      multisub=False, prefix='', suffix='',
+                      IOwindow=120, forceWallT='', proj='csc198',
+                      machine='summit', comment='', **kwargs):
         """Probes the parameters, sets up required resources, and writes
         necessary files based on a stringent structure.
 
@@ -286,6 +296,7 @@ class parameterGroup(object):
             IOwindow(int): seconds from walltime to write final checkpoint.
             proj(str): allocation project code.
             machine(str): machine being used for batch submit.
+            comment(str): optional comment added to meta.txt
             forcePEs(int): force a number of nodes.
             forceWallT(str): force a walltime (hh:mm:ss).
 
@@ -294,7 +305,7 @@ class parameterGroup(object):
         self.generateRunName(suffix=suffix, prefix=prefix,
                              checkpath=self.meta['cdxpath'])
         # estimate allocation
-        nodes, _ = self.probeSimulation(frac=frac,  forcePEs=forcePEs)
+        nodes, probeBlock = self.probeSimulation(frac=frac,  forcePEs=forcePEs)
         if forceWallT:
             time = forceWallT
         else:
@@ -312,9 +323,21 @@ class parameterGroup(object):
         scheduler, ext = self.writeSubmit(subpath, proj, machine=machine,
                                           nodes=nodes, time=time,
                                           multisub=multisub, ddt=ddt, **kwargs)
+        # finally write metadata to a plain text file with an optional comment
+        metaotp = os.path.join(outpath, _metaname)
+        codestring = os.path.basename(os.path.dirname(self.meta['cdxpath']))
+        runtitle = '/'.join([codestring, self.meta['runname']])
+        prof = self.defaults.initialWDFile['value']
+        with open(metaotp, 'w') as f:
+            f.write('{}:\n'.format(runtitle))
+            f.write('{}\n'.format('\n'.join(probeBlock)))
+            f.write('profile used: {}\n\n'.format(prof))
+            if comment:
+                f.write('{}\n\n'.format(comment))
+        print('Wrote: {}'.format(metaotp))
         return '{} {}{}'.format(scheduler, subpath, ext)
 
-    def writeSubmit(self, submitpath, proj, machine='titan',
+    def writeSubmit(self, submitpath, proj, machine='summit',
                     time='02:00:00', nodes=16, ompth=16,
                     multisub=True, ddt=False, **kwargs):
         qsubfold, qsubname = os.path.split(submitpath)
@@ -325,16 +348,8 @@ class parameterGroup(object):
         # move where the action is and get the corresponding flash.par
         code.append('cd {}'.format(runf))
         code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
-        # this is deprecated in Summit, striping is done automatically
-        # if self.meta['dimension'] > 1:
-        #     if nodes>512:  # hear the warnings, set limit to 512
-        #         code.append('lfs setstripe '
-        #                     '-c 512 {}'.format(os.path.join(otpf)))
-        #     else:
-        #         code.append('lfs setstripe '
-        #                     '-c {} {}'.format(nodes, os.path.join(otpf)))
         args = machine, proj, time, nodes, ompth, os.path.join(runf, auxf)
-        launcher, scheduler, ext, schedulercode = getMachineSubJob(*args,
+        launcher, scheduler, ext, schedulercode = getMachineSubJob(*args, 
                                                                    **kwargs)
         if ddt:  # only mapping for now
             # go to last imported module (before env vars)
@@ -408,7 +423,12 @@ class parameterGroup(object):
             log.info('Run name too long for FLASH. '
                      'clipping to {} chars.'.format(_strmax))
             runname = runname[:_strmax]
-        num = len(os.listdir(os.path.split(checkpath)[0]))-1
+        try:
+            rnames = [x for x in os.listdir(os.path.split(checkpath)[0])]
+            rnums = [int(x[:2]) for x in rnames if x != _cdxfolder]
+            num = max(rnums) + 1
+        except ValueError:   # fallback for non numbered folders
+            num = len(os.listdir(os.path.split(checkpath)[0]))-1
         runname = "{:02}{}".format(num, runname)
         log.info('Run name used: {}'.format(runname))
 
@@ -510,6 +530,18 @@ def stylerTest(value):
 def getMeta(filepath):
     """Infer required properties of the run from runfolder name
     created by the method flashy.setupFLASH.
+    
+    Args:
+        filepath(str): /path/to/code/folder.
+
+    Returns:
+        (dict): meta flags dictionary
+            'cdxpath': structured code folder path,
+            'code':(0,1,2)=(params, defaults, both),
+            'default' (0,1)=(is this file a defaults file),
+            'network', 'geometry', 'cells', 'maxblocks': 
+                parameters inferred from filepath.
+
     """
     path, file = os.path.split(filepath)
     # path is either ../runcode/cdx or ../runcode/otp_***
@@ -588,6 +620,12 @@ def getEssential(dim):
     """Returns parsed names for essential parameters in a simulation.
     Bleeding edge of inference here, careful with changing order of
     variables...
+    
+    Args:
+        dim(int): 1, 2, or 3.
+    Returns:
+        (str list): nblock[xyz], [xyz][min,max],
+            [xyz][lr]_boundary_type.
 
     """
     dnames = {1: ['x'], 2: ['x', 'y'], 3: ['x', 'y', 'z']}[dim]

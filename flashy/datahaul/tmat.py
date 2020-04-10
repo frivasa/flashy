@@ -10,7 +10,7 @@ def SINGLE_get2dPane(file, prop):
     """non-parallel get2dPane."""
     fields = [prop, 'x', 'y', 'dx', 'dy']
     wData = []
-    cuts = np.linspace(179.9, 0.1, 4) - 90  # 3 wedges
+    cuts = np.linspace(179.9, 0.1, 5) - 90  # 4 wedges
     wedges = list(zip(cuts, cuts[1:]))
     log.debug('Reading wedges')
     for start, stop in wedges:
@@ -18,7 +18,6 @@ def SINGLE_get2dPane(file, prop):
             wData.append(wedge2d(file, start, -stop, fields))
         else:
             wData.append(wedge2d(file, abs(start), abs(stop), fields))
-        log.debug('Finished wedge: {} {}'.format(start, stop))
     d = pd.glue2dWedges(wData)
     t, dt, widths, edges = probeDomain(file)
     ledge, redge = edges

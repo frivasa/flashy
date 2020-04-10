@@ -1,10 +1,10 @@
 """nuclide aggregate plots, based on yield files."""
 from ..nuclear import (splitSpecies, convertYield2Abundance,
                        getMassFractions, getAbundances,
-                       Avogadro, readSunComp,
+                       Avogadro, readSunComp, decayYield,
                        readYield, sortNuclides,
                        elemSplit, AGSS09, readIsotopicSolar)
-from .globals import (np, os, mpl, plt, writeFig,
+from .globals import (np, os, mpl, plt, writeFig, io, log,
                       StrMethodFormatter, LogNorm)
 from matplotlib.patches import Rectangle
 import flashy.utils as ut
@@ -12,7 +12,50 @@ from ..datahaul.hdf5yt import getYields, getLineout
 from ..datahaul.hdfdirect import directMeta
 
 
-def speciesYields(yieldfiles, tags=[], norm='Si', offset=6):
+def flash_elementalYields(fname, tag='elem_solar', yrange=[-3, 15],
+                          norm='Si', offset=6, batch=False):
+    """
+    Args:
+        fname(str): filename path.
+        tag(str): output tag.
+        yrange(int list): abundance range.
+        norm(str): abundance reference.
+        offset(int): abundance scale offset.
+        batch(bool): write to file toggle.
+
+    Returns:
+        (mpl.figure)
+
+    """
+    fig, ax = plt.subplots(figsize=(10, 5))
+    name = os.path.dirname(os.path.dirname(fname)).split('/')[-2:]
+    title = "/".join(name)
+    time, species, masses = getYields(fname)
+    # decay yields so that they're comparable to the Sun
+    species, masses = decayYield(species, masses)
+    fakef = ''
+    for s, m in zip(species, masses):
+        fakef += '{} {:.10f}\n'.format(s, m)
+    ryield = readYield(io.StringIO(fakef))
+    plabels = []
+    plabels.append(plotAbun(ax, ryield, norm=norm, offset=offset,
+                            label=title, tagspecies=True, yrange=yrange))
+    # plot sun
+    zs, names, mix = readSunComp(AGSS09)
+    massF = getMassFractions(names, mix)
+    p = ax.plot(zs, getAbundances(names, massF, scale=norm, offset=offset),
+                marker='x', markersize=3, ls=':', lw=1, color='brown',
+                label='Sun(AGSS09)')
+    ax.set_ylim(yrange)
+    ax.set_title("{:.5f} s".format(time), loc='left')
+    lg = ax.legend(loc='upper right')
+    if batch:
+        writeFig(fig, fname, tag)
+    else:
+        return fig
+
+
+def elementalYields(yieldfiles, tags=[], norm='Si', offset=6):
     """plots abundances for a list of files
     or a single file vs solar composition.
 
@@ -95,6 +138,59 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
                                 norm=norm, offset=offset, tagspecies=True))
         lg = ax.legend()
     return fig
+
+
+def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0,70],
+                        compdir='sun', thresh=1e-5, batch=False):
+    """
+    Args:
+        fname(str): filename path.
+        tag(str): output tag.
+        xrange(int list): nuclear mass range.
+        compdir(str): comparison run chekpoint path.
+        thresh(float): mass threshold for plot. 
+        batch(bool): write to file toggle.
+
+    Returns:
+        (mpl.figure)
+
+    """
+    fig, ax = plt.subplots(figsize=(10, 5))
+    name = os.path.dirname(os.path.dirname(fname)).split('/')[-2:]
+    title = "/".join(name)
+    time, species, masses = getYields(fname)
+    fakef = ''
+    for s, m in zip(species, masses):
+        fakef += '{} {:.10f}\n'.format(s, m)
+    ryield = readYield(io.StringIO(fakef))
+    plabels = []
+    plabels.append(plotIsoMasses(ax, ryield, notag=False,
+                                 ylims=[thresh, 1.0],
+                                 label=title, color='k'))
+    if compdir=='sun':
+        ryield = readIsotopicSolar()
+        plabels.append(plotIsoMasses(ax, ryield, notag=False,
+                                     ylims=[thresh, 1.0], label='AGSS09',
+                                     color='orange'))
+    else:
+        newfl = os.path.join(compdir, os.path.basename(fname))
+        name = os.path.dirname(os.path.dirname(newfl)).split('/')[-2:]
+        title = "/".join(name)
+        time, species, masses = getYields(newfl)
+        fakef = ''
+        for s, m in zip(species, masses):
+            fakef += '{} {:.10f}\n'.format(s, m)
+        ryield = readYield(io.StringIO(fakef))
+        plabels.append(plotIsoMasses(ax, ryield, notag=True,
+                                     label=title, color='#e68053'))
+    ax.set_xlim(xrange)
+    ax.set_ylim([thresh, 2])
+    ax.set_title("{:.5f} s".format(time), loc='left')
+    lg = ax.legend(*zip(*plabels), loc='lower left')
+    if batch:
+        writeFig(fig, fname, tag)
+    else:
+        return fig
 
 
 def nuclideYields(files, tags):
@@ -538,7 +634,7 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
         zz = mdict[k]['z']
         vals = []
         for n in mdict[k]['n'].keys():
-            vals.append((n+zz, mdict[k]['n'][n]))
+            vals.append((n + zz, mdict[k]['n'][n]))
         purgevals = [v for v in vals if ylims[0] <= v[1] <= ylims[1]]
         if len(purgevals) == 0:
             continue
@@ -560,8 +656,8 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
     return line[0], label
 
 
-def plotAbun(ax, mdict, norm='H', offset=12.0,
-             label='W7', color='black', tagspecies=False):
+def plotAbun(ax, mdict, norm='H', offset=12.0, label='W7', color='black',
+             tagspecies=False, yrange=[-3, 15]):
     """draws abundances vs atomic number,
     returns label and line element for legend
 
@@ -573,6 +669,7 @@ def plotAbun(ax, mdict, norm='H', offset=12.0,
         label(str): plot label.
         color(str): line color.
         tagpsecies(bool): plot element names.
+        yrange(int list): range of plot for omitting labels.
 
     Returns:
         (mpl.line2D[0], str): line object for legend, tag of plot.
@@ -583,9 +680,13 @@ def plotAbun(ax, mdict, norm='H', offset=12.0,
     # Prettify
     if tagspecies:
         for x, n, y in zip(zs, names, mix):
-            ax.text(x, y, '${}$'.format(n), color='black',
-                    size=8, horizontalalignment='right',
-                    verticalalignment='bottom')
+            if yrange[0] < y < yrange[1]:
+                ax.text(x, y, '${}$'.format(n), color='black',
+                        size=8, horizontalalignment='right',
+                        verticalalignment='bottom')
+            else:
+                log.warning('skipped tag: {}'.format(n))
+                continue
     ax.set_xlabel(u'Atomic Number (Z)')
     ax.set_ylabel('[X/{}] + {:2.1f}'.format(norm, offset))
     # ax.set_xlim([-2, 78])
