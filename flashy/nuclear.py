@@ -439,6 +439,9 @@ def elemSplit(s, invert=False):
              'd': 2,
              't': 3}[s.strip().lower()]
         sym = s.strip().lower()
+#     elif s=='neut' or s=='prot':  # ap19 has special names
+#         sym = s
+#         A = 1
     else:
         sym = s.strip('0123456789 ')
         A = s[len(sym):]

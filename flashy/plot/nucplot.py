@@ -9,7 +9,7 @@ from .globals import (np, os, mpl, plt, writeFig, io, log,
 from matplotlib.patches import Rectangle
 import flashy.utils as ut
 from ..datahaul.hdf5yt import getYields, getLineout
-from ..datahaul.hdfdirect import directMeta
+from ..datahaul.hdfdirect import directMeta, getBlockLineout
 
 
 def flash_elementalYields(fname, tag='elem_solar', yrange=[-3, 15],
@@ -228,9 +228,10 @@ def nuclideYields(files, tags):
         return fig
 
 
-def plotCompositionTrajectory(fname, dpi=100, thresh=1e-4,
-                              batch=False, maxtime=1.0):
+def plotCompositionTrajectory(fname, dpi=100, thresh=1e-4, leftlim=1e-5,
+                              batch=False, maxtime=1.0, skip=0, dump=False):
     """plots composition vs time for a list of filenames assumed from the input.
+    Assumes a block type chk (single block)
 
     Args:
         fname(str list or str): yield filename(s).
@@ -238,6 +239,8 @@ def plotCompositionTrajectory(fname, dpi=100, thresh=1e-4,
         thresh(float): mass fraction limit.
         batch(bool): plot to file or return figure.
         maxtime(float): righthand limit for plot.
+        skip(int): checkpoints to skip before starting to plot.
+        dump(bool): write extracted data to plaintext file.
 
     Returns:
         (mpl.figure or None)
@@ -247,22 +250,31 @@ def plotCompositionTrajectory(fname, dpi=100, thresh=1e-4,
     # chekpoint_0002 >> 2
     end = int(fname[-4:]) + 1
     times, masses = [], []
-    for i in range(end):
+    for i in range(1, end):
+        if i < skip:
+            continue
         subf = '{}{:04d}'.format(fname[:-4], i)
-        # get the mass yields (corrected for volume and density)
-        t, _, _, _, _ = directMeta(subf)
-        datablock, species = getLineout(subf, species=True, geom='spherical')
+        # get the mass yields
+        t, props, species, spvalues = getBlockLineout(subf)
         times.append(t)
-        if not i:
-            dens0 = datablock[1][0]
-            temp0 = datablock[2][0]
-        mass = []
-        for j, sp in enumerate(species):
-            # single block, (r, rho, T, pres, species) => 4
-            mass.append(datablock[4+j][0])
-        masses.append(mass)
-
-    f, a = plt.subplots(dpi=dpi)
+        if i==1:
+            dens0 = props['dens']
+            temp0 = props['temp']
+        masses.append(spvalues)
+    
+    if dump:
+        filepath = os.path.dirname(os.path.dirname(fname))
+        filepath = os.path.join(filepath, 'trajectory.dat')
+        with open(filepath, 'w') as f:
+            header = '# time ' + ' '.join(species) + '\n'
+            f.write(header)
+            for t, mass in zip(times, masses):
+                f.write('{:.7E} '.format(t))
+                f.write(' '.join(['{:.6E}'.format(m) for m in mass]))
+                f.write('\n')
+        print("Wrote: {}".format(filepath))
+    
+    f, a = plt.subplots(dpi=dpi, figsize=(10,5))
     for i, sp in enumerate(species):
         props = next(a._get_lines.prop_cycler)
         tag = '$^{{{}}}{}$'.format(*elemSplit(sp, invert=True))
@@ -270,20 +282,20 @@ def plotCompositionTrajectory(fname, dpi=100, thresh=1e-4,
         if np.max(ordinate) < thresh:
             continue
         else:
-            line = plt.semilogy(times, ordinate,
-                                marker='.', label=tag,
-                                color=props['color'],
-                                ls=props['linestyle'])
+            line = plt.loglog(times, ordinate,
+                              marker="", label=tag,
+                              color=props['color'],
+                              ls=props['linestyle'])
     xl = a.set_xlabel('Time(s)')
     yl = a.set_ylabel('$X_i$')
     ylm = a.set_ylim([thresh, 2.0])
-    xlm = a.set_xlim([-0.05, maxtime])
+    xlm = a.set_xlim([leftlim, maxtime])
     imgtag = u'$\\rho_0$ = {:.2E}\nT_0 = {:.2E}'.format(dens0, temp0)
     note = a.annotate(imgtag, xy=(0.0, 0.0),
                       xytext=(0.2, 0.90), size=12,
                       textcoords='figure fraction',
                       xycoords='figure fraction')
-    lgd = a.legend(ncol=4, loc='upper left', bbox_to_anchor=(1.02, 1.0),
+    lgd = a.legend(ncol=3, loc='upper left', bbox_to_anchor=(1.02, 1.0),
                    columnspacing=0.0, labelspacing=0.0, markerfirst=False,
                    numpoints=3, handletextpad=0.0)
     if batch:

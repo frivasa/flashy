@@ -27,8 +27,8 @@ def getUNK(file, srcnames=True):
     infval = finn['unknown names']
     unks = [decode(v[0]) for v in infval]
     fields, species = [], []
-    exceptions = ['n', 'd', 't']
-    parsedvals = ['n1', 'H2', 'H3']
+    exceptions = ['n', 'd', 't', 'd', 't']
+    parsedvals = ['n1', 'H2', 'H3', 'd2', 't3']
     for field in unks:
         if any(char.isdigit() for char in field):
             species.append(field)
@@ -42,7 +42,28 @@ def getUNK(file, srcnames=True):
         for i, e in enumerate(parsedvals):
             if e in species:
                 species[species.index(e)] = exceptions[i]
+    finn.close()
     return fields, species
+
+
+def getBlockLineout(file):
+    bulk, species = getUNK(file, srcnames=True)
+    finn = h5py.File(file, 'r')
+    mfracs = []
+    bulks = []
+    for s in species:
+        data = finn[s.ljust(4)]
+        mfracs.append(data.value.item())
+    for b in bulk:
+        if len(b)<4:
+            data = finn[b.ljust(4)]
+        else:
+            data = finn[b]
+        bulks.append(data.value[0][0][0][0])
+    pardict = dict(finn['real scalars'])
+    time = pardict['time'.ljust(80).encode()]
+    finn.close()
+    return time, dict(zip(bulk, bulks)), species, mfracs
 
 
 def getDictLikeValues(file, title, keys):
@@ -203,6 +224,39 @@ def switchback(file, output, verbose=True):
     jake.close()
     if verbose:
         print("Wrote {} from {}".format(output, file))
+
+
+def buildBlockBurnFile(folders, output):
+    """read all files in selected folders
+    extracting single zone properties
+    and writing them to a plaintext file
+
+    Args:
+        folders(str list): folders to extract data from.
+        output(str): name of output file.
+
+    Returns:
+        (None): writes to file.
+
+    """
+    files = []
+    for folder in folders:
+        files += getFileList(folder, glob='chk', fullpath=True)
+    # use first file for header.
+    t, props, species, spvalues = getBlockLineout(files[0])
+    head = '#time '
+    head += ' '.join(list(props.keys()))
+    head += ' '+ ' '.join(species)
+    with open(output, 'w') as f:
+        f.write(head + '\n')
+        for file in files:
+            t, props, species, spvalues = getBlockLineout(file)
+            f.write('{:.7E} '.format(t))
+            arr = np.nan_to_num(list(props.values()))
+            f.write(' '.join(['{:.6E}'.format(v) for v in arr]))
+            f.write(' ')
+            f.write(' '.join(['{:.6E}'.format(m) for m in spvalues]))
+            f.write('\n')
 
 
 def turn2cartesian(folder, prefix='all', nowitness=False, silent=False):

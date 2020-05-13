@@ -190,11 +190,11 @@ def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
 
 
-def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
+def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
               center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
               linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
               maxs=[6e7, 3e+25, 8e9], mark=[], cmaps=['RdBu_r']*3,
-              linthresh=1e15, dpi=90, fac=8, enucthresh=1e19):
+              linthresh=1e15, dpi=90, fac=8, enucthresh=1e19, comm='', f4=False):
     """Bloated mainProps method to add max speed and other overlays.
     YT 2D plots of a specified list of fields through a slice
     perpedicular to the z-axis.
@@ -202,7 +202,9 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     meta.txt structure:
     time timedelta
     maxspeed xlocation ylocation
-    (energy rel in dt over threshold) (peak energy release) threshold 
+    (energy release in dt over threshold) (peak energy release) threshold \
+    (enuc max X_position) (enuc max Y_position) (enuc max density) \
+    (enuc max temperature)
     (listed plot variable ranges)
     
     Args:
@@ -219,6 +221,8 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
         linthresh(float): symlog linea area around 0.
         dpi(float): dpi of figure returned/saved.
         fac(int): custom formatter exponent factor(cm to km = 5).
+        comm(str): add custom mesage to plot.
+        f4(bool): backwards compatibility with F4.
 
     Returns:
         (mpl.figure or None)
@@ -262,8 +266,18 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     energyRelease = ad['enuc'].value*cell_masses
     delT = ds.parameters['dt']
     lump = np.sum(energyRelease[mask]*delT)
-    metastring = '{:.10E} {:.10E} {:.10E}'
-    metatxt.append(metastring.format(lump, np.max(energyRelease), enucthresh))
+    mepos = ad['enuc'].argmax()
+    mensp = ad['enuc'].value[mepos]
+    medens, metemp = ad['dens'].value[mepos], ad['temp'].value[mepos]
+    melocx, melocy = ad['x'].value[mepos], ad['y'].value[mepos]
+    mstr1 = '{:.10E} {:.10E} {:.10E}'
+    mstr2 = '{:.10E} {:.10E} {:.10E} {:.10E}'
+    mstr1 = mstr1.format(lump, np.max(energyRelease), enucthresh)
+    mstr2 = mstr2.format(melocx, melocy, medens, metemp)
+    metatxt.append(' '.join([mstr1, mstr2]))
+    
+    if f4:
+        fields = [f.strip() for f in fields]
     
     for f in fields:
         fstr = '{} range: {:.10E} {:.10E}'
@@ -287,13 +301,19 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
                           plot_args={'color': 'black', 's': 30})
     if mark:
         xm, ym = mark
+        log.warning('mark (green): {:E} {:E}'.format(xm, ym))
         p.annotate_marker((xm, ym), coord_system='plot', marker='o',
                           plot_args={'color': 'green', 's': 30,
                                      'facecolors': "None"})
-    
-    p.annotate_marker((mvlocx, mvlocy),
+#     log.warning('mark (white): {:E} {:E}'.format(mvlocx, mvlocy))
+#     p.annotate_marker((mvlocx, mvlocy),
+#                       coord_system='plot', marker='o',
+#                       plot_args={'color': 'white', 's': 30,
+#                                  'facecolors': "None"})
+    log.warning('mark (green): {:E} {:E}'.format(melocx, melocy))
+    p.annotate_marker((melocx, melocy),
                       coord_system='plot', marker='o',
-                      plot_args={'color': 'white', 's': 30,
+                      plot_args={'color': '#93c572', 's': 60,
                                  'facecolors': "None"})
     if grids:
         p.annotate_grids()
@@ -330,14 +350,15 @@ def metaProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
     res /= ds.parameters['nblockx']
     maxres = res/2**(ds.parameters['lrefine_max']-1)/1e5
     norres = res/2**(ds.parameters['refnogenlevel']-1)/1e5
-    name = os.path.basename(ds.parameters['initialwdfile'])
+    name = os.path.basename(ds.parameters['initialwdfile'][:-4])
     datb = "{}\n".format(name)
     datb += "Max(nonENUC) res:{:2.0f}({:2.0f})km\n".format(maxres, norres)
     datb += "Match(radius):{:5.0f}({:2.0f})km\n".format(mrad, msize)
     datb += "Species: {:16d}".format(len(sps))
     fig.axes[0].set_title(datb)
     # add time and max speed
-    datb = "Time: {:19.7f} s\n".format(float(ds.current_time))
+    datb = comm +'\n'
+    datb += "Time: {:19.7f} s\n".format(float(ds.current_time))
     datb += "Max Speed: {:11.0f} km/s".format(maxsp/1e5)
     fig.axes[1].set_title(datb)
     for i, ax in enumerate(fig.axes):

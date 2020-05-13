@@ -66,7 +66,10 @@ class simulation(object):
         # treat files as overwriting addenda to the timesteps
         if self.otpfiles:
             for f in self.otpfiles:
-                self.addOtp(f)
+                try:  # skip any non-typical otp
+                    self.addOtp(f)
+                except IndexError:
+                    continue
 
         # CJ file (if any)
         glob = 'shockDetect_'  # cj output parsing (specific .dat files)

@@ -106,23 +106,27 @@ def getFields(flist, srcnames=True):
     return fields, species
 
 
-def getMeta(fname, print_stats=False):
+def getMeta(fname, print_stats=False, showUNK=False):
     """returns metadata from checkpoint and yt-dereived fields.
 
     Args:
         fname(str): filename to check.
+        print_stats(bool): print ds.print_stats (grid info).
+        showUNK(bool): print ds.field_list (unk variables in chk).
 
     Returns:
         (float): simtime of checkpoint.
         (dict): flash.par dictionary.
-        (list of str): fields in checkpoint.
-        (list of str): species in checkpoint.
-        (list of str): fullpath, filename of checkpoint.
+        (str list): fields in checkpoint.
+        (str list): species in checkpoint.
+        (str list): fullpath, filename of checkpoint.
 
     """
     ds = yt.load(fname)
     if print_stats:
         ds.print_stats()
+    if showUNK:
+        print(ds.field_list)
     fields, species = getFields(ds.derived_field_list)
     filepaths = ds.fullpath, ds.parameter_filename
     return float(ds.current_time), ds.parameters, fields, species, filepaths
