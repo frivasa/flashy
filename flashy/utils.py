@@ -306,3 +306,19 @@ def x2clog(x, cmin=1e-5, cmax=1.0):
         return 0.0
     else:
         return y
+
+
+def reformatTag(tag):
+    """turns yt species colobar tag into Chemical notation."""
+    if any([a.isdigit() for a in tag]):
+        name = ''.join([l for l in tag if l.isalpha()])
+        name = name.lstrip('rm')
+        name = ''.join(name).capitalize()
+        mass = ''.join([l for l in tag if l.isdigit()])
+        nlab = u"$^{{{}}}{{{}}}$".format(mass, name)
+        if len(name + mass) > 4:
+            return tag, False
+        else:
+            return nlab, True
+    else:
+        return tag, False

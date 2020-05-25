@@ -1,5 +1,5 @@
 from ..IOutils import (os, sys, log, io)
-from ..utils import np
+from ..utils import np, reformatTag
 import pkg_resources
 from cycler import cycler
 from matplotlib.ticker import (FuncFormatter,

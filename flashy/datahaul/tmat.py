@@ -10,7 +10,8 @@ def SINGLE_get2dPane(file, prop):
     """non-parallel get2dPane."""
     fields = [prop, 'x', 'y', 'dx', 'dy']
     wData = []
-    cuts = np.linspace(179.9, 0.1, 5) - 90  # 4 wedges
+#     cuts = np.linspace(179.9, 0.1, 5) - 90  # 4 wedges
+    cuts = np.linspace(179.9, 0.1, 3) - 90  # 2 wedges
     wedges = list(zip(cuts, cuts[1:]))
     log.debug('Reading wedges')
     for start, stop in wedges:

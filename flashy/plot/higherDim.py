@@ -1,9 +1,10 @@
-from .globals import (np, os, AxesGrid, plt, log,
-                      SymLogNorm, ScalarFormatter,
-                      customFormatter, writeFig)
+from .globals import (np, os, AxesGrid, plt, log, reformatTag, SymLogNorm,
+                      ScalarFormatter, customFormatter, writeFig)
 from flashy.datahaul.hdf5yt import getFields, yt
+from flashy.IOutils import pairGen
 from yt.funcs import mylog  # avoid yt warnings
 import flashy.datahaul.ytfields as ytf
+import flashy.datahaul.ytDatasetTools as ytt
 import flashy.datahaul.tmat as tmat
 mylog.setLevel(50)
 log.name = __name__
@@ -77,116 +78,6 @@ def slice_cube(fname, grids=False, batch=False,
     if not batch:
         return fig
     else:
-        writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
-
-
-def mainProps(fname, mhead=True, grids=False, batch=False, frame=1e9,
-              center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
-              linear=False, mins=[1.0, 1e+18, 1e7], maxs=[6e7, 3e+25, 8e9],
-              mark=[], cmap='', dpi=100):
-    """YT 2D plots of a specified list of fields through a slice
-    perpedicular to the z-axis.
-
-    Args:
-        fname(str): filename to plot.
-        mhead(bool): mark the position of the matchhead.
-        grids(bool): overplot the grid structure.
-        batch(bool): if true save figure to file instead of returning it.
-        fields(list of str): list of named fields to plot.
-        linear(bool): set linear or log scale(false).
-        mins(float list): minima of scale for each field.
-        maxs(float list): maxima of scale for each field.
-        mark(float list): mark a (x,y) coordinate in the plot.
-        cmap(str): matplotlib colormap for the plot.
-        dpi(float): dpi of figure returned/saved.
-
-    Returns:
-        (mpl.figure or None)
-
-    """
-    ds = yt.load(fname)
-    size = len(fields)
-    fig = plt.figure(figsize=(5*size, 10), dpi=dpi)
-    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
-                    nrows_ncols=(1, size),
-                    axes_pad=1.2, label_mode="L",
-                    share_all=True, cbar_location="right",
-                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
-    # check for custom fields and add them to yt.
-    for f in fields:
-        if f in dir(ytf):
-            meta = getattr(ytf, '_' + f)
-            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
-    
-    p = yt.SlicePlot(ds, 'z', list(fields))
-    if sum(center) == 0.0:
-        p.set_center((frame*0.5, 0.0))
-    else:
-        p.set_center(center)
-    p.set_width((frame, 2*frame))
-    p.set_origin(("center", "left", "domain"))
-    p.set_axes_unit('cm')
-    header = '{:17.6f} s'
-    if mhead:
-        x_match = ds.parameters['x_match']
-        y_match = ds.parameters['y_match']
-        p.annotate_marker((x_match, y_match), coord_system='plot',
-                          plot_args={'color': 'black', 's': 30})
-    if mark:
-        xm, ym = mark
-        p.annotate_marker((xm, ym), coord_system='plot', marker='o',
-                          plot_args={'color': 'green', 's': 30,
-                                     'facecolors': "None"})
-    if grids:
-        p.annotate_grids()
-    pvars = zip(fields, mins, maxs)
-    for i, (f, mi, mx) in enumerate(pvars):
-        if not i:
-            p.annotate_title(header.format(float(ds.current_time)))
-        if cmap:
-            p.set_cmap(f, cmap)
-        else:
-            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
-        p.set_zlim(f, mi, mx)
-        if linear:
-            p.set_log(f, False)
-        else:
-            p.set_log(f, True)
-        plot = p.plots[f]
-        # plot.figure = fig
-        plot.axes = grid[i].axes
-        plot.cax = grid.cbar_axes[i]
-    p._setup_plots()
-    # try to add metadata, if not just return.
-    try:
-        mrad = ds.parameters['x_match']**2
-        mrad += ds.parameters['y_match']**2
-        mrad += ds.parameters['z_match']**2
-        mrad = np.sqrt(mrad)/1e5  # km
-        msize = ds.parameters['r_match_outer']/1e5
-
-        # figure out resolution only on 'x'
-        res = ds.domain_width[0].value
-        res /= ds.parameters['nxb']
-        res /= ds.parameters['nblockx']
-        maxres = res/2**(ds.parameters['lrefine_max']-1)/1e5
-        norres = res/2**(ds.parameters['refnogenlevel']-1)/1e5
-        metadata = "Max resolution:{:20.0f} km\n".format(maxres)
-        metadata += "non ENUC res.:{:19.0f} km\n".format(norres)
-        metadata += "Match at (radius):{:8.0f}({:2.0f}) km".format(mrad, msize)
-        fig.axes[0].set_title(metadata)
-        for i, ax in enumerate(fig.axes):
-            ax.xaxis.set_major_formatter(customFormatter(9, prec=1))
-            ax.set_xlabel('x (1000 km)')
-            if not i:
-                ax.yaxis.set_major_formatter(customFormatter(9, prec=1))
-                ax.set_ylabel('y (1000 km)')
-    except KeyError:
-        pass
-    if not batch:
-        return fig
-    else:
-        filetag = 'ytprops'
         writeFig(fig, os.path.join(ds.fullpath, ds.basename), filetag)
 
 
@@ -267,7 +158,6 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
     delT = ds.parameters['dt']
     lump = np.sum(energyRelease[mask]*delT)
     mepos = ad['enuc'].argmax()
-    mensp = ad['enuc'].value[mepos]
     medens, metemp = ad['dens'].value[mepos], ad['temp'].value[mepos]
     melocx, melocy = ad['x'].value[mepos], ad['y'].value[mepos]
     mstr1 = '{:.10E} {:.10E} {:.10E}'
@@ -275,10 +165,8 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
     mstr1 = mstr1.format(lump, np.max(energyRelease), enucthresh)
     mstr2 = mstr2.format(melocx, melocy, medens, metemp)
     metatxt.append(' '.join([mstr1, mstr2]))
-    
     if f4:
         fields = [f.strip() for f in fields]
-    
     for f in fields:
         fstr = '{} range: {:.10E} {:.10E}'
         exts = fstr.format(f, *ad.quantities.extrema(f).value)
@@ -303,17 +191,15 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         xm, ym = mark
         log.warning('mark (green): {:E} {:E}'.format(xm, ym))
         p.annotate_marker((xm, ym), coord_system='plot', marker='o',
-                          plot_args={'color': 'green', 's': 30,
+                          plot_args={'color': 'green', 's': 250, 'linewidth':2,
                                      'facecolors': "None"})
-#     log.warning('mark (white): {:E} {:E}'.format(mvlocx, mvlocy))
-#     p.annotate_marker((mvlocx, mvlocy),
-#                       coord_system='plot', marker='o',
-#                       plot_args={'color': 'white', 's': 30,
-#                                  'facecolors': "None"})
-    log.warning('mark (green): {:E} {:E}'.format(melocx, melocy))
-    p.annotate_marker((melocx, melocy),
-                      coord_system='plot', marker='o',
-                      plot_args={'color': '#93c572', 's': 60,
+    log.warning('mark (white): {:E} {:E}'.format(mvlocx, mvlocy))
+    p.annotate_marker((mvlocx, mvlocy), coord_system='plot', marker='o',
+                      plot_args={'color': 'white', 's': 250, 'linewidth':2,
+                                 'facecolors': "None"})
+    log.warning('mark (red): {:E} {:E}'.format(melocx, melocy))
+    p.annotate_marker((melocx, melocy), coord_system='plot', marker='o',
+                      plot_args={'color': 'red', 's': 250, 'linewidth':2,
                                  'facecolors': "None"})
     if grids:
         p.annotate_grids()
@@ -335,32 +221,12 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
-    
-    # match size and location radius
-    mrad = ds.parameters['x_match']**2
-    mrad += ds.parameters['y_match']**2
-    mrad += ds.parameters['z_match']**2
-    mrad = np.sqrt(mrad)/1e5  # factor to km
-    msize = ds.parameters['r_match_outer']/1e5
-    # number of species
-    _, sps = getFields(ds.field_list)
-    # figure out resolution only on 'x'
-    res = ds.domain_width[0].value
-    res /= ds.parameters['nxb']
-    res /= ds.parameters['nblockx']
-    maxres = res/2**(ds.parameters['lrefine_max']-1)/1e5
-    norres = res/2**(ds.parameters['refnogenlevel']-1)/1e5
-    name = os.path.basename(ds.parameters['initialwdfile'][:-4])
-    datb = "{}\n".format(name)
-    datb += "Max(nonENUC) res:{:2.0f}({:2.0f})km\n".format(maxres, norres)
-    datb += "Match(radius):{:5.0f}({:2.0f})km\n".format(mrad, msize)
-    datb += "Species: {:16d}".format(len(sps))
+
+    extras = {'maxspeed': maxsp}
+    datb, datb2 = ytt.get_plotTitles(ds, comment=comm, extras=extras)
     fig.axes[0].set_title(datb)
-    # add time and max speed
-    datb = comm +'\n'
-    datb += "Time: {:19.7f} s\n".format(float(ds.current_time))
-    datb += "Max Speed: {:11.0f} km/s".format(maxsp/1e5)
-    fig.axes[1].set_title(datb)
+    fig.axes[1].set_title(datb2)
+
     for i, ax in enumerate(fig.axes):
         ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
         ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
@@ -491,11 +357,11 @@ def delt2D(bview, fname, fields=['speed', 'velx', 'vely'],
         writeFig(fig, fname, filetag)
 
 
-def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
-                        compdir='', cmap='RdBu_r',
-                        subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
-                        vmin=-1e9, vmax=1e9, batch=False,
-                        fac=8):
+def delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
+                 compdir='', cmap='RdBu_r',
+                 subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
+                 vmin=-1e9, vmax=1e9, batch=False,
+                 fac=8):
     """(Non-parallel). Plots deltas with contiguous checkpoint/plotfile
     for a list of fields.
 
@@ -503,8 +369,8 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
         fname(str): file path.
         fields(str list): fields to process.
         compdir(str): folderpath for comparison run.
-        subset(float list): domain window for plotting.
         cmap(str): colormap name.
+        subset(float list): domain window for plotting ([x0,x1,y0,y1]).
         linthresh(float): linear range around zero.
         vmin(float): minimum value.
         vmax(float): maximum value.
@@ -515,10 +381,14 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
 
     """
     dat = []
-    log.debug('Beginning first file')
+    fields = ['x', 'y'] + fields
     for f in fields:
-        t0, dt, ext, dattmat = tmat.SINGLE_get2dPane(fname, f)
-        dat.append(dattmat)
+        try:  # F4 compatibility
+            t0, dt, ext, dattmat = tmat.SINGLE_get2dPane(fname, f)
+            dat.append(dattmat)
+        except:
+            t0, dt, ext, dattmat = tmat.SINGLE_get2dPane(fname, f.strip())
+            dat.append(dattmat)    
     log.debug('Finished first file')
     shift = os.path.join(compdir, os.path.basename(fname))
     shiftDat = []
@@ -526,25 +396,67 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
         t1, dt, ext, dattmat = tmat.SINGLE_get2dPane(shift, f)
         shiftDat.append(dattmat)
     log.debug('Finished second file')
-    delts = [y-x for (x, y) in zip(dat, shiftDat)]
+    if dat[0].shape == shiftDat[0].shape:
+        log.debug('Shapes are equal, directly calculating deltas.')
+        delts = [y-x for (x, y) in zip(dat[2:], shiftDat[2:])]
+    else:
+        # find out which shape is largest and build outputs
+        if dat[0].shape > shiftDat[0].shape:
+            refx, refy = dat[0], dat[1]
+            x, y = shiftDat[0], shiftDat[1]
+        else:
+            refx, refy = shiftDat[0], shiftDat[1]
+            x, y = dat[0], dat[1]
+        delts = [np.zeros(refx.shape) for x in fields[2:]]
+        for i, yval in enumerate(refy[:, 0]):
+            if yval==tmat._nullval:
+                for d in delts:
+                    d[i] = tmat._nullval
+                continue
+            if yval < 0:
+                row = np.where(y[:, 0] >= -yval)[0][-1] 
+            else:
+                row = np.where(y[:, 0] >= yval)[0][-1]
+            # treat first segment separately (pairGen is object agnostic)
+            mask = np.where(refx[i] <= x[row][0])
+            for k, d in enumerate(delts, 2):
+                d[i, mask] = dat[k][row, 0] - shiftDat[k][row, 0]
+            for j, (r0, r1) in enumerate(pairGen(x[row]),1):
+                mask = np.where((refx[i] >= r0) & (refx[i] <= r1))
+                for k, d in enumerate(delts, 2):
+                    d[i, mask] = dat[k][row, j] - shiftDat[k][row, j]
     log.debug('Deltas done. Plotting')
-    fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=90,
+    cols = len(fields[2:])
+    fig, axs = plt.subplots(nrows=1, ncols=cols, dpi=90,
                             sharey=True, sharex=True, constrained_layout=True)
-    for i, ax in enumerate(axs.flat):
-        mshow = axs[i].matshow(delts[i], extent=ext, cmap=cmap,
-                               norm=SymLogNorm(linthresh=linthresh,
-                                               linscale=0.8,
-                                               vmin=vmin, vmax=vmax))
-        ax.set_title(fields[i])
-        ax.axis(subset)
-        ax.xaxis.set_ticks_position('bottom')
+    if isinstance(axs, type(np.array)):  # restore this after fidgeting
+        for i, ax in enumerate(axs.flat):
+            mshow = axs[i].matshow(delts[i], extent=ext, cmap=cmap,
+                                   norm=SymLogNorm(linthresh=linthresh,
+                                                   linscale=0.8,
+                                                   vmin=vmin, vmax=vmax))
+            ax.set_title(fields[i+2])
+            ax.axis(subset)
+            ax.xaxis.set_ticks_position('bottom')
+    else:
+        mshow = axs.matshow(delts[0], extent=ext, cmap=cmap,
+                            norm=SymLogNorm(linthresh=linthresh,
+                            linscale=0.8, vmin=vmin, vmax=vmax))
+        axs.set_title(fields[2])
+        axs.axis(subset)
+        axs.xaxis.set_ticks_position('bottom')
+
     for i, ax in enumerate(fig.axes):
         ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
         ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
         if not i:
             ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
             ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
-    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
+    
+    if isinstance(axs, type(np.array)):
+        cbar = fig.colorbar(mshow, ax=[axs[:]], location='right', extend='both')
+    else:
+        cbar = fig.colorbar(mshow, ax=axs, location='right', extend='both')
     
     log.warning('Assuming filename folder structure: {}'.format(fname))
     finn = '/'.join(fname.split('/')[-4:-2])
@@ -560,7 +472,7 @@ def SINGLE_delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
         writeFig(fig, fname, filetag)
 
 
-def delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
+def PARA_delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
            compdir='', cmap='RdBu_r',
            subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
            vmin=-1e9, vmax=1e9, batch=False,
@@ -626,19 +538,3 @@ def delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
     else:
         filetag = '_'.join(['delta'] + [s.strip() for s in fields])
         writeFig(fig, fname, filetag)
-
-
-def reformatTag(tag):
-    """turns yt species colobar tag into Chemical notation."""
-    if any([a.isdigit() for a in tag]):
-        name = ''.join([l for l in tag if l.isalpha()])
-        name = name.lstrip('rm')
-        name = ''.join(name).capitalize()
-        mass = ''.join([l for l in tag if l.isdigit()])
-        nlab = u"$^{{{}}}{{{}}}$".format(mass, name)
-        if len(name + mass) > 4:
-            return tag, False
-        else:
-            return nlab, True
-    else:
-        return tag, False
