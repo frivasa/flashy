@@ -60,9 +60,11 @@ class simulation(object):
         self.runtime = sum(deltas, datetime.timedelta(0))
         self.irlstep = np.mean(deltas[:-1])
 
-        # Add qsub output (.o files)
+        # Add qsub output and error (.o, .e files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
+        glob = os.path.basename(name) + '.e'
+        self.errfiles = getFileList(folder, glob=glob, fullpath=True)
         # treat files as overwriting addenda to the timesteps
         if self.otpfiles:
             for f in self.otpfiles:

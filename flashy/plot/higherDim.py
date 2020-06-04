@@ -85,17 +85,20 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
               center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
               linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
               maxs=[6e7, 3e+25, 8e9], mark=[], cmaps=['RdBu_r']*3,
-              linthresh=1e15, dpi=90, fac=8, enucthresh=1e19, comm='', f4=False):
-    """Bloated mainProps method to add max speed and other overlays.
-    YT 2D plots of a specified list of fields through a slice
-    perpedicular to the z-axis.
-
-    meta.txt structure:
+              linthresh=1e15, dpi=90, fac=8, comm='', f4=False,
+              metaprops={'shelld':1e6, 'cored':3e6, 'enucthresh':1e19}):
+    """YT 2D plots of a specified list of fields through a slice
+    perpedicular to the z-axis. Batch build a meta plaintext file with
+    the structure:
+    
     time timedelta
     maxspeed xlocation ylocation
-    (energy release in dt over threshold) (peak energy release) threshold \
-    (enuc max X_position) (enuc max Y_position) (enuc max density) \
-    (enuc max temperature)
+    # integrated enuc over a threshold
+    (energy release in dt over threshold) threshold
+    # calculate peak energies for shell and core, discerning by density
+    shelldens coredens
+    'shell' (summed energy) (peak release) X Y dens T velx vely
+    'core' (summed energy) (peak release) X Y dens T velx vely
     (listed plot variable ranges)
     
     Args:
@@ -103,6 +106,8 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         mhead(bool): mark the position of the matchhead.
         grids(bool): overplot the grid structure.
         batch(bool): if true save figure to file instead of returning it.
+        frame(float): physical extent of plot in x (twice for y) .
+        center(float tuple): physical center of plot.
         fields(str list): list of named fields to plot.
         linear(bool list): set linear or log scale(false).
         mins(float list): minima of scale for each field.
@@ -114,6 +119,7 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         fac(int): custom formatter exponent factor(cm to km = 5).
         comm(str): add custom mesage to plot.
         f4(bool): backwards compatibility with F4.
+        metaprops(dict): brittle meta file properties.
 
     Returns:
         (mpl.figure or None)
@@ -141,14 +147,12 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
     maxsp = ad['speed'].value[mvpos]
     mvlocx, mvlocy = ad['x'].value[mvpos], ad['y'].value[mvpos]
     delT = ds.parameters['dt']
-    mline = '{:.10E}'.format(float(ds.current_time))
-    mline += ' {:.10E}'.format(delT)
+    mline = '{:.10E} {:.10E}'.format(float(ds.current_time), delT)
     metatxt.append(mline)
     mline = '{:.10E} {:.10E} {:.10E}'.format(maxsp, mvlocx, mvlocy)
     metatxt.append(mline)
-    # get energy release for enuc regions over a threshold
+    # get energy release
     log.warning('Assuming cylindrical slice')
-    mask = np.where(ad['enuc'].value > enucthresh)
     dx = ad['path_element_x'].value
     dy = ad['path_element_y'].value
     r = ad['x'].value
@@ -156,15 +160,40 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
     cell_masses = cylvol*ad['density'].value
     energyRelease = ad['enuc'].value*cell_masses
     delT = ds.parameters['dt']
-    lump = np.sum(energyRelease[mask]*delT)
-    mepos = ad['enuc'].argmax()
-    medens, metemp = ad['dens'].value[mepos], ad['temp'].value[mepos]
-    melocx, melocy = ad['x'].value[mepos], ad['y'].value[mepos]
-    mstr1 = '{:.10E} {:.10E} {:.10E}'
-    mstr2 = '{:.10E} {:.10E} {:.10E} {:.10E}'
-    mstr1 = mstr1.format(lump, np.max(energyRelease), enucthresh)
-    mstr2 = mstr2.format(melocx, melocy, medens, metemp)
-    metatxt.append(' '.join([mstr1, mstr2]))
+    # find the lump sum of energy over a threshold
+    energymask = ad['enuc'].value > metaprops['enucthresh']
+    lump = np.sum(energyRelease[energymask]*delT)
+    mline = '{:.10E} {:.10E}'.format(lump, metaprops['enucthresh'])
+    metatxt.append(mline)
+    # calculate energy maxima for both core and shell 
+    mline = '{:.10E} {:.10E}'.format(metaprops['shelld'], metaprops['cored'])
+    metatxt.append(mline)
+    mask = ad['dens'].value < metaprops['shelld']
+    mepos = ad['enuc'][mask].argmax()
+    medens, metemp = ad['dens'][mask].value[mepos], ad['temp'][mask].value[mepos]
+    melocxS, melocyS = ad['x'][mask].value[mepos], ad['y'][mask].value[mepos]
+    mevelx, mevely = ad['velx'][mask].value[mepos], ad['vely'][mask].value[mepos]
+    emax = ad['enuc'][mask].value[mepos]*cell_masses[mask][mepos]
+    toten = np.sum(energyRelease[mask&energymask]*delT)
+    
+    mline = 'shell {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E}'
+    mline = mline.format(toten, emax, melocxS, melocyS, medens, metemp, mevelx, mevely)
+    metatxt.append(mline)
+    mask = ad['dens'].value > metaprops['cored']   
+    try:
+        mepos = ad['enuc'][mask].argmax()
+        medens, metemp = ad['dens'][mask].value[mepos], ad['temp'][mask].value[mepos]
+        melocxC, melocyC = ad['x'][mask].value[mepos], ad['y'][mask].value[mepos]
+        mevelx, mevely = ad['velx'][mask].value[mepos], ad['vely'][mask].value[mepos]
+        emax = ad['enuc'][mask].value[mepos]*cell_masses[mask][mepos]
+        toten = np.sum(energyRelease[mask&energymask]*delT)
+    except ValueError:
+        # eventually all the domain is below threshold so set this equal to "shell"
+        melocxC, melocyC = melocxS, melocyS
+    mline = 'core {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E}'
+    mline = mline.format(toten, emax, melocxC, melocyC, medens, metemp, mevelx, mevely)
+    metatxt.append(mline)
+
     if f4:
         fields = [f.strip() for f in fields]
     for f in fields:
@@ -172,7 +201,6 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         exts = fstr.format(f, *ad.quantities.extrema(f).value)
         log.debug(exts)
         metatxt.append(exts)
-    
     p = yt.SlicePlot(ds, 'z', list(fields))
     p.set_font({'family':'monospace'})
     if sum(center) == 0.0:
@@ -193,12 +221,16 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         p.annotate_marker((xm, ym), coord_system='plot', marker='o',
                           plot_args={'color': 'green', 's': 250, 'linewidth':2,
                                      'facecolors': "None"})
-    log.warning('mark (white): {:E} {:E}'.format(mvlocx, mvlocy))
+    log.warning('max speed (white): {:E} {:E}'.format(mvlocx, mvlocy))
     p.annotate_marker((mvlocx, mvlocy), coord_system='plot', marker='o',
                       plot_args={'color': 'white', 's': 250, 'linewidth':2,
                                  'facecolors': "None"})
-    log.warning('mark (red): {:E} {:E}'.format(melocx, melocy))
-    p.annotate_marker((melocx, melocy), coord_system='plot', marker='o',
+    log.warning('shell max energy output (red): {:E} {:E}'.format(melocxS, melocyS))
+    p.annotate_marker((melocxS, melocyS), coord_system='plot', marker='o',
+                      plot_args={'color': 'yellow', 's': 250, 'linewidth':2,
+                                 'facecolors': "None"})
+    log.warning('core max energy output (red): {:E} {:E}'.format(melocxC, melocyC))
+    p.annotate_marker((melocxC, melocyC), coord_system='plot', marker='o',
                       plot_args={'color': 'red', 's': 250, 'linewidth':2,
                                  'facecolors': "None"})
     if grids:
