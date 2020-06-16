@@ -17,6 +17,7 @@ AGSS09_ISO = pkg_resources.resource_filename('flashy',
                                              '../data/suncomp/AGSS09.ISOTOPIC')
 solDecays = pkg_resources.resource_filename('flashy',
                                             '../data/yields/decay_paths.dat')
+_nucData = {}
 
 
 def readStandardWeights():
@@ -93,7 +94,8 @@ def readNuclideMasses():
     massdict['e']['n'] = {}
     massdict['e']['n'][0] = m_e/amu
     massdict['e']['z'] = -1
-    return massdict
+    global _nucData
+    _nucData = massdict
 
 
 def readDecays():
@@ -186,7 +188,8 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
             sundict[s]['n'] = {}
             sundict[s]['n'][n[i]] = percs[i]
             sundict[s]['z'] = z[i]
-    nucmass = readNuclideMasses()
+    if not _nucData:
+        readNuclideMasses()
     partdict = {}
     for k in mdict.keys():
         zz = mdict[k]['z']
@@ -201,7 +204,7 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
                 particles += 0.0
             else:
                 nom = sundict[k]['n'][n]*mdict[k]['n'][n]*msol
-                denom = nucmass[k]['n'][n]['mass']
+                denom = _nucData[k]['n'][n]['mass']
                 particles += nom/denom*Avogadro
         partdict[k] = particles
     nrm = partdict[norm]
@@ -359,14 +362,15 @@ def getBinding(speclist, cgs=True, trueA=False):
 
     """
     # get every binding energy known and subset to required species
-    spdict = readNuclideMasses()
+    if not _nucData:
+        readNuclideMasses()
     splitspec = splitSpecies(speclist, standardize=True, zipped=True)
-    binding = np.array([spdict[elem]['n'][n]['binding']
+    binding = np.array([_nucData[elem]['n'][n]['binding']
                         for (elem, z, n, a) in splitspec])
     # zips can only run once so reset
     splitspec = splitSpecies(speclist, standardize=True, zipped=True)
     if trueA:
-        nucmasses = np.array([spdict[elem]['n'][n]['mass']
+        nucmasses = np.array([_nucData[elem]['n'][n]['mass']
                               for (elem, z, n, a) in splitspec])
     else:
         nucmasses = np.array([z+n for (elem, z, n, a) in splitspec])
@@ -394,7 +398,8 @@ def splitSpecies(Spcodes, trueA=True, standardize=False, zipped=False):
     """
     Sp, As = zip(*[elemSplit(s) for s in Spcodes])
     As = np.array(As)
-    mdict = readNuclideMasses()
+    if not _nucData:
+        readNuclideMasses()
     if standardize:
         # to allow the Nitrogen/neutron disctinction,
         # both upper and lower cases must be checked
@@ -408,10 +413,10 @@ def splitSpecies(Spcodes, trueA=True, standardize=False, zipped=False):
                 indices = [i for i, s in enumerate(Sp) if s == k]
                 for j in indices:
                     Sp[j] = v
-    Zs = np.array([mdict[n]['z'] for n in Sp])
+    Zs = np.array([_nucData[n]['z'] for n in Sp])
     Ns = As - Zs
     if trueA:
-        As = [mdict[s]['n'][n]['mass'] for (s, n) in zip(Sp, Ns)]
+        As = [_nucData[s]['n'][n]['mass'] for (s, n) in zip(Sp, Ns)]
     if zipped:
         return zip(Sp, Zs, Ns, As)
     else:

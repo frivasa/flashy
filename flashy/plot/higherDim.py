@@ -279,6 +279,167 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
                  filetag, meta='\n'.join(metatxt))
 
 
+def radialTracing(fname, radius, ringRadius, radtol=1e-5,
+                  grids=False, batch=False, frame=1e9,
+                  center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+                  linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+                  maxs=[6e7, 3e+25, 8e9], cmaps=['RdBu_r']*3,
+                  linthresh=1e15, dpi=90, fac=8, comm=''):
+    """plots 2d properties through YT, writing to a meta file the properties of
+    all cells found at a radius coinciding with the radius of the peak enuc found
+    on an annulus around radius+ringRadius.
+    
+    time timedelta radius ringRadius
+    # (peak enuc) (peak cell mass) X Y velx vely dens temp species
+    note: values are unsorted, sort by y should yield an ordered 'lineout'
+    
+    Args:
+        fname(str): filename to plot.
+        radius(float): initial radius.
+        ringRadius(float): width of ring to trace.
+        radtol(float): fractional tolerance for max enuc ring radius.
+        grids(bool): overplot the grid structure.
+        batch(bool): if true save figure to file instead of returning it.
+        frame(float): physical extent of plot in x (twice for y) .
+        center(float tuple): physical center of plot.
+        fields(str list): list of named fields to plot.
+        linear(bool list): set linear or log scale(false).
+        mins(float list): minima of scale for each field.
+        maxs(float list): maxima of scale for each field.
+        cmaps(str): matplotlib colormap for the plot.
+        linthresh(float): symlog linea area around 0.
+        dpi(float): dpi of figure returned/saved.
+        fac(int): custom formatter exponent factor(cm to km = 5).
+        comm(str): add custom mesage to plot.
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
+    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
+                    nrows_ncols=(1, size), axes_pad=1.2, label_mode="L",
+                    share_all=True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
+    # check for custom fields and add them to yt. force speed
+    # because max speed calculation uses it.
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+    # start meta file
+    delT = ds.parameters['dt']
+    mline = '{:.10E} {:.10E} {:.10E} {:.10E}'
+    mline = mline.format(float(ds.current_time), delT, radius, ringRadius)
+    metatxt.append(mline)
+    ad = ds.all_data()
+    # find max enuc within the allowed radii
+    radii = np.sqrt(ad['x'].value**2 + ad['y'].value**2)
+    over = np.where(radii > radius)[0]
+    under = np.where(radii < radius+ringRadius)[0]
+    donut = np.intersect1d(over, under)
+    mpos = ad['enuc'][donut].argmax()
+    mpos = np.arange(radii.shape[0])[donut][mpos]
+    mlocx, mlocy = ad['x'].value[mpos], ad['y'].value[mpos]
+    mvelx, mvely = ad['velx'].value[mpos], ad['vely'].value[mpos]
+    # maxen = ad['enuc'].value[mpos]
+    # get cell masses
+    log.warning('Assuming cylindrical slice')
+    dx = ad['path_element_x'].value
+    dy = ad['path_element_y'].value
+    r = ad['x'].value
+    cylvol = 2.0*np.pi*dy*dx*r
+    cell_masses = cylvol*ad['density'].value
+    # maxmass = cell_masses[mpos]
+    _, sps = getFields(ds.field_list)
+    ml = '# enuc cell_mass x y velx vely dens temp ' + ' '.join(sps)
+    metatxt.append(ml)
+    # find a ring aling the radius of max enuc and write all found data to file 
+    prad = np.sqrt(mlocx**2+mlocy**2)
+    radtol = 1e-5
+    ring = np.where((radii > prad-radtol*ringRadius) & (radii<prad+radtol*ringRadius))[0]
+    print(ring.shape)
+    log.debug('ring size {}, radii: {:E} {:E}'.format(ring.shape[0], prad-radtol*ringRadius,
+                                                      prad+radtol*ringRadius))
+    for rp in ring:
+        en, cm = ad['enuc'].value[rp], cell_masses[rp]
+        x, y = ad['x'].value[rp], ad['y'].value[rp]
+        velx, vely = ad['velx'].value[rp], ad['vely'].value[rp]
+        dens, temp = ad['temperature'].value[rp], ad['density'].value[rp]
+        ml = '{:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} {:.10E} '
+        ml = ml.format(en, cm, x, y, velx, vely, dens, temp)
+        mls = ['{:.6E}'.format(ad[s.ljust(4)].value[rp]) for s in sps]
+        ml += ' '.join(mls)
+        metatxt.append(ml)
+    
+    p = yt.SlicePlot(ds, 'z', list(fields))
+    p.set_font({'family':'monospace'})
+    if sum(center) == 0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
+    p.set_width((frame, 2*frame))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    for rp in ring:
+        ppx, ppy = ad['x'].value[rp], ad['y'].value[rp]
+        p.annotate_marker((ppx, ppy), coord_system='plot', marker='o',
+                          plot_args={'color': 'white', 's': 200, 'linewidth':1,
+                                     'facecolors': "None"})
+    p.annotate_marker((mlocx, mlocy), coord_system='plot', marker='o',
+                      plot_args={'color': 'yellow', 's': 500, 'linewidth':2,
+                                 'facecolors': "None"})
+    p.annotate_sphere([0.0, 0.0, 0.0], radius=(radius, 'cm'),
+                      circle_args={'color':'green'})
+    p.annotate_sphere([0.0, 0.0, 0.0], radius=(radius + ringRadius, 'cm'),
+                      circle_args={'color':'green'})
+    if grids:
+        p.annotate_grids()
+    pvars = zip(fields, mins, maxs, linear, cmaps)
+    for i, (f, mi, mx, lin, cm) in enumerate(pvars):
+        if cm:
+            p.set_cmap(f, cm)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
+        p.set_zlim(f, mi, mx)
+        if lin:
+            p.set_log(f, False)
+        else:
+            if mi < 0 or mx < 0:
+                p.set_log(f, True , linthresh=linthresh)
+            else:
+                p.set_log(f, True)    
+        plot = p.plots[f]
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+    p._setup_plots()
+    extras = {'Speed': np.sqrt(mvelx**2 + mvely**2)}
+    datb, datb2 = ytt.get_plotTitles(ds, comment=comm, extras=extras)
+    fig.axes[0].set_title(datb)
+    fig.axes[1].set_title(datb2)
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    for i, ax in enumerate(fig.axes):
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
+    if not batch:
+        return fig
+    else:
+        filetag = 'radTrac'
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename),
+                 filetag, meta='\n'.join(metatxt))
+
+
 def speeds2D(bview, fname, subset=[0.0, 1e4, -1e4, 1e4], wedges=8,
              vmin=-1e5, vmax=1e5, batch=False, nticks=2):
     """plots all velocity variables from a 2d file.

@@ -3,7 +3,7 @@ from flashy.utils import np
 from flashy.IOutils import os
 from .hdf5yt import getFields
 
-def get_plotTitles(ds, comment='', extras={'maxspeed':0.0}):
+def get_plotTitles(ds, comment='', extras={}):
     """builds a pair or strings with information from the run.
     Namely the match radius and size, resolution of the grid,
     number of species, timestamp and profile used
@@ -36,6 +36,10 @@ def get_plotTitles(ds, comment='', extras={'maxspeed':0.0}):
     datb += "Species: {:16d}".format(len(sps))
     # add time and max speed
     datb2 = comment +'\n'
-    datb2 += "Time: {:19.7f} s\n".format(float(ds.current_time))
-    datb2 += "Max Speed: {:11.0f} km/s".format(extras['maxspeed']/1e5)
+    datb2 += "Time: {:1.7f} s\n".format(float(ds.current_time))
+    if 'maxspeed' in extras:
+        datb2 += "Max Speed: {:11.0f} km/s".format(extras['maxspeed']/1e5)
+    else:
+        for k, v in extras.items():
+            datb2 += "{}: {:.3E}".format(k, v)
     return datb, datb2

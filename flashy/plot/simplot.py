@@ -185,6 +185,57 @@ def plotIRLsteps(sim, sigma=15.0, checkpoints=False):
     return f
 
 
+def plotImprint(sim, pePerNode=6, rollAvgStep=80, skipminmax=False):
+    """plot all block data alongside ranks, timesteps and submit number 
+    for all the simtime achieved by the simulation.
+    
+    Args:
+        sim(flashy.simulation): simulation object to probe.
+        pePerNode(int): ranks per node on machine.
+        rollAvgStep(int): width of cell averaging for timesteps.
+        
+    Returns:
+        (mpl.figure)
+    
+    """
+    legdict = { 'ncol':1, 'loc':'upper left', 'columnspacing':0.0,
+               'labelspacing':0.1, 'numpoints':3, 'handletextpad':0.2,
+               'bbox_to_anchor':(1.02, 1.0)}
+    totblk = homologateRefsToBulk(sim, 'totblocks')
+    minblk = homologateRefsToBulk(sim, 'minblocks')
+    maxblk = homologateRefsToBulk(sim, 'maxblocks')
+    tsteps = [s.total_seconds() for s in sim.getStepProp('irldelta')]
+    subs = sim.getStepProp('submit_number')
+    PE = sim.getStepProp('mpi_ranks')
+    N = sim.getStepProp('n')
+    wallsteps = rollingAverage(tsteps, step=rollAvgStep)
+    totalwall = np.sum(wallsteps)/3600
+    nodes = PE/pePerNode
+    cost = 0
+    for subnum in np.unique(subs):
+        mask = (subs == subnum)
+        walltime = np.sum(wallsteps[mask])
+        nodes = np.unique(PE[mask])[0]/pePerNode
+        cost += walltime*nodes/3600
+    time = sim.getStepProp('t')
+    f, a = plt.subplots()
+    a.semilogy(time, totblk, label='total Blk')
+    if not skipminmax:
+        a.semilogy(time, minblk, label='min Blk')
+        a.semilogy(time, maxblk, label='max Blk')
+    a.semilogy(time, subs, label='submit #')
+    a.semilogy(time, PE, label='ranks')
+    a.semilogy(time, N, label='step #')
+    a.semilogy(time, wallsteps, label='IRL tstep')
+    a.set_ylabel('Blocks, PE, Walltime/step, submits')
+    a.set_xlabel('Simulation Time (s)')
+    tfmt = 'IRL (h): {:.2f}, Subs: {:d}, Node hours: {:.2f}'
+    a.legend(**legdict)
+    stub = a.set_title(tfmt.format(totalwall, subs[-1], cost))
+    f.tight_layout()
+    return f
+
+
 def plotBlockUse(sim, range=[0, 0]):
     """build a figure with requested blocks vs evolution time.
 
@@ -435,3 +486,30 @@ def plotPizzaTiming(sim, which=0, avgProc=True, column=0, clrshift=1):
                         height=250*(i+1-shift), width=200*(maxdep-1))
     fig = gob.FigureWidget(data=traces, layout=layout)
     return fig
+
+
+def homologateRefsToBulk(sim, property):
+    baseSteps = sim.getStepProp('n')
+    refSteps = sim.getStepProp('n', src='refs')
+    extended = np.zeros(len(sim.steps))
+    refProp = sim.getStepProp(property, src='refs')
+    for i, n in enumerate(refSteps):
+        stencil = np.where(baseSteps-n > 0)
+        if not i:
+            extended[:] = refProp[0]
+        else:
+            extended[stencil] = refProp[i]
+    return extended
+
+
+def rollingAverage(stat, step=5):
+    N = len(stat)
+    roll = np.zeros(N)
+    for i in range(N):
+        sum = np.sum(stat[i:i+step])
+        roll[i] = sum/step
+    # reset last entries with the last 'averageable' number
+    roll[-step:] = roll[-step]
+    return roll
+
+

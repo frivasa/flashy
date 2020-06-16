@@ -14,7 +14,8 @@ from ..datahaul.hdfdirect import directMeta, getBlockLineout
 
 def flash_elementalYields(fname, tag='elem_solar', yrange=[-3, 15],
                           norm='Si', offset=6, batch=False):
-    """
+    """plots decayed elemental yields from a checkpoint vs sun.
+    
     Args:
         fname(str): filename path.
         tag(str): output tag.
@@ -142,7 +143,9 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
 
 def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0,70],
                         compdir='sun', thresh=1e-5, batch=False):
-    """
+    """plots all nuclide yields in a checkpoint vs sun or any other
+    simulation specified by its runfolder.
+    
     Args:
         fname(str): filename path.
         tag(str): output tag.
@@ -186,7 +189,10 @@ def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0,70],
     ax.set_xlim(xrange)
     ax.set_ylim([thresh, 2])
     ax.set_title("{:.5f} s".format(time), loc='left')
-    lg = ax.legend(*zip(*plabels), loc='lower left')
+    legdict = { 'ncol':1, 'loc':'upper right', 'columnspacing':0.0,
+           'labelspacing':0.1, 'numpoints':3, 'handletextpad':0.2,
+           'bbox_to_anchor':(1.0, 1.15)}
+    lg = ax.legend(*zip(*plabels), **legdict)
     if batch:
         writeFig(fig, fname, tag)
     else:

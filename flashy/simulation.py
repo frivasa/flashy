@@ -55,7 +55,7 @@ class simulation(object):
         
         log.debug("Setting up time deltas")
         self.time = self.getStepProp('t')
-        addIRLdeltas(self.steps, outlier=5.0)
+        addIRLdeltas(self.steps)
         deltas = self.getStepProp('irldelta')
         self.runtime = sum(deltas, datetime.timedelta(0))
         self.irlstep = np.mean(deltas[:-1])
@@ -94,7 +94,7 @@ class simulation(object):
         Args:
             which(str): property to extract.
             range(int list): pick steps within range.
-            src(str): source of data, either 'steps' or 'refs'
+            src(str): source of data: 'steps', 'refs' or 'chkp'
 
         Returns:
             (list): step ordered property list.
@@ -107,6 +107,16 @@ class simulation(object):
         else:
             return np.array([getattr(t, which)
                              for t in getattr(self, src)])
+
+
+    def printStepProps(self):
+        """print all keys available to the steps."""
+        selfnamelist = ['steps', 'refs', 'chkp']
+        for sname in selfnamelist:
+            all = getattr(self, sname)
+            print(sname, len(all))
+            print(all[0].__dict__.keys())
+
 
     def standardizeGeometry(self, verbose=False):
         """convert hdf5 files from cylindrical to cartesian."""
@@ -324,9 +334,11 @@ def readLog(logfile):
 
     Return:
         (sim.steps): every numbered step in the run (no repeated steps).
-        (str): first flash header from the log file.
-        (str list): end of run timings when available.
-        (int list): rows of repeated steps(this is used to clean stats.dat).
+        (int list): removed step indices.
+        (sim.steps): refinement step list.
+        (sim.steps): checkpoint step list.
+        (str): first header found in log file.
+        (str list): all timing blocks found in log file.  
 
     """
     # get first header from title to the first logged step
@@ -341,11 +353,26 @@ def readLog(logfile):
     steps = [stepBreakdown(sline) for sline in getLines(logfile, 'step: ')]
     realsteps, removedrows = clearRestarts(steps)
 
+    tstamps = np.array([step.timestamp for step in steps])
+    zero = datetime.timedelta(0)
+
+    # add mpi ranks and number of restart
+    cues, mpis = restartBreakdown(logfile)
+    for i, s in enumerate(cues):
+        # first submit, change all steps to catch first submit range blindly
+        if not i:
+            for step in steps:
+                setattr(step, 'submit_number', i + 1)
+                setattr(step, 'mpi_ranks', mpis[i])
+            continue
+        stencil = np.where(tstamps-s > zero)[0]
+        for st in stencil:
+            setattr(steps[st], 'submit_number', i + 1)
+            setattr(steps[st], 'mpi_ranks', mpis[i])
+    
     # refinement data
     refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
     refdata = [refBreakdown(rfb) for rfb in blockGenerator(refinementLines)]
-    tstamps = [step.timestamp for step in steps]
-    zero = datetime.timedelta(0)
     tags = ['minblocks', 'maxblocks', 'totblocks',
             'leaf_minblocks', 'leaf_maxblocks', 'leaf_totblocks']
     # find the simsteps where the refinement took place
@@ -371,6 +398,7 @@ def readLog(logfile):
         for t, v in zip(tags, refdata[i][1:]):
             setattr(ref, t, v)
         refs.append(ref)
+    
     # checkpoint/plotfile timestamps
     chkLs = getLines(logfile, "[IO_write")
     chkdata = [chkBreakdown(rfb) for rfb in blockGenerator(chkLs, step=4)]
@@ -384,22 +412,26 @@ def readLog(logfile):
     return realsteps, removedrows, refs, chkp, header, timings
 
 
-def addIRLdeltas(steps, outlier=3.0):
-    """calculate walltime deltas between timesteps.
+def addIRLdeltas(steps):
+    """calculate walltime deltas between timesteps
+    accounting for resubmits.
+    
     Args:
         steps(sim.step list): simulation log steps.
-        outlier(float): outlier delta for restarts (in minutes).
 
     Returns:
         (timedelta, timedelta): total walltime, mean walltime step
 
     """
     tstamps = [step.timestamp for step in steps]
+    submits = [step.submit_number for step in steps]
     deltas = [b-a for (a, b) in zip(tstamps[:-1], tstamps[1:])]
+    subdelts = np.diff(submits)
+    subdelts = np.append(subdelts, 0)
     deltas.append(datetime.timedelta(0))
-    for st, d in zip(steps, deltas):
-        if d > datetime.timedelta(minutes=outlier):
-            setattr(st, 'irldelta', datetime.timedelta(0))
+    for st, d, subd in zip(steps, deltas, subdelts):
+        if subd > 0:
+            setattr(st, 'irldelta', datetime.timedelta(seconds=0))
         else:
             setattr(st, 'irldelta', d)
 
@@ -518,8 +550,31 @@ def clearRestarts(steps):
         return steps, []
 
 
+def restartBreakdown(logfile):
+    lines = getLines(logfile, 'FLASH log file')
+    startfmt = 'FLASH log file:  %m-%d-%Y  %H:%M:%S.%f    '
+#     lines = getLines(logfile, 'FLASH run complete')
+#     endfmt = '[ %m-%d-%Y  %H:%M:%S.%f '
+    mpistrs = getLines(logfile, 'Number of MPI tasks')
+    cues, mpis = [], []
+    for input, mpistr in zip(lines, mpistrs):
+        cue = datetime.datetime.strptime(input.split('Run')[0], startfmt)
+#         cue = datetime.datetime.strptime(input.split(']')[0], endfmt)
+        mpinum = int(mpistr.split()[-1])
+        cues.append(cue)
+        mpis.append(mpinum)
+    return cues, mpis
+
+
 def chkBreakdown(refBlock):
-    """specific breakdown of a checkpoint/plotfile write log entry."""
+    """specific breakdown of a checkpoint/plotfile write log entry.
+    e.g.:
+    '[ 05-29-2020  06:28:27.525 ] [IO_writeCheckpoint] open: type=checkpoint
+        name=../17ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0132
+    '[ 05-29-2020  06:28:31.937 ] [IO_writeCheckpoint] close: type=checkpoint
+        name=../17ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0132
+
+    """
     # get tstamp and type from first line
     tstampstr, _, rest = refBlock[0].partition(']')
     tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
