@@ -199,7 +199,8 @@ class parameterGroup(object):
                 print("BZZZZZZZZZZZZ: {} NOT SET!".format(k))
 
     def readMeta(self):
-        """returns dimension, cells per block, and maxblocks from a 'docked' parfile
+        """returns dimension, cells per block, and maxblocks
+        from a 'docked' parfile
         > simulation now reads meta from the log file
         > pargroup tries to read this from the filepath so it's weaker.
         """

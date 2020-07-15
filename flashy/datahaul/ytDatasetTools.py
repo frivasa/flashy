@@ -29,7 +29,8 @@ def get_plotTitles(ds, comment='', extras={}):
     res /= ds.parameters['nblockx']
     maxres = res/2**(ds.parameters['lrefine_max']-1)/1e5
     norres = res/2**(ds.parameters['refnogenlevel']-1)/1e5
-    name = os.path.basename(ds.parameters['initialwdfile'][:-4])
+#     name = os.path.basename(ds.parameters['initialwdfile'][:-4])
+    name = os.path.basename(os.path.dirname(ds.parameters['log_file']))
     datb = "{}\n".format(name)
     datb += "Max(nonENUC) res:{:2.0f}({:2.0f})km\n".format(maxres, norres)
     datb += "Match(radius):{:5.0f}({:2.0f})km\n".format(mrad, msize)

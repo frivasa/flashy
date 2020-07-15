@@ -297,7 +297,8 @@ def getNewtonCJ(fname, inward=False, width=0.8, **kwargs):
     return v, p, cj, pos[1], pm, time
 
 
-def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam, width=0.8):
+def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam,
+             width=0.8, fueleint=0, asheint=0):
     """fits CJ velocity to a pair of states by varying
     the speed of the rayleigh line.
 
@@ -309,27 +310,42 @@ def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam, width=0.8):
         ashv(float): ash state specific volume.
         ashp(float): ash state pressure.
         agam(float): ash state sp. heat ratio.
-        width(float): fitting sp. volume range for minimizing function.
+        width(float): specific volume gap for fitting.
+        single(bool): skip HRlower
 
     Returns:
         (float tuple): specific volume, pressure, CJVelocity.
 
     """
-    miniu = minimize(fun=lambda x: diffHRupper(x, ph=fuelp, vh=fuelv, gh1=fgam,
-                                               gh2=agam, pr=ashp, vr=ashv,
+    miniu = minimize(x0=cjest/2, tol=1e-14, 
+                     fun=lambda x: diffHRupper(x, ph=fuelp, vh=fuelv,
+                                               gh1=fgam, gh2=agam,
+                                               pr=ashp, vr=ashv,
                                                env=[ashv*(1.0-width),
-                                                    ashv*(1.0+width)]),
-                     x0=cjest/2, tol=1e-14)
-    minil = minimize(fun=lambda x: diffHRlower(x, ph=fuelp, vh=fuelv, gh1=fgam,
-                                               gh2=agam, pr=ashp, vr=ashv,
+                                                    ashv*(1.0+width)]))
+    minil = minimize(x0=cjest/2, tol=1e-14,
+                     fun=lambda x: diffHRlower(x, ph=fuelp, vh=fuelv,
+                                               gh1=fgam, gh2=agam,
+                                               pr=ashp, vr=ashv,
                                                env=[ashv*(1.0-width),
-                                                    ashv*(1.0+width)]),
-                     x0=cjest/2, tol=1e-14)
+                                                    ashv*(1.0+width)]))
     cjposu, cjspdu = miniu.fun[0], miniu.x[0]
     cjposl, cjspdl = minil.fun[0], minil.x[0]
     cjpos = 0.5*(cjposu+cjposl)
-    cjpres = shockhugoniot(cjpos, p1=fuelp, v1=fuelv, g1=fgam, g2=agam)
-    cjspd = rayleighSpeed(ashp, ashv, cjpres, cjpos)
+    if asheint:
+        cjpres = shockhugoniot_eint(cjpos, p1=fuelp, v1=fuelv,
+                                    eint1=fueleint, eint2=asheint)
+    else:
+        cjpres = shockhugoniot(cjpos, p1=fuelp, v1=fuelv, g1=fgam, g2=agam)
+    # nus are too small, so they break the rayleigh calculation
+    # either that or the speed is unphysical, thus pathologic.
+    if ashv - cjpos < 0:
+#         print('dnu<0')
+#         cjspd = 0.5*(cjspdu + cjspdl)
+        cjspd = rayleighSpeed(fuelp, fuelv, cjpres, cjpos)
+    else:
+        cjspd = rayleighSpeed(ashp, ashv, cjpres, cjpos)
+#     print('{:.5E} {:.5E} {:.5E}'.format(cjspd, cjspdu, cjspdl))
     return cjpos, cjpres, cjspd
 
 
@@ -471,10 +487,20 @@ def rayleighSpeed(p1, v1, p2, v2):
 def shockhugoniot(v2, p1=1e23, v1=0.02, g1=1.6666, g2=1.6666):
     """returns the huigoniot adiabat pressure corresponding to a
     given specific volume while passing through a set point (v1,p1)."""
-    g1fac = g1*v1/(g1-1)
-    g2fac = g2*v2/(g2-1)
+    g1fac = g1*v1/(g1-1.0)
+    g2fac = g2*v2/(g2-1.0)
     var = 0.5*(v1+v2)
     return p1*(g1fac-var)/(g2fac-var)
+
+
+def shockhugoniot_eint(v2, p1=1e23, v1=0.02, eint1=1e17, eint2=1e18):
+    """returns the huigoniot adiabat pressure corresponding to a
+    given specific volume while passing through a set point (v1,p1).
+    using eint
+    eint2-eint2 = 1/2 (p1+p2)(v1+v2)
+    """
+    p2 = 2.0*(eint2-eint1)/(v1+v2)-p1
+    return p2
 
 
 def rayleigh(v2, p1=1e23, v1=0.02, speed=1e5):

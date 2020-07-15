@@ -60,6 +60,7 @@ class simulation(object):
         self.runtime = sum(deltas, datetime.timedelta(0))
         self.irlstep = np.mean(deltas[:-1])
 
+        log.debug("Adding otp files")
         # Add qsub output and error (.o, .e files)
         glob = os.path.basename(name) + '.o'
         self.otpfiles = getFileList(folder, glob=glob, fullpath=True)
@@ -70,8 +71,10 @@ class simulation(object):
             for f in self.otpfiles:
                 try:  # skip any non-typical otp
                     self.addOtp(f)
+                    log.debug("Added {}".format(os.path.basename(f)))
                 except IndexError:
                     continue
+                    log.debug("Skipped {}".format(os.path.basename(f)))
 
         # CJ file (if any)
         glob = 'shockDetect_'  # cj output parsing (specific .dat files)
@@ -108,7 +111,6 @@ class simulation(object):
             return np.array([getattr(t, which)
                              for t in getattr(self, src)])
 
-
     def printStepProps(self):
         """print all keys available to the steps."""
         selfnamelist = ['steps', 'refs', 'chkp']
@@ -116,7 +118,6 @@ class simulation(object):
             all = getattr(self, sname)
             print(sname, len(all))
             print(all[0].__dict__.keys())
-
 
     def standardizeGeometry(self, verbose=False):
         """convert hdf5 files from cylindrical to cartesian."""
@@ -308,14 +309,17 @@ def readLogAndStats(logfile, statsfile):
     """
     # read log data
     rsteps, skips, refs, chkps, header, timings = readLog(logfile)
-    log.debug("finished reading {}".format(logfile))    
+    log.debug("finished reading {}".format(logfile))
+    log.debug("Steps from f.log: {}".format(len(rsteps)))
     # read stats data and remove pre-restart values
-    data = np.genfromtxt(statsfile, names=True)  # this skips # lines
+    data = np.genfromtxt(statsfile, names=True)
+    log.debug("Steps from s.dat: {}".format(data.shape[0]))
     for att in data.dtype.names:
         # remove repeated steps detected in run.log from the stats data rows
         purgedAtt = np.delete(data[att], skips)
         for step, p in zip(rsteps, purgedAtt):
             setattr(step, att, p)
+    log.debug("Steps after purge: {}".format(len(purgedAtt)))
     log.debug("Stats read and removed repeated steps.")
     return rsteps, refs, chkps, header, timings
 
@@ -351,11 +355,11 @@ def readLog(logfile):
     timings = ['\n'.join(t) for t in timings]
     # log steps
     steps = [stepBreakdown(sline) for sline in getLines(logfile, 'step: ')]
+    log.debug(".readLog: initial read steps: {}".format(len(steps)))
     realsteps, removedrows = clearRestarts(steps)
-
+    log.debug(".readLog: 'realsteps': {}".format(len(realsteps)))
     tstamps = np.array([step.timestamp for step in steps])
     zero = datetime.timedelta(0)
-
     # add mpi ranks and number of restart
     cues, mpis = restartBreakdown(logfile)
     for i, s in enumerate(cues):
@@ -534,17 +538,16 @@ def clearRestarts(steps):
     skipmask = np.append(checkdelt, 1)
     restartpos = np.where(checkdelt != 1)[0]  # get restart positions
     repsteps = abs(checkdelt[restartpos])+1  # get wasted steps
-    if repsteps.any():
+    
+    if repsteps.size > 0:
         remsteps = []
         for pos, reps in zip(restartpos, repsteps):
             rr = int(reps)
             skipmask[pos-rr+1:pos+1] = 5  # any value greater than one
-            for i in range(int(reps)):
+            for i in range(rr):
                 remsteps.append(pos-i)
-        realmask = np.where(skipmask > 1)
-        realsteps = np.array(steps)[realmask[0]]
-        # this method is incredibly slow for large skipped steps
-        #  realsteps = [st for i, st in enumerate(steps) if i not in remsteps]
+        realmask = np.where(skipmask == 1)[0]
+        realsteps = np.array(steps)[realmask]
         return list(realsteps), remsteps
     else:
         return steps, []
@@ -553,13 +556,10 @@ def clearRestarts(steps):
 def restartBreakdown(logfile):
     lines = getLines(logfile, 'FLASH log file')
     startfmt = 'FLASH log file:  %m-%d-%Y  %H:%M:%S.%f    '
-#     lines = getLines(logfile, 'FLASH run complete')
-#     endfmt = '[ %m-%d-%Y  %H:%M:%S.%f '
     mpistrs = getLines(logfile, 'Number of MPI tasks')
     cues, mpis = [], []
     for input, mpistr in zip(lines, mpistrs):
         cue = datetime.datetime.strptime(input.split('Run')[0], startfmt)
-#         cue = datetime.datetime.strptime(input.split(']')[0], endfmt)
         mpinum = int(mpistr.split()[-1])
         cues.append(cue)
         mpis.append(mpinum)
@@ -624,6 +624,9 @@ def refBreakdown(refBlock):
         lmin, lmax, ltot = [int(x) for i, x in enumerate(blockstr.split())
                             if i in leafbstencil]
     except IndexError:
+        log.debug("ref block numbers fail: \n{}".format('\n'.join(refBlock)))
+        min, max, tot, lmin, lmax, ltot = 1, 2, 3, 4, 5, 6
+    except ValueError:
         log.debug("ref block numbers fail: \n{}".format('\n'.join(refBlock)))
         min, max, tot, lmin, lmax, ltot = 1, 2, 3, 4, 5, 6
     return tstamp, min, max, tot, lmin, lmax, ltot

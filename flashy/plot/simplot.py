@@ -27,7 +27,6 @@ def plotNetwork(sim, dpi=100, step=7, aspect=1.0, cmap='Blues'):
     ax.xaxis.tick_top()
     for side in ['bottom', 'right', 'top', 'left']:
         ax.spines[side].set_visible(False)
-#     f.tight_layout()
     return f
 
 
@@ -178,38 +177,47 @@ def plotIRLsteps(sim, sigma=15.0, checkpoints=False):
                 handle_list.append(handle)
                 label_list.append(label)
         ax.legend(handle_list, label_list)
-#     ax.xaxis.set_major_formatter(StrMethodFormatter('{x:.2f}'))
     ax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
     ax.set_ylabel('Step size (s)')
     ax.set_xlabel('MJD')
     return f
 
 
-def plotImprint(sim, pePerNode=6, rollAvgStep=80, skipminmax=False):
+def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
     """plot all block data alongside ranks, timesteps and submit number 
     for all the simtime achieved by the simulation.
-    
+
     Args:
         sim(flashy.simulation): simulation object to probe.
         pePerNode(int): ranks per node on machine.
-        rollAvgStep(int): width of cell averaging for timesteps.
-        
+        rollAvgStep(int): width of cell averaging for timesteps
+            (1 plots by step number instead of time).
+        dpi(int): dpi of figure returned.
+        blkprank(int): max blocks per rank (sets ylim of lower plot).
+
     Returns:
         (mpl.figure)
-    
+
     """
     legdict = { 'ncol':1, 'loc':'upper left', 'columnspacing':0.0,
-               'labelspacing':0.1, 'numpoints':3, 'handletextpad':0.2,
-               'bbox_to_anchor':(1.02, 1.0)}
+               'labelspacing':0.1, 'numpoints':2, 'handletextpad':0.2,
+               'bbox_to_anchor': (1.0, 1.02)}
     totblk = homologateRefsToBulk(sim, 'totblocks')
     minblk = homologateRefsToBulk(sim, 'minblocks')
     maxblk = homologateRefsToBulk(sim, 'maxblocks')
     tsteps = [s.total_seconds() for s in sim.getStepProp('irldelta')]
     subs = sim.getStepProp('submit_number')
     PE = sim.getStepProp('mpi_ranks')
-    N = sim.getStepProp('n')
-    wallsteps = rollingAverage(tsteps, step=rollAvgStep)
+    if rollAvgStep==1:
+        time = sim.getStepProp('n')
+        xlab = 'Simulation Step (N)'
+        wallsteps = rollingAverage(tsteps, step=1)
+    else:
+        time = sim.getStepProp('t')
+        xlab = 'Simulation Time (s)'
+        wallsteps = rollingAverage(tsteps, step=rollAvgStep)
     totalwall = np.sum(wallsteps)/3600
+    dt = 1e3*sim.getStepProp('dt')  # milliseconds
     nodes = PE/pePerNode
     cost = 0
     for subnum in np.unique(subs):
@@ -217,59 +225,38 @@ def plotImprint(sim, pePerNode=6, rollAvgStep=80, skipminmax=False):
         walltime = np.sum(wallsteps[mask])
         nodes = np.unique(PE[mask])[0]/pePerNode
         cost += walltime*nodes/3600
-    time = sim.getStepProp('t')
-    f, a = plt.subplots()
-    a.semilogy(time, totblk, label='total Blk')
-    if not skipminmax:
-        a.semilogy(time, minblk, label='min Blk')
-        a.semilogy(time, maxblk, label='max Blk')
-    a.semilogy(time, subs, label='submit #')
-    a.semilogy(time, PE, label='ranks')
-    a.semilogy(time, N, label='step #')
-    a.semilogy(time, wallsteps, label='IRL tstep')
-    a.set_ylabel('Blocks, PE, Walltime/step, submits')
-    a.set_xlabel('Simulation Time (s)')
-    tfmt = 'IRL (h): {:.2f}, Subs: {:d}, Node hours: {:.2f}'
-    a.legend(**legdict)
-    stub = a.set_title(tfmt.format(totalwall, subs[-1], cost))
-    f.tight_layout()
-    return f
-
-
-def plotBlockUse(sim, range=[0, 0]):
-    """build a figure with requested blocks vs evolution time.
-
-    Args:
-        sim(simulation): target simulation object.
-        cutoff(int): plots data beyond cutoff (data[cutoff:]).
-
-    Returns:
-        (mpl.figure)
-
-    """
-    times = sim.getStepProp('t', range=range, src='refs')
-    blocks = sim.getStepProp('totblocks', range=range, src='refs')
-    minblk = sim.getStepProp('minblocks', range=range, src='refs')
-    maxblk = sim.getStepProp('maxblocks', range=range, src='refs')
-    f = plt.figure()
+    # find max number for limits of plot
+    lims = [np.max(dt), np.max(PE/100), np.max(wallsteps), np.max(subs)]
+    top = 1.2*np.max(lims)
+    f = plt.figure(dpi=dpi)
     layout = (3, 1)
-    totax = plt.subplot2grid(layout, (0, 0), rowspan=2)
-    if np.max(blocks)/np.min(blocks) < 10.0:
-        totax.semilogx(times, blocks, c='k', label='total')
-    else:
-        totax.loglog(times, blocks, c='k', label='total')
-    totax.set_ylabel('Blocks')
-    stub = [tick.set_visible(False) for tick in totax.get_xticklabels()]
-    stub = [tick.set_visible(False)
-            for tick in totax.get_xticklabels(minor=True)]
-    totax.legend()
-    othax = plt.subplot2grid(layout, (2, 0), sharex=totax)
-    othax.semilogx(times, maxblk, c='r', label='max')
-    othax.semilogx(times, minblk, c='b', label='min')
-    othax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
-    othax.set_ylabel('Blocks')
-    othax.set_xlabel('Time (s)')
-    # othax.legend()
+    # main properties
+    mainx = plt.subplot2grid(layout, (0, 0), rowspan=2)
+    mainx.semilogy(time, subs, label='sub#')
+    mainx.semilogy(time, PE/100, label=u'PE($10^2$)')
+    mainx.semilogy(time, dt, label=u'tstep(ms)')
+    mainx.semilogy(time, wallsteps, label=u'IRL(s)')
+    mainx.set_ylabel(u'(ms, s, unitless)')
+    mainx.set_ylim([3e-3, top])
+    plt.setp(mainx.get_xticklabels(), visible=False)
+    mainx.legend(**legdict)
+    pc = mainx._get_lines.prop_cycler
+    # blocks
+    blkax = plt.subplot2grid(layout, (2, 0), sharex=mainx, rowspan=2)
+    blkax.plot(time, minblk, label='min', color=next(pc)['color'])
+    blkax.plot(time, maxblk, label='max', color=next(pc)['color'])
+    fac = 2 if np.max(totblk) < 1e3 else 3
+    flab = u'Tot($10^{:d}$)'.format(fac)
+    blkax.plot(time, totblk/10**fac, label=flab, color=next(pc)['color'])
+    blkax.set_ylim([-20, blkprank])
+    blkax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
+    blkax.set_ylabel('Blocks')
+    blkax.set_xlabel(xlab)
+    blkax.legend(**legdict)
+    tfmt = 'IRL(h):{:.2f},Subs:{:d},Node h:{:.2f}'
+    stub = mainx.set_title(tfmt.format(totalwall, subs[-1], cost))
+    f.tight_layout()
+    f.subplots_adjust(hspace=0.0)
     return f
 
 
@@ -511,5 +498,3 @@ def rollingAverage(stat, step=5):
     # reset last entries with the last 'averageable' number
     roll[-step:] = roll[-step]
     return roll
-
-
