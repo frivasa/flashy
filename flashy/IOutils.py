@@ -602,3 +602,29 @@ def emptyFileTree(stemfolder):
     path = os.path.abspath(root)
     shutil.rmtree(path)
     os.makedirs(path)
+
+
+def setFolders(fpath, filetag):
+    """Builds folders according to a given filepath.
+    Goes back a folder and creates a new one named 'filetag'
+    "/path/to/file/_chkfolder/checkpoint_0001"
+    > num = 0001
+    > dest = /path/to/file/filetag/
+    > name = dest+filetag_num
+
+    Args:
+        fpath(str): filepath.
+        filetag(str): prefix for output file.
+
+    Returns:
+        (str): destination path of the file.
+        (str): file suffix number.
+        (str): output filename with no extension.
+
+    """
+    num = fpath[-4:]  # checkpoint number 'flash_hdf5_chk_0001'
+    basedest = os.path.dirname(os.path.dirname(fpath))
+    dest = os.path.join(basedest, filetag)
+    name = os.path.join(dest, '{}_{}'.format(filetag, num))
+    os.makedirs(dest, exist_ok=True)  # bless you, p3
+    return dest, int(num), name

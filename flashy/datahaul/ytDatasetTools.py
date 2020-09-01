@@ -3,17 +3,18 @@ from flashy.utils import np
 from flashy.IOutils import os
 from .hdf5yt import getFields
 
+
 def get_plotTitles(ds, comment='', extras={}):
     """builds a pair or strings with information from the run.
     Namely the match radius and size, resolution of the grid,
     number of species, timestamp and profile used
-    
+
     Args:
         ds(yt.dataset): loaded yt dataset.
 
     Returns:
         (str list): two axes titles for figure.
-    
+
     """
     # match size and location radius
     mrad = ds.parameters['x_match']**2
@@ -36,7 +37,7 @@ def get_plotTitles(ds, comment='', extras={}):
     datb += "Match(radius):{:5.0f}({:2.0f})km\n".format(mrad, msize)
     datb += "Species: {:16d}".format(len(sps))
     # add time and max speed
-    datb2 = comment +'\n'
+    datb2 = comment + '\n'
     datb2 += "Time: {:1.7f} s\n".format(float(ds.current_time))
     if 'maxspeed' in extras:
         datb2 += "Max Speed: {:11.0f} km/s".format(extras['maxspeed']/1e5)

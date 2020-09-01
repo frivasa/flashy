@@ -15,7 +15,7 @@ from ..datahaul.hdfdirect import directMeta, getBlockLineout
 def flash_elementalYields(fname, tag='elem_solar', yrange=[-3, 15],
                           norm='Si', offset=6, batch=False):
     """plots decayed elemental yields from a checkpoint vs sun.
-    
+
     Args:
         fname(str): filename path.
         tag(str): output tag.
@@ -141,17 +141,17 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
     return fig
 
 
-def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0,70],
+def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0, 70],
                         compdir='sun', thresh=1e-5, batch=False):
     """plots all nuclide yields in a checkpoint vs sun or any other
     simulation specified by its runfolder.
-    
+
     Args:
         fname(str): filename path.
         tag(str): output tag.
         xrange(int list): nuclear mass range.
         compdir(str): comparison run chekpoint path.
-        thresh(float): mass threshold for plot. 
+        thresh(float): mass threshold for plot.
         batch(bool): write to file toggle.
 
     Returns:
@@ -170,7 +170,7 @@ def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0,70],
     plabels.append(plotIsoMasses(ax, ryield, notag=False,
                                  ylims=[thresh, 1.0],
                                  label=title, color='k'))
-    if compdir=='sun':
+    if compdir == 'sun':
         ryield = readIsotopicSolar()
         plabels.append(plotIsoMasses(ax, ryield, notag=False,
                                      ylims=[thresh, 1.0], label='AGSS09',
@@ -189,9 +189,9 @@ def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0,70],
     ax.set_xlim(xrange)
     ax.set_ylim([thresh, 2])
     ax.set_title("{:.5f} s".format(time), loc='left')
-    legdict = { 'ncol':1, 'loc':'upper right', 'columnspacing':0.0,
-           'labelspacing':0.1, 'numpoints':3, 'handletextpad':0.2,
-           'bbox_to_anchor':(1.0, 1.15)}
+    legdict = {'ncol': 1, 'loc': 'upper right', 'columnspacing': 0.0,
+               'labelspacing': 0.1, 'numpoints': 3, 'handletextpad': 0.2,
+               'bbox_to_anchor': (1.0, 1.15)}
     lg = ax.legend(*zip(*plabels), **legdict)
     if batch:
         writeFig(fig, fname, tag)

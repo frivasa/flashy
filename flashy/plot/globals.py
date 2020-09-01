@@ -1,4 +1,4 @@
-from ..IOutils import (os, sys, log, io)
+from ..IOutils import (os, sys, log, io, setFolders)
 from ..utils import np, reformatTag
 import pkg_resources
 from cycler import cycler
@@ -96,19 +96,20 @@ def writeFig(fig, fpath, filetag, meta=''):
         (str): file suffix number.
 
     """
-    num = fpath[-4:]  # checkpoint number 'flash_hdf5_chk_0001'
-    basedest = os.path.dirname(os.path.dirname(fpath))
-    dest = os.path.join(basedest, filetag)
-    name = os.path.join(dest, '{}_{}'.format(filetag, num))
-    os.makedirs(dest, exist_ok=True)  # bless you, p3
-    plt.savefig(name+'.png', format='png')
+#     num = fpath[-4:]  # checkpoint number 'flash_hdf5_chk_0001'
+#     basedest = os.path.dirname(os.path.dirname(fpath))
+#     dest = os.path.join(basedest, filetag)
+#     name = os.path.join(dest, '{}_{}'.format(filetag, num))
+#     os.makedirs(dest, exist_ok=True)  # bless you, p3
+    dest, num, name = setFolders(fpath, filetag)
+    plt.savefig(name + '.png', format='png')
     plt.close(fig)
-    print("Wrote: {}".format(name+'.png'))
+    print("Wrote: {}".format(name + '.png'))
     if meta:
-        with open(name+'.meta', 'w') as f:
+        with open(name + '.meta', 'w') as f:
             f.write(meta)
-        print("Wrote: {}".format(name+'.meta'))
-    return dest, int(num)
+        print("Wrote: {}".format(name + '.meta'))
+    return dest, num
 
 
 # hex/rgb handler from Ben Southgate:
@@ -160,3 +161,12 @@ def linear_gradient(start_hex, finish_hex="#FFFFFF", n=10):
         RGB_list.append(curr_vector)
 
     return color_dict(RGB_list)
+
+
+def resizeText(ax, size=10):
+    labels = [ax.title, ax.xaxis.label, ax.yaxis.label]
+    labels += [ax.xaxis.offsetText, ax.yaxis.offsetText]
+    labels += ax.get_xticklabels()
+    labels += ax.get_yticklabels()
+    for item in (labels):
+        item.set_fontsize(size)

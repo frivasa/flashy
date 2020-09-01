@@ -224,7 +224,7 @@ class parameterGroup(object):
                [float(m) for m in maxs]
 
     def probeSimulation(self, frac=0.4, forcePEs=0, verbose=True):
-        """returns metadata from simulation and extents as a block of 
+        """returns metadata from simulation and extents as a block of
         strings.
 
         Args:
@@ -350,7 +350,7 @@ class parameterGroup(object):
         code.append('cd {}'.format(runf))
         code.append('cp {} .'.format(os.path.join(auxf, 'flash.par')))
         args = machine, proj, time, nodes, ompth, os.path.join(runf, auxf)
-        launcher, scheduler, ext, schedulercode = getMachineSubJob(*args, 
+        launcher, scheduler, ext, schedulercode = getMachineSubJob(*args,
                                                                    **kwargs)
         if ddt:  # only mapping for now
             # go to last imported module (before env vars)
@@ -531,7 +531,7 @@ def stylerTest(value):
 def getMeta(filepath):
     """Infer required properties of the run from runfolder name
     created by the method flashy.setupFLASH.
-    
+
     Args:
         filepath(str): /path/to/code/folder.
 
@@ -540,7 +540,7 @@ def getMeta(filepath):
             'cdxpath': structured code folder path,
             'code':(0,1,2)=(params, defaults, both),
             'default' (0,1)=(is this file a defaults file),
-            'network', 'geometry', 'cells', 'maxblocks': 
+            'network', 'geometry', 'cells', 'maxblocks':
                 parameters inferred from filepath.
 
     """
@@ -621,7 +621,7 @@ def getEssential(dim):
     """Returns parsed names for essential parameters in a simulation.
     Bleeding edge of inference here, careful with changing order of
     variables...
-    
+
     Args:
         dim(int): 1, 2, or 3.
     Returns:

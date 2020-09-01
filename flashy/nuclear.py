@@ -164,7 +164,7 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
     weighting by solar system abundance percentages.
     It is assumed species have decayed to comparable species
     in the solar neighborhood.
-    
+
     Args:
         mdict(dict):
         norm(str): abundance reference.
@@ -173,7 +173,7 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
     Returns:
         (int list, str list, float list):
             Atomic numbers, Element names, Abundances
-    
+
     """
     percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
     names, percs = zip(*percdata)

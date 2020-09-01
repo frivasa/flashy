@@ -10,6 +10,7 @@ import plotly.graph_objs as gob
 from plotly.offline import (download_plotlyjs, init_notebook_mode, iplot)
 _foe = 1.0e51
 
+
 def plotNetwork(sim, dpi=100, step=7, aspect=1.0, cmap='Blues'):
     """build a figure with enabled rates in a network."""
     if not sim.netpath:
@@ -184,7 +185,7 @@ def plotIRLsteps(sim, sigma=15.0, checkpoints=False):
 
 
 def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
-    """plot all block data alongside ranks, timesteps and submit number 
+    """plot all block data alongside ranks, timesteps and submit number
     for all the simtime achieved by the simulation.
 
     Args:
@@ -199,8 +200,8 @@ def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
         (mpl.figure)
 
     """
-    legdict = { 'ncol':1, 'loc':'upper left', 'columnspacing':0.0,
-               'labelspacing':0.1, 'numpoints':2, 'handletextpad':0.2,
+    legdict = {'ncol': 1, 'loc': 'upper left', 'columnspacing': 0.0,
+               'labelspacing': 0.1, 'numpoints': 2, 'handletextpad': 0.2,
                'bbox_to_anchor': (1.0, 1.02)}
     totblk = homologateRefsToBulk(sim, 'totblocks')
     minblk = homologateRefsToBulk(sim, 'minblocks')
@@ -208,7 +209,7 @@ def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
     tsteps = [s.total_seconds() for s in sim.getStepProp('irldelta')]
     subs = sim.getStepProp('submit_number')
     PE = sim.getStepProp('mpi_ranks')
-    if rollAvgStep==1:
+    if rollAvgStep == 1:
         time = sim.getStepProp('n')
         xlab = 'Simulation Step (N)'
         wallsteps = rollingAverage(tsteps, step=1)
@@ -243,12 +244,20 @@ def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
     pc = mainx._get_lines.prop_cycler
     # blocks
     blkax = plt.subplot2grid(layout, (2, 0), sharex=mainx, rowspan=2)
-    blkax.plot(time, minblk, label='min', color=next(pc)['color'])
-    blkax.plot(time, maxblk, label='max', color=next(pc)['color'])
     fac = 2 if np.max(totblk) < 1e3 else 3
     flab = u'Tot($10^{:d}$)'.format(fac)
-    blkax.plot(time, totblk/10**fac, label=flab, color=next(pc)['color'])
-    blkax.set_ylim([-20, blkprank])
+    if np.min(minblk) != 0:
+        blkax.semilogy(time, minblk, label='min', color=next(pc)['color'])
+        blkax.semilogy(time, maxblk, label='max', color=next(pc)['color'])
+        totblk /= 10**fac
+        blkax.semilogy(time, totblk, label=flab, color=next(pc)['color'])
+        # -5: space for tot blocks when scaled
+        blkax.set_ylim([np.min(minblk)-5, blkprank])
+    else:
+        blkax.plot(time, minblk, label='min', color=next(pc)['color'])
+        blkax.plot(time, maxblk, label='max', color=next(pc)['color'])
+        blkax.plot(time, totblk/10**fac, label=flab, color=next(pc)['color'])
+        blkax.set_ylim([-20, blkprank])
     blkax.yaxis.set_major_formatter(StrMethodFormatter('{x:.0f}'))
     blkax.set_ylabel('Blocks')
     blkax.set_xlabel(xlab)

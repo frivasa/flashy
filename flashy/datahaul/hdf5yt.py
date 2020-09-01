@@ -1,7 +1,7 @@
 import yt
 from yt.utilities.exceptions import YTFieldNotFound
 from flashy.utils import np, getBearing, byMass, rot
-from flashy.IOutils import log
+from flashy.IOutils import log, setFolders
 from flashy.nuclear import sortNuclides, msol
 import flashy.datahaul.ytfields as ytf
 # avoid yt warnings
@@ -444,3 +444,59 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
         for f in fields:
             rawd.append(wedge[f].value)
         return rawd
+
+
+def getPointData(file, posx, posy):
+    """get data from a single cell in a file to track.
+    otpn: pointTrack
+
+    Args:
+        file(str): filepath.
+        posx(float): x-axis position.
+        posy(float): y-axis position.
+
+    """
+    ds = yt.load(file)
+    # read in custom fields
+    cfl = ['speed', 'soundspeed', 'fermiDeg']
+    for f in cfl:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+    ad = ds.all_data()
+    cellsize = np.min(ad['dx'].v)
+    sp = ds.sphere([posx, posy, 0.0], cellsize)
+    flds, sps = getFields(ds.field_list)
+    sps = [s.ljust(4) for s in sps]
+    qu = sp.quantities
+    ffl = ['x', 'y', 'cell_volume', 'cell_mass', 'sound_speed',
+           'courant_time_step', 'dynamical_time',
+           'path_element_x', 'path_element_y']
+    allf = ffl + cfl + flds + sps
+    # there's only one cell so min/max is irrelevant, nor the field queried
+    vals = qu.sample_at_max_field_values('dens', sample_fields=allf)
+    vals = [x.v for x in vals[1:]]  # drop the first value (repeated)
+    # write all data from the cell to file
+    # use radius as an alias for time so that datamatrix works
+    # change x and y to posx posy again so that dm wont take them as n or p.
+    allf[0] = 'posx'
+    allf[1] = 'posy'
+    metatxt = ['# radius {}'.format(' '.join(allf))]
+    parsedvals = ['{:.8E}'.format(float(ds.current_time))]
+    parsedvals += ['{:.8E}'.format(x) for x in vals]
+    metatxt.append(' '.join(parsedvals))
+
+    dest, num, name = setFolders(file, 'pointTrack')
+    with open(name + '.meta', 'w') as f:
+        f.write('\n'.join(metatxt))
+    print("Wrote: {}".format(name + '.meta'))
+
+    # get cell masses
+    # log.warning('Assuming cylindrical slice')
+    # dx = data['path_element_x']
+    # dy = data['path_element_y']
+    # r = data['x']
+    # cylvol = 2.0*np.pi*dy*dx*r
+    # cell_masses = cylvol*data['dens']
+    # print('cell masses (calculated <> data)', cell_masses, data['cell_mass'])
+    # print('cell volume (calculated <> data)', cylvol, data['cell_volume'])

@@ -17,7 +17,7 @@ class dataMatrix(object):
     to handle the data block. after row 3 any comment is
     allowed (# marked).
     Essential columns: radius and density.
-    Anything with a number becomes a species.
+    Any tag with a number becomes a species.
 
     # col names
     length of data(rows int)

@@ -52,7 +52,7 @@ class simulation(object):
         except Exception as e:
             log.critical('No steps set.', exc_info=True)
             self.steps, self.header, self.timings = [], [], []
-        
+
         log.debug("Setting up time deltas")
         self.time = self.getStepProp('t')
         addIRLdeltas(self.steps)
@@ -342,7 +342,7 @@ def readLog(logfile):
         (sim.steps): refinement step list.
         (sim.steps): checkpoint step list.
         (str): first header found in log file.
-        (str list): all timing blocks found in log file.  
+        (str list): all timing blocks found in log file.
 
     """
     # get first header from title to the first logged step
@@ -373,7 +373,7 @@ def readLog(logfile):
         for st in stencil:
             setattr(steps[st], 'submit_number', i + 1)
             setattr(steps[st], 'mpi_ranks', mpis[i])
-    
+
     # refinement data
     refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
     refdata = [refBreakdown(rfb) for rfb in blockGenerator(refinementLines)]
@@ -402,7 +402,7 @@ def readLog(logfile):
         for t, v in zip(tags, refdata[i][1:]):
             setattr(ref, t, v)
         refs.append(ref)
-    
+
     # checkpoint/plotfile timestamps
     chkLs = getLines(logfile, "[IO_write")
     chkdata = [chkBreakdown(rfb) for rfb in blockGenerator(chkLs, step=4)]
@@ -419,7 +419,7 @@ def readLog(logfile):
 def addIRLdeltas(steps):
     """calculate walltime deltas between timesteps
     accounting for resubmits.
-    
+
     Args:
         steps(sim.step list): simulation log steps.
 
@@ -538,7 +538,7 @@ def clearRestarts(steps):
     skipmask = np.append(checkdelt, 1)
     restartpos = np.where(checkdelt != 1)[0]  # get restart positions
     repsteps = abs(checkdelt[restartpos])+1  # get wasted steps
-    
+
     if repsteps.size > 0:
         remsteps = []
         for pos, reps in zip(restartpos, repsteps):

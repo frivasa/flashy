@@ -23,6 +23,7 @@ Rg = gas_constant
 
 def byMass(radii, dens):
     """Returns a mass abscissa for plots.
+    WARNING: ASSUMES SPHERICAL SYMMETRY
 
     Args:
         radii (list of float): cell edge radii.

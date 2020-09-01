@@ -55,7 +55,7 @@ def getBlockLineout(file):
         data = finn[s.ljust(4)]
         mfracs.append(data.value.item())
     for b in bulk:
-        if len(b)<4:
+        if len(b) < 4:
             data = finn[b.ljust(4)]
         else:
             data = finn[b]
@@ -246,7 +246,7 @@ def buildBlockBurnFile(folders, output):
     t, props, species, spvalues = getBlockLineout(files[0])
     head = '#time '
     head += ' '.join(list(props.keys()))
-    head += ' '+ ' '.join(species)
+    head += ' ' + ' '.join(species)
     with open(output, 'w') as f:
         f.write(head + '\n')
         for file in files:

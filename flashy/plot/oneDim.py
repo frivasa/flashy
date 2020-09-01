@@ -836,7 +836,7 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     return fig
 
 
-def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4,
+def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, log=True,
                 plotall=False, alpha=1.0, marker=False):
     """draws species from a profile object.
 
@@ -845,6 +845,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4,
         dmatr(dataMatrix): profile object to extract data.
         byMass(bool): plot by Mass or radius (toggle).
         thresh(float): lower bound for plot.
+        log(bool): x-axis log toggle.
         marker(bool): draw points in graph.
 
     """
@@ -860,7 +861,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4,
     if plotall:
         for s in dmatr.species:
             line = simplePlot(ax, dmatr, absc, s, marker=mark,
-                              log=True, alpha=alpha)
+                              log=log, alpha=alpha)
             line[0].set_label(s)
     else:
         for i, s in enumerate(dmatr.species):
@@ -872,7 +873,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4,
                 tag = '$^{{{}}}{}$'.format(*elemSplit(s, invert=True))
                 line = simplePlot(ax, dmatr, absc, s,
                                   marker=mark,
-                                  log=True, color=props['color'],
+                                  log=log, color=props['color'],
                                   ls=props['linestyle'], alpha=alpha)
                 line[0].set_label(tag)
     l = ax.set_ylabel('$X_i$')

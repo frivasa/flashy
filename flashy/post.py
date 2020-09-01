@@ -281,7 +281,6 @@ def getNewtonCJ(fname, inward=False, width=0.8, **kwargs):
         matchhead position, time.
 
     """
-    # print('check newtonCJ')
     pos, dens, pres, gamc, cjest, pm, time = getShockConditions(fname,
                                                                 addvar='gamc',
                                                                 inward=inward,
@@ -317,13 +316,13 @@ def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam,
         (float tuple): specific volume, pressure, CJVelocity.
 
     """
-    miniu = minimize(x0=cjest/2, tol=1e-14, 
+    miniu = minimize(x0=cjest, tol=1e-14,
                      fun=lambda x: diffHRupper(x, ph=fuelp, vh=fuelv,
                                                gh1=fgam, gh2=agam,
                                                pr=ashp, vr=ashv,
                                                env=[ashv*(1.0-width),
                                                     ashv*(1.0+width)]))
-    minil = minimize(x0=cjest/2, tol=1e-14,
+    minil = minimize(x0=cjest, tol=1e-14,
                      fun=lambda x: diffHRlower(x, ph=fuelp, vh=fuelv,
                                                gh1=fgam, gh2=agam,
                                                pr=ashp, vr=ashv,
@@ -340,8 +339,6 @@ def newtonCJ(cjest, fuelv, fuelp, fgam, ashv, ashp, agam,
     # nus are too small, so they break the rayleigh calculation
     # either that or the speed is unphysical, thus pathologic.
     if ashv - cjpos < 0:
-#         print('dnu<0')
-#         cjspd = 0.5*(cjspdu + cjspdl)
         cjspd = rayleighSpeed(fuelp, fuelv, cjpres, cjpos)
     else:
         cjspd = rayleighSpeed(ashp, ashv, cjpres, cjpos)
