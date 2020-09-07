@@ -1,4 +1,4 @@
-from .utils import np
+from .utils import np, pd
 from .IOutils import os, log, getFileList, rename, _cdxfolder, _metaname
 from .IOutils import blockGenerator, getLines, getBlock, getRepeatedBlocks
 import datetime
@@ -147,35 +147,50 @@ class simulation(object):
         avg = np.mean(ts)
         return low, high, avg
 
+
     def addOtp(self, filename):
         otpls = getLines(filename, ') |  ')
-        # FLASH magically changes de dts shown in the otp
-        # noticeable by printing a new header line
         dtnames = otpls[0].split('|')[-1]
         dtnames = dtnames.split()
-        dtdict = dict(zip(dtnames, [0.0]*len(dtnames)))
         stags = ['slowx', 'slowy', 'slowz']
-        curdtn = dtnames
+        nums = np.array([step.n for step in self.steps])
+        for i, otpl in enumerate(otpls[1:]):
+            num, dtv, slowc = otpBreakdown(otpl)
+            dtdict = dict(zip(dtnames + stags, dtv + slowc))
+            if not i:
+                loc = np.where((nums-num) == 0)[0]
+                if loc.size > 0:
+                    loc = loc[0]
+                else:
+                    # this should be the last step which has no
+                    # corresponding log step
+                    continue
+            target = self.steps[loc]
+            for t, v in dtdict.items():
+                setattr(target, t, v)
+        # finally set first log step to zero (log-otp offset)
+        for t in dtnames+stags:
+            setattr(self.steps[0], t, 0.0)
+
+
+    def addOtp_old(self, filename):
+        otpls = getLines(filename, ') |  ')
+        dtnames = otpls[0].split('|')[-1]
+        dtnames = dtnames.split()
+        stags = ['slowx', 'slowy', 'slowz']
         nums = np.array([step.n for step in self.steps])
         for otpl in otpls[1:]:
-            try:
-                num, dtv, slowc = otpBreakdown(otpl)
-            except ValueError:
-                curdtn = otpl.split('|')[-1]
-                curdtn = curdtn.split()
-                continue
-            valdict = dict(zip(curdtn, dtv))
-            dtdict.update(valdict)
+            num, dtv, slowc = otpBreakdown(otpl)
+            dtdict = dict(zip(dtnames + stags, dtv + slowc))
             loc = np.where((nums-num) == 0)[0]
             if loc.size > 0:
                 loc = loc[0]
             else:
+                print('last step')
                 # this should be the last step which has no
                 # corresponding log step
                 continue
             target = self.steps[loc]
-            for t, v in zip(stags, slowc):
-                setattr(target, t, v)
             for t, v in dtdict.items():
                 setattr(target, t, v)
         # finally set first log step to zero (log-otp offset)
@@ -304,6 +319,30 @@ class simulation(object):
 
 
 def readLogAndStats(logfile, statsfile):
+    """reads both log and stats file,
+    correlating the data to each simulation step.
+    """
+    # read log data
+    rsteps, skips, refs, chkps, header, timings = readLog(logfile)
+    log.debug("finished reading {}".format(logfile))
+    log.debug("Steps from f.log: {}".format(len(rsteps)))
+    # read stats data and remove pre-restart values
+    data = np.genfromtxt(statsfile, names=True)
+    data = np.unique(data, axis=0)
+    print(data.shape[0])
+    print(skips)
+    log.debug("Steps from s.dat: {}".format(data.shape[0]))
+    for att in data.dtype.names:
+        # remove repeated steps detected in run.log from the stats data rows
+        purgedAtt = np.delete(data[att], skips)
+        for step, p in zip(rsteps, purgedAtt):
+            setattr(step, att, p)
+    log.debug("Steps after purge: {}".format(len(purgedAtt)))
+    log.debug("Stats read and removed repeated steps.")
+    return rsteps, refs, chkps, header, timings
+
+
+def readLogAndStats_old(logfile, statsfile):
     """reads both log and stats file,
     correlating the data to each simulation step.
     """

@@ -615,16 +615,16 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
                linear=[False, False], mins=[1e3, 1e8], maxs=[6e6, 2e9],
                linthresh=1e10, fac=8):
     """metaProps clone for debugging, focuses on max enuc, dens, temp
-    minimum fields: 2
+    minimum fields for image: 2
+    probed fields = prbf below
 
-    # meta structure
+    meta file structure:
+    # probed fields:
+    # probed fields
+    # time timedelta
     time timedelta
-    maxdens x y dens temp enuc eint c12 he4 deg
-    mindens x y dens temp enuc eint c12 he4 deg
-    maxtemp x y dens temp enuc eint c12 he4 deg
-    mintemp x y dens temp enuc eint c12 he4 deg
-    maxenuc x y dens temp enuc eint c12 he4 deg
-    minenuc x y dens temp enuc eint c12 he4 deg
+    # value x y extra_named_fields
+    probed fields yield 2 lines each: max and min
 
     Args:
         fname(str): filename to plot.
@@ -655,24 +655,35 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
                     axes_pad=1.2, label_mode="L",
                     share_all=True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
-    metatxt = []
     # check for custom fields and add them to yt.
     for f in fields + ['speed', 'fermiDeg']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
             yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
-    # in situ calculations
+    # build header and tabulate names
+    # main edit chunk
+    filetag = 'debug_plot'
+    # fields to plot in the image and symbols
+    prbf = ['density', 'temperature', 'enuc']
+    signs = ['o', 'v', 's']
+    # sampling values to write
+    samp = ['density', 'temperature', 'enuc', 'eint',
+            'c12 ', 'he4 ', 'fermiDeg']
+    # auto mode
+    metatxt = ['# probed fields:']
+    mline = '# '+ ' '.join(prbf)
+    metatxt.append(mline)
+    mline = '# time delta'
+    metatxt.append(mline)
     delT = ds.parameters['dt']
     mline = '{:.10E} {:.10E}'.format(float(ds.current_time), delT)
+    metatxt.append(mline)
+    mline = '# value x y '+ ' '.join(samp)
     metatxt.append(mline)
     ad = ds.sphere([0.0, 0.0, 0.0], maxradius)
     qu = ad.quantities
 
-    prbf = ['density', 'temperature', 'enuc']
-    signs = ['o', 'v', 's']
     mimark, mxmark = [], []
-    samp = ['density', 'temperature', 'enuc', 'eint',
-            'c12 ', 'he4 ', 'fermiDeg']
     for f in prbf:
         query = qu.max_location(f)
         mv, x, y, z = [v.value for v in query]
@@ -751,7 +762,8 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
-    datb, datb2 = ytt.get_plotTitles(ds, comment='')
+    cmt = u"$\\rho=$O,$T=\\Delta$"
+    datb, datb2 = ytt.get_plotTitles(ds, comment=cmt)
     fig.axes[0].set_title(datb)
     fig.axes[1].set_title(datb2)
     for i, ax in enumerate(fig.axes):
@@ -769,7 +781,6 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
     if not batch:
         return fig
     else:
-        filetag = 'debug_plot'
         writeFig(fig, os.path.join(ds.fullpath, ds.basename),
                  filetag, meta='\n'.join(metatxt))
 
