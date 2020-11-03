@@ -421,7 +421,8 @@ def titanBatch(proj, time, nodes, ompth, otpf, **kwargs):
     return launcher, 'qsub', '.pbs', schedlist
 
 
-def summitBatch(proj, time, nodes, otpf, **kwargs):
+def summitBatch(proj, time, nodes, otpf,
+                defs = {'RSpN': 2, 'mpipRS': 21}, **kwargs):
     """Summit/BSUB submit maker.
     builds a submit.lsf with a typical header, specifying walltime and nodes.
 
@@ -431,12 +432,12 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
         nodes(int): nodes to request.
         smt(int): omp/smt thread number.
         otpf(str): output filename.
+        defs(dict): RSpN (RS per node) and mpipRS (ranks per RS: -a #).
         **kwargs: additional keywords for ad-hoc changes.
 
     """
     Ncores = 42
     Ngpu = 6
-    defs = {'RSpN': 6, 'mpipRS': 1}
     cpRS = int(Ncores/defs['RSpN'])
     cpmpi = int(cpRS/defs['mpipRS'])
     gpupRS = int(Ngpu/defs['RSpN'])
@@ -449,7 +450,7 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
     schedlist.append('#BSUB -P {}'.format(proj))
     schedlist.append('#BSUB -nnodes {}'.format(nodes))
     schedlist.append('#BSUB -W {}'.format(time[:-3]))  # hh:mm without :ss
-    schedlist.append('#BSUB -J {}'.format(os.path.basename(otpf)))
+    schedlist.append('#BSUB -J {}.lsf'.format(os.path.basename(otpf)))
     if 'smt' in kwargs:
         ompth = cpRS/defs['mpipRS']*kwargs['smt']
         schedlist.append('#BSUB -alloc_flags "gpumps smt{}"'.format(smt))
@@ -488,7 +489,7 @@ def summitBatch(proj, time, nodes, otpf, **kwargs):
     schedlist.append('export ROMIO_HINTS={}'.format(romiofile))
     schedlist.append('export OMP_NUM_THREADS={}'.format(int(ompth)))
     schedlist.append('export OMP_SCHEDULE="dynamic"')
-    schedlist.append('export OMP_STACKSIZE="2G"')  # def is 512
+    schedlist.append('export OMP_STACKSIZE="1G"')  # def is 512
     # schedlist.append('export '
     #                  'OMPI_LD_PRELOAD_POSTPEND='
     #                  '/ccs/home/walkup/mpitrace/spectrum_mpi/libmpitrace.so')

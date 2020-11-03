@@ -44,9 +44,10 @@ class simulation(object):
             self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
             self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
 
+        log.debug('Reading metadata')
         # build step data from FLASH output (log and stats)
         try:
-            self.steps, self.refs, self.chkp, self.header, self.timings = \
+            self.steps, self.chkp, self.header, self.timings = \
                 readLogAndStats(os.path.join(name, _logfile),
                                 os.path.join(name, _statsfile))
         except Exception as e:
@@ -55,11 +56,10 @@ class simulation(object):
 
         log.debug("Setting up time deltas")
         self.time = self.getStepProp('t')
-        addIRLdeltas(self.steps)
-        deltas = self.getStepProp('irldelta')
+        deltas = getIRLdeltas(self.steps)
+        self.steps = self.steps.assign(irldelta=pd.Series(deltas))
         self.runtime = sum(deltas, datetime.timedelta(0))
         self.irlstep = np.mean(deltas[:-1])
-
         log.debug("Adding otp files")
         # Add qsub output and error (.o, .e files)
         glob = os.path.basename(name) + '.o'
@@ -68,13 +68,19 @@ class simulation(object):
         self.errfiles = getFileList(folder, glob=glob, fullpath=True)
         # treat files as overwriting addenda to the timesteps
         if self.otpfiles:
-            for f in self.otpfiles:
+            for i, f in enumerate(self.otpfiles):
                 try:  # skip any non-typical otp
-                    self.addOtp(f)
+                    if not i:
+                        self.addOtp(f, init=True)
+                    else:
+                        self.addOtp(f)
                     log.debug("Added {}".format(os.path.basename(f)))
                 except IndexError:
+                    log.debug("Skipped {} (IndexError)".format(os.path.basename(f)))
                     continue
-                    log.debug("Skipped {}".format(os.path.basename(f)))
+                except KeyError:
+                    log.debug("Skipped {} (KeyError)".format(os.path.basename(f)))
+                    continue
 
         # CJ file (if any)
         glob = 'shockDetect_'  # cj output parsing (specific .dat files)
@@ -105,11 +111,9 @@ class simulation(object):
         """
         if sum(range) != 0:
             cut = slice(*range)
-            return np.array([getattr(t, which)
-                             for t in getattr(self, src)[cut]])
+            return np.array(self.steps[which])[cut]
         else:
-            return np.array([getattr(t, which)
-                             for t in getattr(self, src)])
+            return np.array(self.steps[which])
 
     def printStepProps(self):
         """print all keys available to the steps."""
@@ -147,55 +151,31 @@ class simulation(object):
         avg = np.mean(ts)
         return low, high, avg
 
-
-    def addOtp(self, filename):
+    def addOtp(self, filename, init=False):
         otpls = getLines(filename, ') |  ')
         dtnames = otpls[0].split('|')[-1]
         dtnames = dtnames.split()
         stags = ['slowx', 'slowy', 'slowz']
-        nums = np.array([step.n for step in self.steps])
-        for i, otpl in enumerate(otpls[1:]):
-            num, dtv, slowc = otpBreakdown(otpl)
-            dtdict = dict(zip(dtnames + stags, dtv + slowc))
-            if not i:
-                loc = np.where((nums-num) == 0)[0]
-                if loc.size > 0:
-                    loc = loc[0]
-                else:
-                    # this should be the last step which has no
-                    # corresponding log step
-                    continue
-            target = self.steps[loc]
-            for t, v in dtdict.items():
-                setattr(target, t, v)
-        # finally set first log step to zero (log-otp offset)
-        for t in dtnames+stags:
-            setattr(self.steps[0], t, 0.0)
+        tags = stags + dtnames
+        ntags = len(tags) + 3
+        
+        all = otpls[1:]
+        lines = len(all)
+        block = ' '.join(all)
+        chars = '()|,'
+        for c in chars:
+            block = block.replace(c, '')
+        rdat = np.fromstring(block, sep=' ')
+        rdat = rdat.reshape(lines, ntags)
 
+        if init:
+            for t in tags:
+                stub = [0]*len(self.steps.index)
+                self.steps = self.steps.assign(**{t: pd.Series(stub).values})
+        for i, t in enumerate(tags):
+            # log - otp offset is 1 step
+            self.steps.loc[rdat[:, 0]-1, t] = rdat[:, 3 + i]
 
-    def addOtp_old(self, filename):
-        otpls = getLines(filename, ') |  ')
-        dtnames = otpls[0].split('|')[-1]
-        dtnames = dtnames.split()
-        stags = ['slowx', 'slowy', 'slowz']
-        nums = np.array([step.n for step in self.steps])
-        for otpl in otpls[1:]:
-            num, dtv, slowc = otpBreakdown(otpl)
-            dtdict = dict(zip(dtnames + stags, dtv + slowc))
-            loc = np.where((nums-num) == 0)[0]
-            if loc.size > 0:
-                loc = loc[0]
-            else:
-                print('last step')
-                # this should be the last step which has no
-                # corresponding log step
-                continue
-            target = self.steps[loc]
-            for t, v in dtdict.items():
-                setattr(target, t, v)
-        # finally set first log step to zero (log-otp offset)
-        for t in dtnames+stags:
-            setattr(self.steps[0], t, 0.0)
 
     def quickLook(self, retlist=False, refsimtime=0.1,
                   refstep=100, rsets=6, rounding=8):
@@ -238,9 +218,6 @@ class simulation(object):
             info += metalines
         except OSError:
             info.append('No {} for this run.'.format(_metaname))
-        # simulation figure of merit
-        # info += self.getTfom(refsimtime)
-        # info += self.getNfom(refstep)
         if retlist:
             return info
         else:
@@ -323,50 +300,37 @@ def readLogAndStats(logfile, statsfile):
     correlating the data to each simulation step.
     """
     # read log data
-    rsteps, skips, refs, chkps, header, timings = readLog(logfile)
+    rsteps, chkps, header, timings = readLog(logfile)
     log.debug("finished reading {}".format(logfile))
     log.debug("Steps from f.log: {}".format(len(rsteps)))
     # read stats data and remove pre-restart values
     data = np.genfromtxt(statsfile, names=True)
-    data = np.unique(data, axis=0)
-    print(data.shape[0])
-    print(skips)
+    _, rep = np.unique(data['time'], axis=0, return_index=True)
+    data = data[rep]
     log.debug("Steps from s.dat: {}".format(data.shape[0]))
-    for att in data.dtype.names:
-        # remove repeated steps detected in run.log from the stats data rows
-        purgedAtt = np.delete(data[att], skips)
-        for step, p in zip(rsteps, purgedAtt):
-            setattr(step, att, p)
-    log.debug("Steps after purge: {}".format(len(purgedAtt)))
-    log.debug("Stats read and removed repeated steps.")
-    return rsteps, refs, chkps, header, timings
-
-
-def readLogAndStats_old(logfile, statsfile):
-    """reads both log and stats file,
-    correlating the data to each simulation step.
-    """
-    # read log data
-    rsteps, skips, refs, chkps, header, timings = readLog(logfile)
-    log.debug("finished reading {}".format(logfile))
-    log.debug("Steps from f.log: {}".format(len(rsteps)))
-    # read stats data and remove pre-restart values
-    data = np.genfromtxt(statsfile, names=True)
-    log.debug("Steps from s.dat: {}".format(data.shape[0]))
-    for att in data.dtype.names:
-        # remove repeated steps detected in run.log from the stats data rows
-        purgedAtt = np.delete(data[att], skips)
-        for step, p in zip(rsteps, purgedAtt):
-            setattr(step, att, p)
-    log.debug("Steps after purge: {}".format(len(purgedAtt)))
-    log.debug("Stats read and removed repeated steps.")
-    return rsteps, refs, chkps, header, timings
+    log.debug("Joining .log and .dat")
+    diff = len(rsteps) - data.shape[0]
+    if diff > 1:
+        # more steps in log than in stats, fill with zeros
+        log.debug(".log > .dat, filling with zeros.")
+        for name in data.dtype.names:
+            stub = np.append(data[name], [0.0]*diff)
+            rsteps = rsteps.assign(**{name: pd.Series(stub).values})
+    else:
+        # more steps in stats than in log
+        # this is OK when diff is exactly 1:
+        # stats write summary final step which is not in log
+        log.warning(".log < .dat, triming .dat.")
+        for name in data.dtype.names:
+            stub = data[name][:len(rsteps)]
+            rsteps = rsteps.assign(**{name: pd.Series(stub).values})
+    return rsteps, chkps, header, timings
 
 
 def readLog(logfile):
-    """read a flash log file, building step objects,
-    grepping the first header, listing available timings
-    and associating refinements to the steps.
+    """read a flash log file grepping the first header,
+    listing available timings
+    and associating refinements to steps.
     The method used here takes into account for
     repeated timesteps (which happpen after restarts)
     but not for repeated refinements which is likely for failing
@@ -376,7 +340,7 @@ def readLog(logfile):
         logfile(str): filepath to *.log file from flash run.
 
     Return:
-        (sim.steps): every numbered step in the run (no repeated steps).
+        (pd.DataFrame): every numbered step in the run (no repeated steps).
         (int list): removed step indices.
         (sim.steps): refinement step list.
         (sim.steps): checkpoint step list.
@@ -393,57 +357,67 @@ def readLog(logfile):
                                 'LOGFILE_END: FLASH run complete.')
     timings = ['\n'.join(t) for t in timings]
     # log steps
-    steps = [stepBreakdown(sline) for sline in getLines(logfile, 'step: ')]
+    all = getLines(logfile, 'step: ')
+    lines = len(all)
+    chnk = [b.split(']')[0] for b in all]
+    tstamps = []
+    for b in chnk:
+        c = b.strip('[')
+        ts = datetime.datetime.strptime(c, ' %m-%d-%Y %H:%M:%S.%f ')
+        tstamps.append(ts)
+    chnk = [b.split('step: ')[1] for b in all]
+    block = ' '.join(chnk)
+    chars = 'n=td'
+    for c in chars:
+        block = block.replace(c, '')
+    rdat = np.fromstring(block, sep=' ')
+    rdat = rdat.reshape(lines, 3)
+    steps = pd.DataFrame(data=rdat,
+                         index=pd.RangeIndex(lines),
+                         columns=['n', 't', 'dt'])
+    steps = steps.assign(timestamp=pd.Series(tstamps).values)
     log.debug(".readLog: initial read steps: {}".format(len(steps)))
-    realsteps, removedrows = clearRestarts(steps)
-    log.debug(".readLog: 'realsteps': {}".format(len(realsteps)))
-    tstamps = np.array([step.timestamp for step in steps])
-    zero = datetime.timedelta(0)
-    # add mpi ranks and number of restart
+    steps, removedrows = clearRestarts(steps)
+    log.debug(".readLog: cleared steps: {}".format(len(steps)))
+    # add mpi ranks and the number of each restart
     cues, mpis = restartBreakdown(logfile)
     for i, s in enumerate(cues):
         # first submit, change all steps to catch first submit range blindly
         if not i:
-            for step in steps:
-                setattr(step, 'submit_number', i + 1)
-                setattr(step, 'mpi_ranks', mpis[i])
+            stub = [1]*len(steps.index)
+            steps = steps.assign(submit_number=pd.Series(stub).values)
+            stub = [mpis[0]]*len(steps.index)
+            steps = steps.assign(mpi_ranks=pd.Series(stub).values)
             continue
-        stencil = np.where(tstamps-s > zero)[0]
-        for st in stencil:
-            setattr(steps[st], 'submit_number', i + 1)
-            setattr(steps[st], 'mpi_ranks', mpis[i])
-
-    # refinement data
+        mask = steps['timestamp'] > s
+        steps.loc[mask, 'submit_number'] = i + 1
+        steps.loc[mask, 'mpi_ranks'] = mpis[i]
+    log.debug('.readLog: adding refinement')
     refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
-    refdata = [refBreakdown(rfb) for rfb in blockGenerator(refinementLines)]
     tags = ['minblocks', 'maxblocks', 'totblocks',
             'leaf_minblocks', 'leaf_maxblocks', 'leaf_totblocks']
-    # find the simsteps where the refinement took place
-    corr = []
-    reftime = datetime.datetime.now()
-    numreft = np.array([(reftime - rlvl[0]).total_seconds()
-                        for rlvl in refdata])
-    numstept = np.array([(reftime - t).total_seconds() for t in tstamps])
-    for n in numreft:
-        delts = numstept - n
-        pos = np.where(delts > 0.0)[0]
-        if pos.size > 0:
-            corr.append(pos[-1])
-        else:
-            corr.append(0)
-    # group ref-steps with the data from the corresponding simtime steps
-    refs = []
-    for i, c in enumerate(corr):
-        ref = tstep()
-        setattr(ref, 'n', steps[c].n)
-        setattr(ref, 't', steps[c].t)
-        setattr(ref, 'timestamp', steps[c].timestamp)
-        for t, v in zip(tags, refdata[i][1:]):
-            setattr(ref, t, v)
-        refs.append(ref)
-
+    nsteps = len(steps.index)
+    for i, rfb in enumerate(blockGenerator(refinementLines)):
+        tstamp, vals = refBreakdown(rfb)
+        if not i:
+            ddict = {}
+            for j, t in enumerate(tags):
+                ddict[t] = [vals[j]]*nsteps
+        mask = steps['timestamp'] > tstamp
+        try:
+            loc = np.where(mask==True)[0][0]
+        except IndexError:
+            otag = '.readLog: refBreakdown mismatch loc {} vs {} steps'
+            log.debug(otag.format(loc, nsteps))
+        for j, t in enumerate(tags):
+            ddict[t][loc:] = [vals[j]]*(nsteps-loc)
+    for t in tags:
+        steps = steps.assign(**{t: pd.Series(ddict[t]).values})
+    log.debug('.readLog: adding checkpoint write-times')
     # checkpoint/plotfile timestamps
-    chkLs = getLines(logfile, "[IO_write")
+    # 20200907:
+    # leaving this as is. Not related to main step data
+    chkLs = getLines(logfile, "[IO_writeCheckpoint")
     chkdata = [chkBreakdown(rfb) for rfb in blockGenerator(chkLs, step=4)]
     chkp = []
     for tst, (typ, num) in chkdata:
@@ -452,12 +426,12 @@ def readLog(logfile):
         setattr(chst, 'filetype', typ)
         setattr(chst, 'number', num)
         chkp.append(chst)
-    return realsteps, removedrows, refs, chkp, header, timings
+    return steps, chkp, header, timings
 
 
-def addIRLdeltas(steps):
+def getIRLdeltas(steps):
     """calculate walltime deltas between timesteps
-    accounting for resubmits.
+    accounting for resubmits by counting submits.
 
     Args:
         steps(sim.step list): simulation log steps.
@@ -466,17 +440,19 @@ def addIRLdeltas(steps):
         (timedelta, timedelta): total walltime, mean walltime step
 
     """
-    tstamps = [step.timestamp for step in steps]
-    submits = [step.submit_number for step in steps]
-    deltas = [b-a for (a, b) in zip(tstamps[:-1], tstamps[1:])]
+    tstamps = steps['timestamp']
+    submits = steps['submit_number']
+    deltas = np.array([b-a for (a, b) in zip(tstamps[:-1], tstamps[1:])])
     subdelts = np.diff(submits)
     subdelts = np.append(subdelts, 0)
-    deltas.append(datetime.timedelta(0))
-    for st, d, subd in zip(steps, deltas, subdelts):
-        if subd > 0:
-            setattr(st, 'irldelta', datetime.timedelta(seconds=0))
-        else:
-            setattr(st, 'irldelta', d)
+    ind = np.where(subdelts == 1)[0]
+    mask = np.zeros(len(deltas), dtype=bool)
+    mask[ind] = True
+    # stub dt is the mean delta for non-issue steps
+    stubdt = np.mean(deltas[~mask])
+    deltas[mask] = stubdt
+    deltas = np.append(deltas, stubdt)
+    return deltas
 
 
 class tstep(object):
@@ -564,15 +540,15 @@ def clearRestarts(steps):
     """Remove repeated steps from restarting failed runs.
 
     Args:
-        (sim.step list): list of simulation.step objects.
+        (pd.DataFrame): list of simulation.step objects.
 
     Returns:
-        (sim.step list): cleansed steps.
+        (pd.DataFrame): cleansed steps.
         (int list): removed step indices.
 
     """
-    numbers = np.array([step.n for step in steps])  # get step numbers
-    totnstp = len(numbers)
+    numbers = np.array(steps.index)
+    totnstp = len(steps)
     checkdelt = np.diff(numbers - totnstp)  # find restarts
     skipmask = np.append(checkdelt, 1)
     restartpos = np.where(checkdelt != 1)[0]  # get restart positions
@@ -586,13 +562,25 @@ def clearRestarts(steps):
             for i in range(rr):
                 remsteps.append(pos-i)
         realmask = np.where(skipmask == 1)[0]
-        realsteps = np.array(steps)[realmask]
-        return list(realsteps), remsteps
+        steps = steps.drop(realmask)
+        steps.index = pd.RangeIndex(len(steps.index))
+        return steps, remsteps
     else:
         return steps, []
 
 
 def restartBreakdown(logfile):
+    """read starting line in each run/restart
+    header for MPI ranks and starting time.
+
+    Args:
+        logfile(str): path to log file
+
+    Returns:
+        (datetime list): starting times.
+        (int list): mpi ranks.
+
+    """
     lines = getLines(logfile, 'FLASH log file')
     startfmt = 'FLASH log file:  %m-%d-%Y  %H:%M:%S.%f    '
     mpistrs = getLines(logfile, 'Number of MPI tasks')
@@ -610,16 +598,23 @@ def chkBreakdown(refBlock):
     e.g.:
     '[ 05-29-2020  06:28:27.525 ] [IO_writeCheckpoint] open: type=checkpoint
         name=../17ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0132
-    '[ 05-29-2020  06:28:31.937 ] [IO_writeCheckpoint] close: type=checkpoint
-        name=../17ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0132
+     [ 05-29-2020  06:28:31.937 ] [IO_writeCheckpoint] close: type=checkpoint
+        name=../17ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0132'
+
+    particles add a line:
+    '[ 10-19-2020  10:58:01.960 ] [IO_writeCheckpoint] open: type=checkpoint
+        name=../00ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0011
+     [ 10-19-2020  10:58:02.210 ] [IO_writeParticles]: done called Particles_updateAttributes()
+     [ 10-19-2020  10:58:02.216 ] [IO_writeCheckpoint] close: type=checkpoint
+         name=../00ctm_p4248_90_ms32_t3.0/chk/flash_hdf5_chk_0011
 
     """
     # get tstamp and type from first line
     tstampstr, _, rest = refBlock[0].partition(']')
     tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
     _, _, ftype = rest.partition('=')
-    # get number from second line
-    number = int(refBlock[1][-4:])
+    # get number from first line too due to changing text block size
+    number = int(refBlock[0][-4:])
     return tstamp, (ftype, number)
 
 
@@ -641,8 +636,8 @@ def refBreakdown(refBlock):
         (str list): 5 line refinement log stamps.
 
     Returns:
-        (datetime.datetime, 6 floats): timestamp,
-        min/max/tot blocks base and leaf.
+        (datetime.datetime): timestamp
+        (6 floats): min/max/tot blocks base and leaf.
 
     """
     blockstencil = [2, 5, 8]
@@ -668,31 +663,7 @@ def refBreakdown(refBlock):
     except ValueError:
         log.debug("ref block numbers fail: \n{}".format('\n'.join(refBlock)))
         min, max, tot, lmin, lmax, ltot = 1, 2, 3, 4, 5, 6
-    return tstamp, min, max, tot, lmin, lmax, ltot
-
-
-def stepBreakdown(sline):
-    """detailed breakdown a step from a flash log.
-    e.g.:
-    '[ 06-17-2019  18:15:07.507 ] step: n=46142 t=1.314454E+00 dt=1.000000E-10'
-
-    Args:
-        (str): log line
-
-    Returns:
-        (simulation.step): step object with relevant data.
-
-    """
-    tags = ['timestamp', 'n', 't', 'dt']
-    tstampstr, _, props = sline.partition(']')
-    values = [datetime.datetime.strptime(tstampstr.strip('['),
-                                         ' %m-%d-%Y %H:%M:%S.%f ')]
-    pstr = props.replace('=', ' ')
-    values += [float(x) for x in pstr.split() if x[0].isdigit()]
-    simstep = tstep()
-    for t, v in zip(tags, values):
-        setattr(simstep, t, v)
-    return simstep
+    return tstamp, [min, max, tot, lmin, lmax, ltot]
 
 
 def otpBreakdown(otpline):

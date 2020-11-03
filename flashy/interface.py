@@ -7,7 +7,22 @@ from IPython.display import clear_output
 _gopts = {'enableColumnReorder': True, 'editable': False}
 
 
+def simplePick(path, folders=True):
+    """dropdown menu for all files or folders from path."""
+    lst = os.listdir(path)
+    if folders:
+        slst = [ff for ff in lst if os.path.isdir(os.path.join(path, ff))]
+    else:
+        slst = [ff for ff in lst if os.path.isfile(os.path.join(path, ff))]
+    subs = [s for s in slst if s != _otpfolder]
+    subs = [s for s in subs if s[0] != '.']
+    dropb = widgets.Dropdown(options=sorted(subs))
+    box = widgets.HBox([dropb])
+    return box
+
+
 def getPreRunBox(path):
+    """list profiles available in a codefolder as a drop down menu."""
     codever = widgets.Dropdown(options=os.listdir(path))
     prepath = '/'.join([path, codever.value, _cdxpfol])
     profopts = sorted([x for x in os.listdir(prepath)])
@@ -24,13 +39,12 @@ def getPreRunBox(path):
 
 
 def getPickBox(path):
+    """build dropdown menus for path and children from first column."""
     codever = widgets.Dropdown(options=os.listdir(path))
     opts = sorted([x for x in
                    os.listdir(os.path.join(path, codever.value))
                    if _cdxfolder not in x])
     runs = widgets.Dropdown(options=opts)
-#             sorted([x for x in os.listdir(os.path.join(path, codever.value))
-#                     if _cdxfolder not in x]))
 
     def update_runs(*args):
         runs.options = \
@@ -43,6 +57,11 @@ def getPickBox(path):
 
 
 def getChkPickBox(path):
+    """dropdown picker for checkpoints.
+    stem > dropdown networks + dropdown runs + dropdown checkpoints
+    rejoin with relsimf = path + '/'.join([ch.value for ch in box.children])
+
+    """
     codever = widgets.Dropdown(options=os.listdir(path))
     ropts = sorted([x for x in
                     os.listdir(os.path.join(path, codever.value))

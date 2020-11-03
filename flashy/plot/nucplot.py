@@ -103,6 +103,43 @@ def elementalYields(yieldfiles, tags=[], norm='Si', offset=6):
     return fig
 
 
+def flash_productionFac(fnames, tag='netname', norm='Si',
+                        offset=6, batch=False):
+    fig, ax = plt.subplots(figsize=(10, 5))
+    if isinstance(fnames, list):
+        if len(fnames) != 2:
+            print('Input files must be exactly two.')
+            return None
+        plabels = []
+        name = os.path.dirname(os.path.dirname(fnames[0]))
+        name = name.split('/')[-2:]
+        time, species, masses = getYields(fnames[0])
+        # decay yields so that they're comparable to the Sun
+        species, masses = decayYield(species, masses)
+        fakef = ''
+        for s, m in zip(species, masses):
+            fakef += '{} {:.10f}\n'.format(s, m)
+        ryield = readYield(io.StringIO(fakef))
+        plabels.append(plotPfac(ax, ryield, refname=fnames[1],
+                                norm=norm, offset=6, label=tag,
+                                reftype='checkpoint', tagspecies=True))
+        lg = ax.legend()
+    else:
+        time, species, masses = getYields(fnames)
+        # decay yields so that they're comparable to the Sun
+        species, masses = decayYield(species, masses)
+        ryield = readYield(zip(species, masses))
+        plabels = []
+        label = '{} vs AGSS09'.format(tag)
+        plabels.append(plotPfac(ax, ryield, label=label,
+                                norm=norm, offset=offset, tagspecies=True))
+        lg = ax.legend()
+    if batch:
+        writeFig(fig, fname, 'pfac_' + tag)
+    else:
+        return fig
+
+
 def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
     """plots profuction factors for comparable
     species in a pair of yields, or vs solar compositon
@@ -141,8 +178,55 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
     return fig
 
 
+def multi_nuclideYields(fnames, xrange=[0, 70], addsun=True, thresh=1e-5,
+                        tag='nuclide_solar', batch=False):
+    """plots all nuclide yields in a checkpoint list. Adds sun as option
+
+    Args:
+        fname(str): filename path.
+        tag(str): output tag.
+        xrange(int list): nuclear mass range.
+        compfile(str): comparison chekpoint path.
+        thresh(float): mass threshold for plot.
+        batch(bool): write to file toggle.
+
+    Returns:
+        (mpl.figure)
+
+    """
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for fname in fnames:
+        name = os.path.dirname(os.path.dirname(fname)).split('/')[-1:]
+        time, species, masses = getYields(fname)
+        title = "{} ({:.3f} s)".format("/".join(name), time)
+        fakef = ''
+        for s, m in zip(species, masses):
+            fakef += '{} {:.10f}\n'.format(s, m)
+        ryield = readYield(io.StringIO(fakef))
+        plabels = []
+        plabels.append(plotIsoMasses(ax, ryield, notag=False,
+                                     ylims=[thresh, 1.0],
+                                     label=title))
+    if addsun:
+        ryield2 = readIsotopicSolar()
+        plabels.append(plotIsoMasses(ax, ryield2, notag=False,
+                                     ylims=[thresh, 1.0], label='AGSS09',
+                                     color='orange'))
+    ax.set_xlim(xrange)
+    ax.set_ylim([thresh, 2])
+#     ax.set_title(mtitle, loc='left')
+    legdict = {'ncol': 1, 'loc': 'upper right', 'columnspacing': 0.0,
+               'labelspacing': 0.1, 'numpoints': 3, 'handletextpad': 0.2,
+               'bbox_to_anchor': (1.0, 1.15)}
+    lg = ax.legend(*zip(*plabels), **legdict)
+    if batch:
+        writeFig(fig, fname, tag)
+    else:
+        return fig
+
+
 def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0, 70],
-                        compdir='sun', thresh=1e-5, batch=False):
+                        compfile='sun', thresh=1e-5, ratio=False, batch=False):
     """plots all nuclide yields in a checkpoint vs sun or any other
     simulation specified by its runfolder.
 
@@ -150,7 +234,7 @@ def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0, 70],
         fname(str): filename path.
         tag(str): output tag.
         xrange(int list): nuclear mass range.
-        compdir(str): comparison run chekpoint path.
+        compfile(str): comparison chekpoint path.
         thresh(float): mass threshold for plot.
         batch(bool): write to file toggle.
 
@@ -170,25 +254,46 @@ def flash_nuclideYields(fname, tag='nuclide_solar', xrange=[0, 70],
     plabels.append(plotIsoMasses(ax, ryield, notag=False,
                                  ylims=[thresh, 1.0],
                                  label=title, color='k'))
-    if compdir == 'sun':
-        ryield = readIsotopicSolar()
-        plabels.append(plotIsoMasses(ax, ryield, notag=False,
+    if ratio:
+        vals = []
+        for k in ryield.keys():
+            zz = ryield[k]['z']
+            for n in ryield[k]['n'].keys():
+                vals.append((k, n + zz, ryield[k]['n'][n]))
+#         tags = ['{} {} {}'.format(*v) for v in vals]
+#         print('\n'.join(tags))
+
+    if compfile == 'sun':
+        ryield2 = readIsotopicSolar()
+        plabels.append(plotIsoMasses(ax, ryield2, notag=False,
                                      ylims=[thresh, 1.0], label='AGSS09',
                                      color='orange'))
+        mtitle = "{:.5f} s".format(time)
     else:
-        newfl = os.path.join(compdir, os.path.basename(fname))
-        name = os.path.dirname(os.path.dirname(newfl)).split('/')[-2:]
+        name = os.path.dirname(os.path.dirname(compfile))
+        name = name.split('/')[-2:]
         title = "/".join(name)
-        time, species, masses = getYields(newfl)
+        time2, species, masses = getYields(compfile)
+        mtitle = "{:.3f}s vs\n {:.3f}s".format(time, time2)
         fakef = ''
         for s, m in zip(species, masses):
             fakef += '{} {:.10f}\n'.format(s, m)
-        ryield = readYield(io.StringIO(fakef))
-        plabels.append(plotIsoMasses(ax, ryield, notag=True,
+        ryield2 = readYield(io.StringIO(fakef))
+        plabels.append(plotIsoMasses(ax, ryield2, notag=False,
                                      label=title, color='#e68053'))
+    if ratio:
+        vals2 = []
+        for k in ryield2.keys():
+            zz = ryield2[k]['z']
+            for n in ryield2[k]['n'].keys():
+                vals2.append((k, n + zz, ryield2[k]['n'][n]))
+        ratios = [v[-1]/vv[-1] for (v, vv) in zip(vals, vals2)]
+        tags = ['{} {} {}'.format(*a[:2], b) for (a, b) in zip(vals, ratios)]
+        print('\n'.join(tags))
+    
     ax.set_xlim(xrange)
     ax.set_ylim([thresh, 2])
-    ax.set_title("{:.5f} s".format(time), loc='left')
+    ax.set_title(mtitle, loc='left')
     legdict = {'ncol': 1, 'loc': 'upper right', 'columnspacing': 0.0,
                'labelspacing': 0.1, 'numpoints': 3, 'handletextpad': 0.2,
                'bbox_to_anchor': (1.0, 1.15)}
@@ -531,6 +636,14 @@ def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',
         zss, nss, solab = convertYield2Abundance(
             massdict, norm=norm, offset=offset)
         soldict = dict(zip(nss, solab))
+    elif reftype == 'checkpoint':
+        time, species, masses = getYields(refname)
+        # decay yields so that they're comparable to the Sun
+        species, masses = decayYield(species, masses)
+        massdict = readYield(zip(species, masses))
+        zss, nss, solab = convertYield2Abundance(
+            massdict, norm=norm, offset=offset)
+        soldict = dict(zip(nss, solab))
     pfacs = []
     for i, n in enumerate(ns):
         if n in soldict:
@@ -586,7 +699,8 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
                            marker='.', label=label, color=color)
         if notag:
             continue
-        ax.text(xs[0], ys[0], '${}$'.format(k), color=color,
+        col = plt.gca().lines[-1].get_color()
+        ax.text(xs[0], ys[0], '${}$'.format(k), color=color,  # , color=col
                 size=8, horizontalalignment='right',
                 verticalalignment='bottom')
     # Prettify

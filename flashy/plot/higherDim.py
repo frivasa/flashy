@@ -221,7 +221,7 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         x_match = ds.parameters['x_match']
         y_match = ds.parameters['y_match']
         p.annotate_marker((x_match, y_match), coord_system='plot',
-                          plot_args={'color': 'black', 's': 30})
+                          plot_args={'color': 'green', 's': 100})
     if mark:
         xm, ym = mark
         log.warning('mark (green): {:E} {:E}'.format(xm, ym))
@@ -329,9 +329,9 @@ def radialTracing(fname, radius, diskradius, c12=0.02,
 
     Args:
         fname(str): filename to plot.
-        radius(float): exclusion radius.
+        radius(float): exclusion radius (pick points over).
         diskradius(float): radius around max to print wake.
-        c12(float): minimal carbon fraction for tracing consideration.
+        c12(float): carbon fraction threshold (reject points under X_i).
         grids(bool): overplot the grid structure.
         batch(bool): if true save figure to file instead of returning it.
         frame(float): physical extent of plot in x (twice for y) .
@@ -717,13 +717,13 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
     p.set_width((frame, 2*frame))
     p.set_origin(("center", "left", "domain"))
     p.set_axes_unit('cm')
-    for (x, y), s, f in zip(mimark, signs, prbf):
-        p.annotate_marker((x, y), coord_system='plot', marker=s,
-                          plot_args={'color': 'yellow', 's': 150,
-                                     'linewidth': 2, 'facecolors': "None"})
+#     for (x, y), s, f in zip(mimark, signs, prbf):
+#         p.annotate_marker((x, y), coord_system='plot', marker=s,
+#                           plot_args={'color': 'yellow', 's': 150,
+#                                      'linewidth': 1, 'facecolors': "None"})
     for (x, y), s, f in zip(mxmark, signs, prbf):
         p.annotate_marker((x, y), coord_system='plot', marker=s,
-                          plot_args={'color': 'red', 's': 150, 'linewidth': 3,
+                          plot_args={'color': 'red', 's': 200, 'linewidth': 1,
                                      'facecolors': "None"})
     for (xmax, ymax), (xmin, ymin), s, f in zip(mxmark, mimark, signs, prbf):
         log.warning('{} is marker {}'.format(f, s))

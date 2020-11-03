@@ -203,10 +203,12 @@ def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
     legdict = {'ncol': 1, 'loc': 'upper left', 'columnspacing': 0.0,
                'labelspacing': 0.1, 'numpoints': 2, 'handletextpad': 0.2,
                'bbox_to_anchor': (1.0, 1.02)}
-    totblk = homologateRefsToBulk(sim, 'totblocks')
-    minblk = homologateRefsToBulk(sim, 'minblocks')
-    maxblk = homologateRefsToBulk(sim, 'maxblocks')
-    tsteps = [s.total_seconds() for s in sim.getStepProp('irldelta')]
+    totblk = sim.getStepProp('totblocks')
+    totblk = totblk.astype(float)
+    minblk = sim.getStepProp('minblocks')
+    maxblk = sim.getStepProp('maxblocks')
+    # nanoseconds is the default for np.timedelta
+    tsteps = [s.item()*1e-9 for s in sim.getStepProp('irldelta')]
     subs = sim.getStepProp('submit_number')
     PE = sim.getStepProp('mpi_ranks')
     if rollAvgStep == 1:
@@ -252,7 +254,9 @@ def plotImprint(sim, pePerNode=6, rollAvgStep=80, dpi=80, blkprank=512):
         totblk /= 10**fac
         blkax.semilogy(time, totblk, label=flab, color=next(pc)['color'])
         # -5: space for tot blocks when scaled
-        blkax.set_ylim([np.min(minblk)-5, blkprank])
+        spacer = np.min(minblk)-5
+        low = 1 if spacer <= 0 else spacer
+        blkax.set_ylim([low, blkprank])
     else:
         blkax.plot(time, minblk, label='min', color=next(pc)['color'])
         blkax.plot(time, maxblk, label='max', color=next(pc)['color'])
