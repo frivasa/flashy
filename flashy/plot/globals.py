@@ -13,7 +13,7 @@ nonguis = [u'agg', u'cairo', u'gdk', u'pdf',
 for nongui in nonguis:
     try:
         # print "[flash_plot]: Testing", nongui
-        mpl.use(nongui, warn=False, force=True)
+        mpl.use(nongui, force=True)
         from matplotlib import pyplot as plt
         break
     except:

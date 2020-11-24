@@ -1,7 +1,7 @@
 import yt
 from yt.utilities.exceptions import YTFieldNotFound
 from flashy.utils import np, getBearing, byMass, rot
-from flashy.IOutils import log, setFolders
+from flashy.IOutils import os, log, setFolders
 from flashy.nuclear import sortNuclides, msol
 import flashy.datahaul.ytfields as ytf
 # avoid yt warnings
@@ -156,7 +156,7 @@ def getYields(fname):
     """returns time, summed masses and species in a flash otp file.
     all units are msun or cgs.
     1D assumes spherical geometry
-    2D assumes cylindrical geometry.
+    2D assumes cylindrical geometry and trims cart_ from filename.
 
     Args:
         fname(str): filename to inspect.
@@ -167,7 +167,12 @@ def getYields(fname):
         masses: (float list) [msun]
 
     """
-    ds = yt.load(fname)
+    if 'cart' in fname:
+        stem, bud = os.path.split(fname)
+        filename = os.path.join(stem, bud[5:])
+    else:
+        filename = fname
+    ds = yt.load(filename)
     ad = ds.all_data()
     _, species = getFields(ds.field_list)
     species = [s.ljust(4) for s in species]
@@ -195,15 +200,10 @@ def getYields(fname):
             msunMs.append(np.sum(cell_masses*ad[sp].value))
         log.warning('Assumed spherical cells for volume')
     elif ds.parameters['dimensionality'] == 2:
-        dx = ad['path_element_x'].value
-        dy = ad['path_element_y'].value
-        x = ad['x'].value
-        cylvol = 2.0*np.pi*dy*dx*x
-        cell_masses = cylvol*ad['density'].value/msol
-        msunMs = []
-        for sp in species:
-            msunMs.append(np.sum(cell_masses*ad[sp].value))
-        log.warning('Assumed cylindrical cells for volume')
+        log.warning('Cylindrical volume cells')
+        masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
+        total = ad.quantities.total_mass()
+        msunMs = [m.value*total[0].value/msol for m in masses]
     else:
         masses = ad.quantities.weighted_average_quantity(species, 'cell_mass')
         total = ad.quantities.total_mass()
@@ -450,6 +450,16 @@ def getPointData(file, posx, posy):
     """get data from a single cell in a file to track.
     otpn: pointTrack
 
+    # get cell masses
+    # log.warning('Assuming cylindrical slice')
+    # dx = data['path_element_x']
+    # dy = data['path_element_y']
+    # r = data['x']
+    # cylvol = 2.0*np.pi*dy*dx*r
+    # cell_masses = cylvol*data['dens']
+    # print('cell masses (calculated <> data)', cell_masses, data['cell_mass'])
+    # print('cell volume (calculated <> data)', cylvol, data['cell_volume'])
+
     Args:
         file(str): filepath.
         posx(float): x-axis position.
@@ -490,13 +500,3 @@ def getPointData(file, posx, posy):
     with open(name + '.meta', 'w') as f:
         f.write('\n'.join(metatxt))
     print("Wrote: {}".format(name + '.meta'))
-
-    # get cell masses
-    # log.warning('Assuming cylindrical slice')
-    # dx = data['path_element_x']
-    # dy = data['path_element_y']
-    # r = data['x']
-    # cylvol = 2.0*np.pi*dy*dx*r
-    # cell_masses = cylvol*data['dens']
-    # print('cell masses (calculated <> data)', cell_masses, data['cell_mass'])
-    # print('cell volume (calculated <> data)', cylvol, data['cell_volume'])

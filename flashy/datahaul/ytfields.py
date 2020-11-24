@@ -2,7 +2,6 @@
 method() describe operations over the ds
 _method fills the metadata for yt:
 units, take_log, sampling_type
-TODO: build a tau field (see ..post)
 """
 from flashy.utils import np
 _speed = {'units': 'cm/s', 'take_log': False, 'sampling_type': 'cell'}
@@ -11,6 +10,9 @@ _fermiDeg = {'units': 'auto', 'take_log': False,
 _soundspeed = {'units': 'cm/s', 'take_log': False, 'sampling_type': 'cell'}
 _burnLimiter = {'units': 'auto', 'take_log': False,
                 'sampling_type': 'cell', 'dimensions': 'dimensionless'}
+_massC12 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
+_massNe20 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
+_massMg24 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 
 
 def speed(field, data):
@@ -64,3 +66,27 @@ def burnLimiter(field, data):
     ec = data['flash', 'enuc'].v
     dx = data['flash', 'dx'].v
     return (ei/np.abs(ec))/(dx/cs)
+
+
+def massC12(field, data):
+    """mass of species"""
+    xi = data['flash', 'c12 ']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl
+
+
+def massNe20(field, data):
+    """mass of species"""
+    xi = data['flash', 'ne20']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl
+
+
+def massMg24(field, data):
+    """mass of species"""
+    xi = data['flash', 'mg24']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl

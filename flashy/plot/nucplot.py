@@ -178,16 +178,17 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
     return fig
 
 
-def multi_nuclideYields(fnames, xrange=[0, 70], addsun=True, thresh=1e-5,
+def multi_nuclideYields(fnames, tags, xrange=[0, 70], yrange=[1e-5, 1.0], addsun=True,
                         tag='nuclide_solar', batch=False):
     """plots all nuclide yields in a checkpoint list. Adds sun as option
 
     Args:
-        fname(str): filename path.
-        tag(str): output tag.
+        fnames(str list): filename paths.
+        tags(str list): custom label.
         xrange(int list): nuclear mass range.
-        compfile(str): comparison chekpoint path.
+        addsun(str): plot sun composition.
         thresh(float): mass threshold for plot.
+        tag(str): output tag.
         batch(bool): write to file toggle.
 
     Returns:
@@ -195,29 +196,37 @@ def multi_nuclideYields(fnames, xrange=[0, 70], addsun=True, thresh=1e-5,
 
     """
     fig, ax = plt.subplots(figsize=(10, 5))
-    for fname in fnames:
-        name = os.path.dirname(os.path.dirname(fname)).split('/')[-1:]
+    plabels = []
+    syms = ['.', 'x', '*', '^', 's']
+    for i, fname in enumerate(fnames):
         time, species, masses = getYields(fname)
-        title = "{} ({:.3f} s)".format("/".join(name), time)
+        print(fname)
+        print('time = {}'.format(time))
+        print("species = ['{}']".format("','".join(species)))
+        fm = ['{:.8f}'.format(m) for m in masses]
+        print('masses = [{}]'.format(','.join(fm)))
+        title = "{} ({:.3f} s)".format(tags[i], time)
         fakef = ''
         for s, m in zip(species, masses):
             fakef += '{} {:.10f}\n'.format(s, m)
         ryield = readYield(io.StringIO(fakef))
-        plabels = []
-        plabels.append(plotIsoMasses(ax, ryield, notag=False,
-                                     ylims=[thresh, 1.0],
-                                     label=title))
+        pp = next(ax._get_lines.prop_cycler)
+        tag = True if i else False
+        col = pp['color'] if i else 'black'
+        plabels.append(plotIsoMasses(ax, ryield, notag=tag,
+                                     ylims=yrange, xlims=xrange,
+                                     marker=syms[i%len(syms)],
+                                     label=title, color=col))
     if addsun:
         ryield2 = readIsotopicSolar()
         plabels.append(plotIsoMasses(ax, ryield2, notag=False,
-                                     ylims=[thresh, 1.0], label='AGSS09',
-                                     color='orange'))
+                                     ylims=yrange, xlims=xrange,
+                                     label='AGSS09 (Solar)',
+                                     color='#FF8C00'))
     ax.set_xlim(xrange)
-    ax.set_ylim([thresh, 2])
-#     ax.set_title(mtitle, loc='left')
-    legdict = {'ncol': 1, 'loc': 'upper right', 'columnspacing': 0.0,
-               'labelspacing': 0.1, 'numpoints': 3, 'handletextpad': 0.2,
-               'bbox_to_anchor': (1.0, 1.15)}
+    ax.set_ylim(yrange)
+    legdict = {'ncol': 1, 'loc': 'best', 'columnspacing': 0.0,
+               'labelspacing': 0.1, 'numpoints': 2, 'handletextpad': 0.2}
     lg = ax.legend(*zip(*plabels), **legdict)
     if batch:
         writeFig(fig, fname, tag)
@@ -670,7 +679,8 @@ def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',
 
 
 def plotIsoMasses(ax, mdict, label='W7', color='black',
-                  ylims=[1e-18, 1.0], notag=False):
+                  xlims=[-2, 78], ylims=[1e-18, 1.0],
+                  marker='.', notag=False):
     """draws isotopic masses vs atomic mass,
     returns label and line element for legend
 
@@ -679,6 +689,7 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
         mdict(dict): dictionary of species and properties.
         label(str): plot label.
         color(str): line color.
+        xlims(float list): atomic mass limits (avoids tagging points).
         ylims(float list): mass fraction limits.
         notag(bool): skip species tag on line.
 
@@ -696,17 +707,19 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
             continue
         xs, ys = zip(*sorted(purgevals))
         line = ax.semilogy(xs, ys, ls='--', lw=0.5,
-                           marker='.', label=label, color=color)
+                           marker=marker, label=label, color=color)
         if notag:
             continue
+        elif min(xs) < xlims[0] or max(xs) > xlims[1]:
+            continue
         col = plt.gca().lines[-1].get_color()
-        ax.text(xs[0], ys[0], '${}$'.format(k), color=color,  # , color=col
+        ax.text(xs[0] - 0.2, ys[0], '${}$'.format(k), color=color,  # , color=col
                 size=8, horizontalalignment='right',
                 verticalalignment='bottom')
     # Prettify
     ax.set_xlabel(u'Atomic Mass (A)')
     ax.set_ylabel('Mass ($M_{\odot}$)')
-    ax.set_xlim([-2, 78])
+    ax.set_xlim(xlims)
     ax.set_ylim(ylims)
     ax.yaxis.set_major_formatter(StrMethodFormatter('{x:0.0e}'))
     ax.xaxis.set_major_formatter(StrMethodFormatter('{x:2.0f}'))

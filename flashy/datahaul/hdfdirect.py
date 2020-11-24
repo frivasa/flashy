@@ -111,7 +111,8 @@ def getPardict(file):
     finn = h5py.File(file, "r")
     d = {}
     for p in _parameter_keys:
-        inf = finn[p].value
+#         inf = finn[p].value
+        inf = finn[p][()]  # new .value syntax
         # str and bool keys are flipped
         if 'string' in p:
             d.update(dict([(decode(k), decode(v)) for (k, v) in inf]))
