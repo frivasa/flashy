@@ -447,7 +447,8 @@ def wedge3d(chkp, elevation, depth, reference='x', fields=[], antipode=False):
 
 
 def getPointData(file, posx, posy):
-    """get data from a single cell in a file to track.
+    """get all unk data (plus speed, soundspeed and fermiDeg) from a
+    single cell in a file to track.
     otpn: pointTrack
 
     # get cell masses
@@ -457,8 +458,8 @@ def getPointData(file, posx, posy):
     # r = data['x']
     # cylvol = 2.0*np.pi*dy*dx*r
     # cell_masses = cylvol*data['dens']
-    # print('cell masses (calculated <> data)', cell_masses, data['cell_mass'])
-    # print('cell volume (calculated <> data)', cylvol, data['cell_volume'])
+    # print('cell mass (calc <> data)', cell_masses, data['cell_mass'])
+    # print('cell vol (calc <> data)', cylvol, data['cell_volume'])
 
     Args:
         file(str): filepath.

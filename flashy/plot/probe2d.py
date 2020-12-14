@@ -211,6 +211,14 @@ def pointTracing(fname, field='density', low=1e5, high=5e8,
 
     Args:
         fname(str): filename to plot.
+        field(str): field to plot alongside composition.
+        low(float): field minimum.
+        high(float): field maximum.
+        frame(float): field plot frame size
+        batch(bool): write to file toggle.
+        t0(float): initial time for composition plot.
+        t1(float): final time for composition plot.
+        dpi(int): dpi of figure.
 
     Returns:
         (mpl.figure or None)
@@ -299,8 +307,8 @@ def pointTracing(fname, field='density', low=1e5, high=5e8,
     ax1.yaxis.set_major_formatter(customFormatter(fac, prec=0))
     ax1.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
 
-    ax3.semilogy(dm.radius, dm.density, label='dens')
-    ax3.semilogy(dm.radius, dm.pressure/1e18, label=u'pres$\cdot 10^{-18}$')
+    ax3.semilogy(dm.radius, dm.density*1e3, label=u'dens$\cdot 10^{3}$')
+    ax3.semilogy(dm.radius, dm.pressure/1e15, label=u'pres$\cdot 10^{-15}$')
     ax3.semilogy(dm.radius, dm.enuc/1e9, label=u'enuc$\cdot 10^{-9}$')
     ax3.semilogy(dm.radius, dm.temperature, label='temp')
 

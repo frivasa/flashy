@@ -197,7 +197,8 @@ def multi_nuclideYields(fnames, tags, xrange=[0, 70], yrange=[1e-5, 1.0], addsun
     """
     fig, ax = plt.subplots(figsize=(10, 5))
     plabels = []
-    syms = ['.', 'x', '*', '^', 's']
+    syms = ['.', 'x', '+', '1', '2']
+    cols = ['black', 'royalblue', 'forestgreen', 'darkorange', 'firebrick']
     for i, fname in enumerate(fnames):
         time, species, masses = getYields(fname)
         print(fname)
@@ -212,11 +213,11 @@ def multi_nuclideYields(fnames, tags, xrange=[0, 70], yrange=[1e-5, 1.0], addsun
         ryield = readYield(io.StringIO(fakef))
         pp = next(ax._get_lines.prop_cycler)
         tag = True if i else False
-        col = pp['color'] if i else 'black'
-        plabels.append(plotIsoMasses(ax, ryield, notag=tag,
+        plabels.append(plotIsoMasses(ax, ryield, notag=tag, ls='None',
                                      ylims=yrange, xlims=xrange,
                                      marker=syms[i%len(syms)],
-                                     label=title, color=col))
+                                     color=cols[i%len(cols)],
+                                     label=title))
     if addsun:
         ryield2 = readIsotopicSolar()
         plabels.append(plotIsoMasses(ax, ryield2, notag=False,
@@ -680,7 +681,7 @@ def plotPfac(ax, querym, refname=AGSS09, label='Sun vs Ref',
 
 def plotIsoMasses(ax, mdict, label='W7', color='black',
                   xlims=[-2, 78], ylims=[1e-18, 1.0],
-                  marker='.', notag=False):
+                  marker='.', notag=False, ls='--'):
     """draws isotopic masses vs atomic mass,
     returns label and line element for legend
 
@@ -706,7 +707,7 @@ def plotIsoMasses(ax, mdict, label='W7', color='black',
         if len(purgevals) == 0:
             continue
         xs, ys = zip(*sorted(purgevals))
-        line = ax.semilogy(xs, ys, ls='--', lw=0.5,
+        line = ax.semilogy(xs, ys, ls=ls, lw=0.5,
                            marker=marker, label=label, color=color)
         if notag:
             continue

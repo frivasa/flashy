@@ -21,20 +21,13 @@ _deftree = 'FLASHOR'
 _proj = 'gen006'  # proj where tree is hosted
 _juptree = 'http://localhost:1988/tree/'
 # summit has POWER arch
-if os.getenv('HOSTTYPE', 'powerpc64le') == 'powerpc64le':
-    _FLASH_DIR = "/gpfs/alpine/{}/proj-shared/"\
-                 "frivas/00.code/{}".format(_proj, _deftree)
-    _AUX_DIR = "/gpfs/alpine/{}/proj-shared/"\
-               "frivas".format(_proj)
-    _SCRIPT_DIR = "/gpfs/alpine/{}/proj-shared/"\
-                  "frivas/07.miscellaneous/bash/".format(_proj)
-else:
-    _FLASH_DIR = "/lustre/atlas/proj-shared/{}/"\
-                 "frivas/00.code/{}".format(_proj, _deftree)
-    _AUX_DIR = "/lustre/atlas/proj-shared/{}/"\
-               "frivas/".format(_proj)
-    _SCRIPT_DIR = "/lustre/atlas/proj-shared/{}/frivas/"\
-                  "07.miscellaneous/bash/".format(_proj)
+# if os.getenv('HOSTTYPE', 'powerpc64le') == 'powerpc64le':
+_FLASH_DIR = "/gpfs/alpine/{}/proj-shared/"\
+             "frivas/00.code/{}".format(_proj, _deftree)
+_AUX_DIR = "/gpfs/alpine/{}/proj-shared/"\
+           "frivas".format(_proj)
+_SCRIPT_DIR = "/gpfs/alpine/{}/proj-shared/"\
+              "frivas/07.miscellaneous/bash/".format(_proj)
 # restore maxint number
 # (removed in p3 due to arbitrary int length, but FORTRAN doesn't know.)
 _maxint = 2147483647

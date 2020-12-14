@@ -13,6 +13,8 @@ _burnLimiter = {'units': 'auto', 'take_log': False,
 _massC12 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massNe20 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massMg24 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
+_massSi28 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
+_massNi56 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 
 
 def speed(field, data):
@@ -87,6 +89,22 @@ def massNe20(field, data):
 def massMg24(field, data):
     """mass of species"""
     xi = data['flash', 'mg24']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl
+
+
+def massSi28(field, data):
+    """mass of species"""
+    xi = data['flash', 'si28']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl
+
+
+def massNi56(field, data):
+    """mass of species"""
+    xi = data['flash', 'ni56']
     de = data['flash', 'dens']
     vl = data['flash', 'cell_volume']
     return xi*de*vl
