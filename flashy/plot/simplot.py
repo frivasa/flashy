@@ -3,7 +3,7 @@ from ..IOutils import pairGen
 from ..paramSetup import pd
 from .nucplot import plotNuclideGrid, plotReacNet
 from .globals import (linear_gradient, log,
-                      np, os, plt, colors,
+                      np, os, plt, colors, rollingAverage,
                       StrMethodFormatter)
 from astropy.time import Time
 import plotly.graph_objs as gob
@@ -500,14 +500,3 @@ def homologateRefsToBulk(sim, property):
         else:
             extended[stencil] = refProp[i]
     return extended
-
-
-def rollingAverage(stat, step=5):
-    N = len(stat)
-    roll = np.zeros(N)
-    for i in range(N):
-        sum = np.sum(stat[i:i+step])
-        roll[i] = sum/step
-    # reset last entries with the last 'averageable' number
-    roll[-step:] = roll[-step]
-    return roll

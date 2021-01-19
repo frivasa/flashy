@@ -470,10 +470,10 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
             if mi < 0 or mx < 0:
                 log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
                 # this is prone to error so check the subset
-                cent = np.array((0.15e9, -0.27e9, 0.0))
-                delt = np.array((0.3e9, 0.6e9, ds.domain_dimensions[2]))
-                le = cent-delt*0.5
-                re = cent+delt*0.5
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
                 viewbox = ds.region(cent, le, re)
                 if not np.nanmax(viewbox[f].v):
                     # there's only 0 or nans so fall back to linear scale

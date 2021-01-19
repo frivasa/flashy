@@ -164,7 +164,7 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         r = ad['x'].value
         cylvol = 2.0*np.pi*dy*dx*r
         cell_masses = cylvol*ad['density'].value
-        energyRelease = ad['enuc'].value*cell_masses  # ergs
+        energyRelease = ad['enuc'].value*cell_masses  # erg/s
         # lump sum of positive energy
         energymask = energyRelease > 0.0
         lump = np.sum(energyRelease[energymask]*delT)
@@ -181,7 +181,7 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
         mevelx, mevely = ad['velx'][mask].v[mepos], ad['vely'][mask].v[mepos]
         emax = ad['enuc'][mask].v[mepos]*ad['density'][mask].v[mepos]
         toten = np.sum(energyRelease[mask & energymask]*delT)
-        # emax in erg/cc
+        # emax in erg/cc/s
         mline = 'shell ' + '{:.10E} '*8
         mline = mline.format(toten, emax, melocxS, melocyS,
                              medens, metemp, mevelx, mevely)
@@ -256,10 +256,14 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
             if mi < 0 or mx < 0:
                 log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
                 # this is prone to error so check the subset
-                cent = np.array((0.15e9, -0.27e9, 0.0))
-                delt = np.array((0.3e9, 0.6e9, ds.domain_dimensions[2]))
-                le = cent-delt*0.5
-                re = cent+delt*0.5
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
+                if any(le < ds.domain_left_edge.v):
+                    le = ds.domain_left_edge.v
+                if any(re < ds.domain_right_edge.v):
+                    re = ds.domain_right_edge.v
                 viewbox = ds.region(cent, le, re)
                 if not np.nanmax(viewbox[f].v):
                     # there's only 0 or nans so fall back to linear scale
@@ -314,25 +318,29 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
                  filetag, meta='\n'.join(metatxt))
 
 
-def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
-               center=(0.0, 0.0), fields=['density', 'temperature'],
-               linear=[False, False], mins=[1e3, 1e8], maxs=[6e6, 2e9],
-               linthresh=1e10, fac=8):
-    """metaProps clone for debugging, focuses on max enuc, dens, temp
-    minimum fields for image: 2
-    probed fields = prbf below
+def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
+                 center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+                 linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+                 maxs=[6e7, 3e+25, 8e9], mark=[], cmaps=['RdBu_r']*3,
+                 linthresh=1e15, dpi=90, fac=8, comm='', display=False,
+                 metaprops={'radius': 4e8}):
+    """YT 2D plots of a specified list of fields through a slice
+    perpedicular to the z-axis. Batch build a meta plaintext file with
+    the structure:
 
-    meta file structure:
-    # probed fields:
-    # probed fields
-    # time timedelta
     time timedelta
-    # value x y extra_named_fields
-    probed fields yield 2 lines each: max and min
+    maxspeed xlocation ylocation
+    # integrated enuc over a threshold
+    (sum of positive energy release) threshold
+    # peak energies for shell and core, discerning by limit radius
+    radius radius
+    'shell' (sum of >0 in zone) (peak erg/cc) X Y dens T velx vely cell_vol
+    'core' (sum of >0 in zone) (peak erg/cc) X Y dens T velx vely cell_vol
+    (listed plot variable ranges)
 
     Args:
         fname(str): filename to plot.
-        maxradius(float): centered sphere radius to find maxima/minima
+        mhead(bool): mark the position of the matchhead.
         grids(bool): overplot the grid structure.
         batch(bool): if true save figure to file instead of returning it.
         frame(float): physical extent of plot in x (twice for y) .
@@ -341,77 +349,102 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
         linear(bool list): set linear or log scale(false).
         mins(float list): minima of scale for each field.
         maxs(float list): maxima of scale for each field.
+        mark(float list): mark a (x,y) coordinate in the plot.
+        cmaps(str): matplotlib colormap for the plot.
         linthresh(float): symlog linea area around 0.
+        dpi(float): dpi of figure returned/saved.
         fac(int): custom formatter exponent factor(cm to km = 5).
+        comm(str): add custom mesage to plot.
+        display(bool): plot without meta markers, skipping calculation.
+        metaprops(dict): brittle meta file properties.
 
     Returns:
         (mpl.figure or None)
 
     """
-    cmaps = ['tab20c']*len(fields)
     if batch:
         print(fname, fields)
     ds = yt.load(fname)
     size = len(fields)
-    fig = plt.figure(figsize=(5*size, 8), dpi=90)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
     grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
                     nrows_ncols=(1, size),
                     axes_pad=1.2, label_mode="L",
                     share_all=True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
     # check for custom fields and add them to yt.
-    for f in fields + ['speed', 'fermiDeg']:
+    for f in fields + ['speed']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
             yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
-    # build header and tabulate names
-    # main edit chunk
-    filetag = 'debug_plot'
-    # fields to plot in the image and symbols
-    prbf = ['density', 'temperature', 'enuc']
-    signs = ['o', 'v', 's']
-    # sampling values to write
-    samp = ['density', 'temperature', 'enuc', 'eint',
-            'c12 ', 'he4 ', 'fermiDeg']
-    # auto mode
-    metatxt = ['# probed fields:']
-    mline = '# '+ ' '.join(prbf)
-    metatxt.append(mline)
-    mline = '# time delta'
-    metatxt.append(mline)
-    delT = ds.parameters['dt']
-    mline = '{:.10E} {:.10E}'.format(float(ds.current_time), delT)
-    metatxt.append(mline)
-    mline = '# value x y '+ ' '.join(samp)
-    metatxt.append(mline)
-    ad = ds.sphere([0.0, 0.0, 0.0], maxradius)
-    qu = ad.quantities
-
-    mimark, mxmark = [], []
-    for f in prbf:
-        query = qu.max_location(f)
-        mv, x, y, z = [v.value for v in query]
-        txt = '{:.10E} {:.10E} {:.10E} '
-        mline = txt.format(mv, x, y)
-        query = qu.sample_at_max_field_values(f, sample_fields=samp)
-        sampvals = [v.value for v in query]
-        sampvals = sampvals[1:]  # min/max is repeated
-        txt = '{:.10E} '*len(sampvals)
-        mline += txt.format(*sampvals)
+    # in situ calculations
+    if not display:
+        ad = ds.all_data()
+        mvpos = ad['speed'].argmax()
+        maxsp = ad['speed'].value[mvpos]
+        mvlocx, mvlocy = ad['x'].value[mvpos], ad['y'].value[mvpos]
+        delT = ds.parameters['dt']
+        mline = '{:.10E} {:.10E}'.format(float(ds.current_time), delT)
         metatxt.append(mline)
-        mxmark.append((x, y))
-        query = qu.min_location(f)
-        mv, x, y, z = [v.value for v in query]
-        txt = '{:.10E} {:.10E} {:.10E} '
-        mline = txt.format(mv, x, y)
-        query = qu.sample_at_min_field_values(f, sample_fields=samp)
-        sampvals = [v.value for v in query]
-        sampvals = sampvals[1:]  # min/max is repeated
-        txt = '{:.10E} '*len(sampvals)
-        mline += txt.format(*sampvals)
+        mline = '{:.10E} {:.10E} {:.10E}'.format(maxsp, mvlocx, mvlocy)
         metatxt.append(mline)
-        mimark.append((x, y))
-
+        # get energy release
+        log.warning('Assuming cylindrical slice')
+        dx = ad['path_element_x'].value
+        dy = ad['path_element_y'].value
+        r = ad['x'].value
+        cylvol = 2.0*np.pi*dy*dx*r
+        cell_masses = cylvol*ad['density'].value
+        energyRelease = ad['enuc'].value*cell_masses  # erg/s
+        # lump sum of positive energy
+        energymask = energyRelease > 0.0
+        lump = np.sum(energyRelease[energymask]*delT)
+        mline = '{:.10E} {:.10E}'.format(lump, 0.0)
+        metatxt.append(mline)
+        # calculate energy maxima for both core and shell
+        mline = '{:.10E} {:.10E}'
+        mline = mline.format(metaprops['radius'], metaprops['radius'])
+        metatxt.append(mline)
+        # SHELL
+        rads = np.sqrt(ad['x'].value**2 + ad['y'].value**2)
+        mask = rads >= metaprops['radius']
+        mepos = ad['enuc'][mask].argmax()
+        medens, metemp = ad['dens'][mask].v[mepos], ad['temp'][mask].v[mepos]
+        melocxS, melocyS = ad['x'][mask].v[mepos], ad['y'][mask].v[mepos]
+        mevelx, mevely = ad['velx'][mask].v[mepos], ad['vely'][mask].v[mepos]
+        emax = ad['enuc'][mask].v[mepos]*ad['density'][mask].v[mepos]
+        toten = np.sum(energyRelease[mask & energymask]*delT)
+        cvol = cylvol[mask][mepos]
+        # emax in erg/cc/s
+        mline = 'shell ' + '{:.10E} '*9
+        mline = mline.format(toten, emax, melocxS, melocyS,
+                             medens, metemp, mevelx, mevely, cvol)
+        metatxt.append(mline)
+        # CORE
+        mask = rads < metaprops['radius']
+        try:
+            mepos = ad['enuc'][mask].argmax()
+            medens = ad['dens'][mask].v[mepos]
+            metemp = ad['temp'][mask].v[mepos]
+            melocxC, melocyC = ad['x'][mask].v[mepos], ad['y'][mask].v[mepos]
+            mevelx = ad['velx'][mask].v[mepos]
+            mevely = ad['vely'][mask].v[mepos]
+            emax = ad['enuc'][mask].v[mepos]*ad['density'][mask].v[mepos]
+            toten = np.sum(energyRelease[mask & energymask]*delT)
+            cvol = cylvol[mask][mepos]
+        except ValueError:
+            # eventually all the domain is below thresh so set this to "shell"
+            melocxC, melocyC = melocxS, melocyS
+        mline = 'core ' + '{:.10E} '*9
+        mline = mline.format(toten, emax, melocxC, melocyC,
+                             medens, metemp, mevelx, mevely, cvol)
+        metatxt.append(mline)
+        for f in fields:
+            fstr = '{} range: {:.10E} {:.10E}'
+            exts = fstr.format(f, *ad.quantities.extrema(f).value)
+            log.debug(exts)
+            metatxt.append(exts)
     p = yt.SlicePlot(ds, 'z', list(fields))
     p.set_font({'family': 'monospace'})
     if sum(center) == 0.0:
@@ -421,19 +454,32 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
     p.set_width((frame, 2*frame))
     p.set_origin(("center", "left", "domain"))
     p.set_axes_unit('cm')
-#     for (x, y), s, f in zip(mimark, signs, prbf):
-#         p.annotate_marker((x, y), coord_system='plot', marker=s,
-#                           plot_args={'color': 'yellow', 's': 150,
-#                                      'linewidth': 1, 'facecolors': "None"})
-    for (x, y), s, f in zip(mxmark, signs, prbf):
-        p.annotate_marker((x, y), coord_system='plot', marker=s,
-                          plot_args={'color': 'red', 's': 200, 'linewidth': 1,
-                                     'facecolors': "None"})
-    for (xmax, ymax), (xmin, ymin), s, f in zip(mxmark, mimark, signs, prbf):
-        log.warning('{} is marker {}'.format(f, s))
-        log.warning('max (red): {:E} {:E}'.format(xmax, ymax))
-        log.warning('min (yellow): {:E} {:E}'.format(xmin, ymin))
-#     p.annotate_contour('density', ncont=1, label=True, clim=(,))
+    if mhead:
+        x_match = ds.parameters['x_match']
+        y_match = ds.parameters['y_match']
+        p.annotate_marker((x_match, y_match), coord_system='plot',
+                          plot_args={'color': 'green', 's': 100})
+    if mark:
+        xm, ym = mark
+        log.warning('mark (green): {:E} {:E}'.format(xm, ym))
+        p.annotate_marker((xm, ym), coord_system='plot', marker='o',
+                          plot_args={'color': 'green', 's': 250,
+                                     'linewidth': 2, 'facecolors': "None"})
+    if not display:
+        log.warning('max speed (white): {:E} {:E}'.format(mvlocx, mvlocy))
+        p.annotate_marker((mvlocx, mvlocy), coord_system='plot', marker='o',
+                          plot_args={'color': 'white', 's': 250,
+                                     'linewidth': 2, 'facecolors': "None"})
+        log.warning('shell max otp (red): {:E} {:E}'.format(melocxS, melocyS))
+        p.annotate_marker((melocxS, melocyS), coord_system='plot', marker='o',
+                          plot_args={'color': 'yellow', 's': 250,
+                                     'linewidth': 2, 'facecolors': "None"})
+        log.warning('core max otp (red): {:E} {:E}'.format(melocxC, melocyC))
+        p.annotate_marker((melocxC, melocyC), coord_system='plot', marker='o',
+                          plot_args={'color': 'red', 's': 250,
+                                     'linewidth': 2, 'facecolors': "None"})
+    p.annotate_sphere([0.0, 0.0, 0.0], radius=(metaprops['radius'], 'cm'),
+                      circle_args={'color': 'white', 'ls': '--', 'linewidth': 1})
     if grids:
         p.annotate_grids()
     pvars = zip(fields, mins, maxs, linear, cmaps)
@@ -449,10 +495,10 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
             if mi < 0 or mx < 0:
                 log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
                 # this is prone to error so check the subset
-                cent = np.array((0.15e9, -0.27e9, 0.0))
-                delt = np.array((0.3e9, 0.6e9, ds.domain_dimensions[2]))
-                le = cent-delt*0.5
-                re = cent+delt*0.5
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
                 viewbox = ds.region(cent, le, re)
                 if not np.nanmax(viewbox[f].v):
                     # there's only 0 or nans so fall back to linear scale
@@ -466,16 +512,33 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
-    cmt = u"$\\rho=$O,$T=\\Delta$"
-    datb, datb2 = ytt.get_plotTitles(ds, comment=cmt)
-    fig.axes[0].set_title(datb)
-    fig.axes[1].set_title(datb2)
+
+    if display:
+        datb, datb2 = ytt.get_plotTitles(ds, comment=comm)
+        ll = len(datb.split('\n')[-1])
+        n, v, t = datb2.split()
+        mid = str(ll - len(n) - 2)
+        restr = '{}{:>' + mid + '} {}'
+        restr = restr.format(n, v, t)
+        fig.axes[0].set_title('\n'.join([datb, restr]))
+    else:
+        extras = {'maxspeed': maxsp}
+        datb, datb2 = ytt.get_plotTitles(ds, comment=comm, extras=extras)
+        fig.axes[0].set_title(datb)
+        fig.axes[1].set_title(datb2)
+
     for i, ax in enumerate(fig.axes):
         ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
-        ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if fac == 5:
+            ax.set_xlabel(u'x (km)')
+        else:
+            ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
         if not i:
             ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
-            ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+            if fac == 5:
+                ax.set_ylabel(u'y (km)'.format(fac-5))
+            else:
+                ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
     for i, ax in enumerate(fig.axes):
         # skip the leftmost ylabel
         if i:
@@ -485,6 +548,175 @@ def debug_plot(fname, maxradius=4e8, grids=False, batch=False, frame=1e9,
     if not batch:
         return fig
     else:
+        filetag = 'ytm_radius'
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename),
+                 filetag, meta='\n'.join(metatxt))
+
+
+def contourProps(fname, grids=False, batch=False, frame=1e9,
+                 center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+                 linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+                 maxs=[6e7, 3e+25, 8e9], cmaps=['RdBu_r']*3,
+                 linthresh=1e15, dpi=90, fac=8,
+                 contp={'contour': 'enuc', 'maxbased':True,
+                        'values': [0.006, 0.01]}):
+    """YT 2D plots of a specified list of fields through a slice
+    perpedicular to the z-axis. utilizes contours to get data of cells
+    upwards of the smallest contour.
+
+    Args:
+        fname(str): filename to plot.
+        grids(bool): overplot the grid structure.
+        batch(bool): if true save figure to file instead of returning it.
+        frame(float): physical extent of plot in x (twice for y) .
+        center(float tuple): physical center of plot.
+        fields(str list): list of named fields to plot.
+        linear(bool list): set linear or log scale(false).
+        mins(float list): minima of scale for each field.
+        maxs(float list): maxima of scale for each field.
+        cmaps(str): matplotlib colormap for the plot.
+        linthresh(float): symlog linear area around 0.
+        dpi(float): dpi of figure returned/saved.
+        fac(int): custom formatter exponent factor(cm to km = 5).
+        contp(dict): contour values and field.
+        maxbased(bool): contours based on max (values become fractions)
+
+    Returns:
+        (mpl.figure or None)
+
+    """
+    ccolw = ['green', 'yellow', 'red']
+    wh = len(ccolw)
+    if batch:
+        print(fname, fields)
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
+    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
+                    nrows_ncols=(1, size),
+                    axes_pad=1.2, label_mode="L",
+                    share_all=True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
+    # check for custom fields and add them to yt.
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+    if contp['maxbased']:
+        ad = ds.all_data()
+        pkp = ad[contp['contour']].argmax()
+        peaken = ad[contp['contour']].value[pkp]
+        mline = '# ' + '{:.10E} '*2
+        delT = ds.parameters['dt']
+        mline = mline.format(float(ds.current_time), delT)
+        metatxt.append(mline)
+        cut = peaken*(1.0 - np.min(contp['values']))
+#         print(np.min(contp['values']))
+        log.warning('Peak, cutoff: {:.3E} {:.3E}'.format(peaken, cut))
+        msk = ad['enuc'].value > cut
+        r = ad['x'][msk].value
+        dns = ad['dens'][msk].value
+        ts = ad['temp'][msk].value
+        ens = ad['enuc'][msk].value
+        xs, ys = ad['x'][msk].value, ad['y'][msk].value
+        vxs, vys = ad['velx'][msk].value, ad['vely'][msk].value
+        dxs = ad['path_element_x'][msk].value
+        dys = ad['path_element_y'][msk].value
+        log.warning('# cells picked: {}'.format(len(xs)))
+        log.warning('Assuming cylindrical slice')
+        for dn, t, en, x, y, vx, vy, dx, dy in zip(dns, ts, ens, xs, ys,
+                                                   vxs, vys, dxs, dys):
+            vl = 2.0*np.pi*dy*dx*x
+            ms = vl*dn
+            sp = np.sqrt(vx**2+vy**2)
+            rd = np.sqrt(x**2+y**2)
+            values = (x, y, rd, dn, t, vl, ms, vx, vy, sp)
+            strnums = ["{:.10E}".format(k) for k in values]
+            mline = ' '.join(strnums)
+            metatxt.append(mline)
+
+    p = yt.SlicePlot(ds, 'z', list(fields))
+    p.set_font({'family': 'monospace'})
+    if sum(center) == 0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
+    p.set_width((frame, 2*frame))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    if grids:
+        p.annotate_grids()
+    pvars = zip(fields, mins, maxs, linear, cmaps)
+    for i, (f, mi, mx, lin, cm) in enumerate(pvars):
+        if cm:
+            p.set_cmap(f, cm)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
+        p.set_zlim(f, mi, mx)
+        if lin:
+            p.set_log(f, False)
+        else:
+            if mi < 0 or mx < 0:
+                log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
+                # this is prone to error so check the subset
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
+                viewbox = ds.region(cent, le, re)
+                if not np.nanmax(viewbox[f].v):
+                    # there's only 0 or nans so fall back to linear scale
+                    p.set_zlim(f, 0, 1)
+                    p.set_log(f, False)
+                else:
+                    p.set_log(f, True, linthresh=linthresh)
+            else:
+                p.set_log(f, True)
+        plot = p.plots[f]
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+
+    for i, v in enumerate(contp['values']):
+        if contp['maxbased']:
+            val = peaken*(1 - v)
+            print(val, peaken, ccolw[i%wh])
+        p.annotate_contour(contp['contour'], ncont=1,
+                           clim=(val, val), label=False,
+                           text_args={'colors': 'k'},
+                           plot_args={'colors': ccolw[i%wh], 
+                          'linewidths': 1, 'linestyles':'-'})
+    p._setup_plots()
+
+    t = 'Contours: {}'.format(contp['contour'])
+    vals = ['{:.3E}'.format(x) for x in contp['values']]
+    t +='\nVals: {}'.format(','.join(vals))
+    datb, datb2 = ytt.get_plotTitles(ds, comment=t)
+    fig.axes[0].set_title(datb)
+    fig.axes[1].set_title(datb2)
+
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        if fac == 5:
+            ax.set_xlabel(u'x (km)')
+        else:
+            ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            if fac == 5:
+                ax.set_ylabel(u'y (km)'.format(fac-5))
+            else:
+                ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    for i, ax in enumerate(fig.axes):
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
+    if not batch:
+        return fig
+    else:
+        filetag = 'contour'
         writeFig(fig, os.path.join(ds.fullpath, ds.basename),
                  filetag, meta='\n'.join(metatxt))
 

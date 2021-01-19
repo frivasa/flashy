@@ -323,3 +323,14 @@ def reformatTag(tag):
             return nlab, True
     else:
         return tag, False
+
+
+def rollingAverage(stat, step=5):
+    N = len(stat)
+    roll = np.zeros(N)
+    for i in range(N):
+        sum = np.sum(stat[i:i+step])
+        roll[i] = sum/step
+    # reset last entries with the last 'averageable' number
+    roll[-step:] = roll[-step]
+    return roll
