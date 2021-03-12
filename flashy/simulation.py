@@ -614,7 +614,10 @@ def chkBreakdown(refBlock):
     tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
     _, _, ftype = rest.partition('=')
     # get number from first line too due to changing text block size
-    number = int(refBlock[0][-4:])
+    try:
+        number = int(refBlock[0][-4:])
+    except ValueError:  # sometimes name of file is not in first line 
+        number = int(refBlock[1][-4:])
     return tstamp, (ftype, number)
 
 

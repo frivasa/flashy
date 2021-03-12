@@ -8,9 +8,14 @@ _speed = {'units': 'cm/s', 'take_log': False, 'sampling_type': 'cell'}
 _fermiDeg = {'units': 'auto', 'take_log': False,
              'sampling_type': 'cell', 'dimensions': 'dimensionless'}
 _soundspeed = {'units': 'cm/s', 'take_log': False, 'sampling_type': 'cell'}
+_machNumber = {'units': 'auto', 'take_log': False,
+                'sampling_type': 'cell', 'dimensions': 'dimensionless'}
 _burnLimiter = {'units': 'auto', 'take_log': False,
                 'sampling_type': 'cell', 'dimensions': 'dimensionless'}
+_masshe4 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
+
 _massC12 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
+_massO16 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massNe20 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massMg24 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massSi28 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
@@ -51,6 +56,19 @@ def soundspeed(field, data):
     return cs
 
 
+def machNumber(field, data):
+    """gridspeed/soundspeed"""
+    gc = data['flash', 'gamc'].v
+    pr = data['flash', 'pres'].v
+    de = data['flash', 'dens'].v
+    cs = np.sqrt(gc*pr/de)
+    vx = data['flash', 'velx'].v
+    vy = data['flash', 'vely'].v
+    vz = data['flash', 'velz'].v
+    spd = np.sqrt(vx*vx + vy*vy, vz*vz)
+    return spd/cs
+
+
 def burnLimiter(field, data):
     """Kushnir, 2019 energy limiter factor.
     WARN: using dx as in first coordinate, this is not
@@ -70,9 +88,25 @@ def burnLimiter(field, data):
     return (ei/np.abs(ec))/(dx/cs)
 
 
+def masshe4(field, data):
+    """mass of species"""
+    xi = data['flash', 'he4 ']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl
+
+
 def massC12(field, data):
     """mass of species"""
     xi = data['flash', 'c12 ']
+    de = data['flash', 'dens']
+    vl = data['flash', 'cell_volume']
+    return xi*de*vl
+
+
+def massO16(field, data):
+    """mass of species"""
+    xi = data['flash', 'o16 ']
     de = data['flash', 'dens']
     vl = data['flash', 'cell_volume']
     return xi*de*vl

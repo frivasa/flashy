@@ -304,14 +304,20 @@ def wedge2d(fname, elevation, depth, fields=[]):
         # ask yt for data, as always this takes forever.
         rawd = []
         for f in fields:
-            rawd.append(wedge[f].value)
+            if len(f) < 4:
+                rawd.append(wedge[f.ljust(4)].value)
+            else:
+                rawd.append(wedge[f].value)
         rawd[3] = cell_masses
         log.warning('Wedge modified (cylindrical masses)')
         return rawd, species  # WARNING: this might be humongous.
     else:
         rawd = []
         for f in fields:
-            rawd.append(wedge[f].value)
+            if len(f) < 4:
+                rawd.append(wedge[f.ljust(4)].value)
+            else:
+                rawd.append(wedge[f].value)
         log.info('Wedge unmodified')
         return rawd
 

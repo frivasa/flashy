@@ -10,6 +10,9 @@ import flashy.datahaul.tmat as tmat
 from flashy.plot.oneDim import plotSpecies
 mylog.setLevel(50)
 log.name = __name__
+_alphas = ['he4 ', 'c12 ', 'o16 ', 'ne20',
+           'mg24', 'si28', 's32 ', 'ar36',
+           'ca40', 'ti44', 'cr48', 'fe52', 'ni56']
 
 
 def slice_cube(fname, grids=False, batch=False,
@@ -321,7 +324,8 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
 def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
                  center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
                  linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
-                 maxs=[6e7, 3e+25, 8e9], mark=[], cmaps=['RdBu_r']*3,
+                 maxs=[6e7, 3e+25, 8e9], mark=[], lineouts=[],
+                 cmaps=['RdBu_r']*3,
                  linthresh=1e15, dpi=90, fac=8, comm='', display=False,
                  metaprops={'radius': 4e8}):
     """YT 2D plots of a specified list of fields through a slice
@@ -349,7 +353,8 @@ def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
         linear(bool list): set linear or log scale(false).
         mins(float list): minima of scale for each field.
         maxs(float list): maxima of scale for each field.
-        mark(float list): mark a (x,y) coordinate in the plot.
+        mark(float list): mark a (x,y) coordinate.
+        lineouts(float list): mark lineouts from origin (list of angles).
         cmaps(str): matplotlib colormap for the plot.
         linthresh(float): symlog linea area around 0.
         dpi(float): dpi of figure returned/saved.
@@ -480,6 +485,12 @@ def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
                                      'linewidth': 2, 'facecolors': "None"})
     p.annotate_sphere([0.0, 0.0, 0.0], radius=(metaprops['radius'], 'cm'),
                       circle_args={'color': 'white', 'ls': '--', 'linewidth': 1})
+    if lineouts:
+        for angle in lineouts:
+            height = np.sin(np.radians(angle))*2.0*frame*np.sqrt(2)
+            length = np.cos(np.radians(angle))*2.0*frame*np.sqrt(2)
+            p.annotate_line((0.0, 0.0), (length, height), coord_system='plot',
+                            plot_args={'color': 'black', 'ls': '--', 'linewidth': 1})
     if grids:
         p.annotate_grids()
     pvars = zip(fields, mins, maxs, linear, cmaps)
@@ -611,8 +622,7 @@ def contourProps(fname, grids=False, batch=False, frame=1e9,
         delT = ds.parameters['dt']
         mline = mline.format(float(ds.current_time), delT)
         metatxt.append(mline)
-        cut = peaken*(1.0 - np.min(contp['values']))
-#         print(np.min(contp['values']))
+        cut = peaken*np.max(contp['values'])
         log.warning('Peak, cutoff: {:.3E} {:.3E}'.format(peaken, cut))
         msk = ad['enuc'].value > cut
         r = ad['x'][msk].value
@@ -631,7 +641,7 @@ def contourProps(fname, grids=False, batch=False, frame=1e9,
             ms = vl*dn
             sp = np.sqrt(vx**2+vy**2)
             rd = np.sqrt(x**2+y**2)
-            values = (x, y, rd, dn, t, vl, ms, vx, vy, sp)
+            values = (en, x, y, rd, dn, t, vl, ms, vx, vy, sp)
             strnums = ["{:.10E}".format(k) for k in values]
             mline = ' '.join(strnums)
             metatxt.append(mline)
@@ -679,7 +689,7 @@ def contourProps(fname, grids=False, batch=False, frame=1e9,
 
     for i, v in enumerate(contp['values']):
         if contp['maxbased']:
-            val = peaken*(1 - v)
+            val = peaken*v
             print(val, peaken, ccolw[i%wh])
         p.annotate_contour(contp['contour'], ncont=1,
                            clim=(val, val), label=False,
@@ -717,6 +727,318 @@ def contourProps(fname, grids=False, batch=False, frame=1e9,
         return fig
     else:
         filetag = 'contour'
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename),
+                 filetag, meta='\n'.join(metatxt))
+
+
+def sphereProps(fname, sphR=1e5, sphC=(0.0, 0.0, 0.0),
+                grids=False, batch=False, frame=1e9,
+                center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+                linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+                maxs=[6e7, 3e+25, 8e9], cmaps=['RdBu_r']*3,
+                linthresh=1e15, dpi=90, fac=8):
+    """YT 2D plots of a specified list of fields through a slice
+    perpedicular to the z-axis.
+    cuts a sphere in the domain, extracting all cell data to a metafile.
+    
+    Args:
+        sphR(float): radius of sphere.
+        sphC(float tuple): center of sphere.
+        *see contourProps*
+    
+    Returns:
+        (mpl.figure or None)
+
+    """
+    ccolw = ['green', 'yellow', 'red']
+    wh = len(ccolw)
+    if batch:
+        print(fname, fields)
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
+    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
+                    nrows_ncols=(1, size),
+                    axes_pad=1.2, label_mode="L",
+                    share_all=True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
+    # check for custom fields and add them to yt.
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+
+    ad = ds.sphere(sphC, (sphR, 'cm'))
+    metatxt.append('# time timedelta')
+    mline = '# ' + '{:.10E} '*2
+    delT = ds.parameters['dt']
+    mline = mline.format(float(ds.current_time), delT)
+    metatxt.append(mline)
+    # make mask all cells in the sphere
+    msk = ad['temp'].value > -1.0
+
+    r = ad['x'][msk].value
+    dns = ad['dens'][msk].value
+    ts = ad['temp'][msk].value
+    ens = ad['enuc'][msk].value
+    prs = ad['pres'][msk].value
+    xs, ys = ad['x'][msk].value, ad['y'][msk].value
+    vxs, vys = ad['velx'][msk].value, ad['vely'][msk].value
+    dxs = ad['path_element_x'][msk].value
+    dys = ad['path_element_y'][msk].value
+    log.warning('# cells picked: {}'.format(len(xs)))
+    log.warning('Assuming cylindrical slice')
+    vls = 2.0*np.pi*dys*dxs*xs
+    mss = vls*dns
+    sps = np.sqrt(vxs**2+vys**2)
+    rds = np.sqrt(xs**2+ys**2)
+    els = []
+    for el in _alphas:
+        els.append(ad[el][msk].value)
+    chungus = zip(ens, xs, ys, rds, dns, ts, vls, prs, 
+                  mss, vxs, vys, sps, *els)
+    mline = '# enuc x y r dens temp vol pres mass velx vely speed '
+    mline += ' '.join(_alphas) 
+    metatxt.append(mline)
+    for line in chungus:
+        strnums = ["{:.10E}".format(k) for k in line]
+        mline = ' '.join(strnums)
+        metatxt.append(mline)
+
+    p = yt.SlicePlot(ds, 'z', list(fields))
+    p.set_font({'family': 'monospace'})
+    if sum(center) == 0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
+    p.set_width((frame, 2*frame))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    if grids:
+        p.annotate_grids()
+    pvars = zip(fields, mins, maxs, linear, cmaps)
+    for i, (f, mi, mx, lin, cm) in enumerate(pvars):
+        if cm:
+            p.set_cmap(f, cm)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
+        p.set_zlim(f, mi, mx)
+        if lin:
+            p.set_log(f, False)
+        else:
+            if mi < 0 or mx < 0:
+                log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
+                # this is prone to error so check the subset
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
+                viewbox = ds.region(cent, le, re)
+                if not np.nanmax(viewbox[f].v):
+                    # there's only 0 or nans so fall back to linear scale
+                    p.set_zlim(f, 0, 1)
+                    p.set_log(f, False)
+                else:
+                    p.set_log(f, True, linthresh=linthresh)
+            else:
+                p.set_log(f, True)
+        plot = p.plots[f]
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+    p.annotate_sphere(sphC, radius=(sphR, 'cm'),
+                      circle_args={'color': 'black', 'ls': '--', 'linewidth': 1})
+    p._setup_plots()
+
+    t = 'Contour R: {:.2E}'.format(sphR)
+    t +='\nCenter: {:.1E},{:.1E},{:.1E}'.format(*sphC)
+    datb, datb2 = ytt.get_plotTitles(ds, comment=t)
+    fig.axes[0].set_title(datb)
+    fig.axes[1].set_title(datb2)
+
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        if fac == 5:
+            ax.set_xlabel(u'x (km)')
+        else:
+            ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            if fac == 5:
+                ax.set_ylabel(u'y (km)'.format(fac-5))
+            else:
+                ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    for i, ax in enumerate(fig.axes):
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
+    if not batch:
+        return fig
+    else:
+        filetag = 'sphereContour'
+        writeFig(fig, os.path.join(ds.fullpath, ds.basename),
+                 filetag, meta='\n'.join(metatxt))
+
+
+def zoneProps(fname, ledge=(0.0, 0.0, 0.0), redge=(40e5, 50e5, 0.0175),
+              grids=False, batch=False, frame=1e9,
+              center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+              linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+              maxs=[6e7, 3e+25, 8e9], cmaps=['RdBu_r']*3,
+              linthresh=1e15, dpi=90, fac=8):
+    """YT 2D plots of a specified list of fields through a slice
+    perpedicular to the z-axis.
+    cuts a box in the domain, extracting all cell data to a metafile.
+    
+    Args:
+        ledge(float tuple): left edge of zone to focus on.
+        redge(float tuple): right edge of zone.
+        *see contourProps*
+    
+    Returns:
+        (mpl.figure or None)
+
+    """
+    ccolw = ['green', 'yellow', 'red']
+    wh = len(ccolw)
+    if batch:
+        print(fname, fields)
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
+    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
+                    nrows_ncols=(1, size),
+                    axes_pad=1.2, label_mode="L",
+                    share_all=True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
+    # check for custom fields and add them to yt.
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+
+    ad = ds.box(ledge, redge)
+    metatxt.append('# time timedelta')
+    mline = '# ' + '{:.10E} '*2
+    delT = ds.parameters['dt']
+    mline = mline.format(float(ds.current_time), delT)
+    metatxt.append(mline)
+    # make mask all cells in the sphere
+    msk = ad['temp'].value > -1.0
+
+    r = ad['x'][msk].value
+    dns = ad['dens'][msk].value
+    ts = ad['temp'][msk].value
+    ens = ad['enuc'][msk].value
+    prs = ad['pres'][msk].value
+    xs, ys = ad['x'][msk].value, ad['y'][msk].value
+    vxs, vys = ad['velx'][msk].value, ad['vely'][msk].value
+    dxs = ad['path_element_x'][msk].value
+    dys = ad['path_element_y'][msk].value
+    log.warning('# cells picked: {}'.format(len(xs)))
+    log.warning('Assuming cylindrical slice')
+    vls = 2.0*np.pi*dys*dxs*xs
+    mss = vls*dns
+    sps = np.sqrt(vxs**2+vys**2)
+    rds = np.sqrt(xs**2+ys**2)
+    els = []
+    for el in _alphas:
+        els.append(ad[el][msk].value)
+    chungus = zip(ens, xs, ys, rds, dns, ts, vls, prs, 
+                  mss, vxs, vys, sps, *els)
+    mline = '# enuc x y r dens temp vol pres mass velx vely speed '
+    mline += ' '.join(_alphas) 
+    metatxt.append(mline)
+    for line in chungus:
+        strnums = ["{:.10E}".format(k) for k in line]
+        mline = ' '.join(strnums)
+        metatxt.append(mline)
+
+    p = yt.SlicePlot(ds, 'z', list(fields))
+    p.set_font({'family': 'monospace'})
+    if sum(center) == 0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
+    p.set_width((frame, 2*frame))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    if grids:
+        p.annotate_grids()
+    pvars = zip(fields, mins, maxs, linear, cmaps)
+    for i, (f, mi, mx, lin, cm) in enumerate(pvars):
+        if cm:
+            p.set_cmap(f, cm)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
+        p.set_zlim(f, mi, mx)
+        if lin:
+            p.set_log(f, False)
+        else:
+            if mi < 0 or mx < 0:
+                log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
+                # this is prone to error so check the subset
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
+                viewbox = ds.region(cent, le, re)
+                if not np.nanmax(viewbox[f].v):
+                    # there's only 0 or nans so fall back to linear scale
+                    p.set_zlim(f, 0, 1)
+                    p.set_log(f, False)
+                else:
+                    p.set_log(f, True, linthresh=linthresh)
+            else:
+                p.set_log(f, True)
+        plot = p.plots[f]
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+    # draw rectangle by a loop of lines
+    #        ---- redge
+    #       |   |
+    # ledge ---- 
+    p.annotate_line((ledge[0], ledge[1]), (redge[0], ledge[1]), coord_system='plot',
+                    plot_args={'color': 'black', 'ls': '--', 'linewidth': 1})
+    p.annotate_line((redge[0], ledge[1]), (redge[0], redge[1]), coord_system='plot',
+                    plot_args={'color': 'black', 'ls': '--', 'linewidth': 1})
+    p.annotate_line((redge[0], redge[1]), (ledge[0], redge[1]), coord_system='plot',
+                    plot_args={'color': 'black', 'ls': '--', 'linewidth': 1})
+    p.annotate_line((ledge[0], redge[1]), (ledge[0], ledge[1]), coord_system='plot',
+                    plot_args={'color': 'black', 'ls': '--', 'linewidth': 1})
+    p._setup_plots()
+
+    t = 'Left edge: {:.1E},{:.1E},{:.1E}'.format(*ledge)
+    t +='\nRight edge: {:.1E},{:.1E},{:.1E}'.format(*redge)
+    datb, datb2 = ytt.get_plotTitles(ds, comment=t)
+    fig.axes[0].set_title(datb)
+    fig.axes[1].set_title(datb2)
+
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        if fac == 5:
+            ax.set_xlabel(u'x (km)')
+        else:
+            ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if not i:
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            if fac == 5:
+                ax.set_ylabel(u'y (km)'.format(fac-5))
+            else:
+                ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    for i, ax in enumerate(fig.axes):
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
+    if not batch:
+        return fig
+    else:
+        filetag = 'squareContour'
         writeFig(fig, os.path.join(ds.fullpath, ds.basename),
                  filetag, meta='\n'.join(metatxt))
 
