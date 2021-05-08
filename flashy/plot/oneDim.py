@@ -79,7 +79,8 @@ def plot2Dtaus(bview, fname, wedges=5, batch=False):
 
 
 def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
-                     ref='x', antipode=False, batch=False):
+                     ref='x', antipode=False, avoid=0.0,
+                     batch=False):
     """Plots Radial speed vs radius for a file.
 
     Args:
@@ -89,6 +90,7 @@ def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
         dimension(int): specify file dimension.
         ref(str): reference axis (3D only, see datahaul.hdf5yt.wedge3d).
         antipode(bool): antipodal wedge (see datahaul.hdf5yt.wedge3d).
+        avoid(float): polar angle to exclude (from both poles).
         batch(bool): write to file and skip returning figure.
 
     Returns:
@@ -96,18 +98,25 @@ def plotRadialSpeeds(bview, fname, slices=5, dimension=2,
 
     """
     kwargs = {'fname': os.path.abspath(fname), 'dimension': dimension,
-              'wedges': slices, 'ref': ref, 'antipode': antipode}
+              'wedges': slices, 'ref': ref, 'avoid': avoid, 
+              'antipode': antipode}
     res = pman.throwHammer(bview, slices, fp.par_radialSpeeds, **kwargs)
     dat = glue2dWedges(res.get())
     f, ax = plt.subplots()
     ax.scatter(*dat, marker='.', s=0.05)
+    line = np.logspace(7, 11, num=30)
+    ax.plot(line, line, ls='--', color='black', alpha=0.6)
     ax.set_xscale('log')
     ax.set_yscale('log')
-    ax.set_ylim([1e4, 1e10])
+#     ax.set_ylim([1e4, 1e10])
     ax.set_xlim([2e7, 2e10])
     t, dt, _, _ = probeDomain(fname)
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
-    ax.set_title('{} ({:.3f} s)'.format(tag, t))
+    if avoid:
+        ttl = '{} ({:.3f} s, -{:d}°)'.format(tag, t, avoid)
+    else:
+        ttl = '{} ({:.3f} s)'.format(tag, t)
+    ax.set_title(ttl)
     ax.set_xlabel('Radius (cm)')
     ax.set_ylabel('Speed (cm/s)')
     if batch:
@@ -198,7 +207,7 @@ def plotSpeedHistogram(bview, fname, geom='cartesian', dimension=2,
                                              label='Total', color='#000000')
         ax.set_ylabel(u'$M_{\\odot}$')
         ax.set_ylim([1e-4, 1.0])
-    ax.set_xlim([0e0, 3e9])
+    ax.set_xlim([0e0, 5.0e9])
     ax.set_xlabel('Velocity (cm/s)')
     tag = os.path.basename(os.path.dirname(os.path.dirname(fname)))
     ax.set_title('{} ({:.3f} s)'.format(tag, t))
@@ -717,7 +726,11 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
             if np.max(attv) <= 0:
                 continue
             expo = np.floor(np.log10(np.max(attv)))-botplotshift
-            labl = p.capitalize()+'$\cdot 10^{{-{}}}$'.format(int(expo))
+            if expo < 0:
+                printfactor = '$\cdot 10^{{{}}}$'
+            else:
+                printfactor = '$\cdot 10^{{-{}}}$'
+            labl = p.capitalize()+printfactor.format(int(abs(expo)))
             tdax.plot(xs, getattr(prof, p)/np.power(10, expo),
                       label=labl, marker=mark)
             ylabels.append(u)

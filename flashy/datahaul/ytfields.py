@@ -12,8 +12,7 @@ _machNumber = {'units': 'auto', 'take_log': False,
                 'sampling_type': 'cell', 'dimensions': 'dimensionless'}
 _burnLimiter = {'units': 'auto', 'take_log': False,
                 'sampling_type': 'cell', 'dimensions': 'dimensionless'}
-_masshe4 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
-
+_massHe4 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massC12 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massO16 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
 _massNe20 = {'units': 'g', 'take_log': False, 'sampling_type': 'cell'}
@@ -88,7 +87,7 @@ def burnLimiter(field, data):
     return (ei/np.abs(ec))/(dx/cs)
 
 
-def masshe4(field, data):
+def massHe4(field, data):
     """mass of species"""
     xi = data['flash', 'he4 ']
     de = data['flash', 'dens']

@@ -179,7 +179,7 @@ def productionFactor(yieldfiles, tag='Sim vs X', norm='Si', offset=6):
 
 
 def multi_nuclideYields(fnames, tags, xrange=[0, 70], yrange=[1e-5, 1.0], addsun=True,
-                        tag='nuclide_solar', batch=False):
+                        tag='nuclide_solar', batch=False, subsetR=0.0):
     """plots all nuclide yields in a checkpoint list. Adds sun as option
 
     Args:
@@ -200,7 +200,7 @@ def multi_nuclideYields(fnames, tags, xrange=[0, 70], yrange=[1e-5, 1.0], addsun
     syms = ['.', 'x', '+', '1', '2']
     cols = ['black', 'royalblue', 'forestgreen', 'darkorange', 'firebrick']
     for i, fname in enumerate(fnames):
-        time, species, masses = getYields(fname)
+        time, species, masses = getYields(fname, subsetR=subsetR)
         print(fname)
         print('time = {}'.format(time))
         print("species = ['{}']".format("','".join(species)))

@@ -39,11 +39,13 @@ def get2Dtaus(bview, fname, wedges=5):
 
 
 def par_radialSpeeds(wedgenum, wedges=5, fname='', geom='cartesian',
-                     dimension=2, ref='x', antipode=False):
+                     dimension=2, ref='x', avoid=0.0, antipode=False):
     """wedge-parallelizable radial speed extraction."""
-    delta = 180.0/wedges
     # slight offset to avoid division by zero.
-    cuts = np.linspace(179.9, 0.1, wedges+1)-90
+    if avoid:
+        cuts = np.linspace(179.9 - avoid, 0.1 + avoid, wedges + 1) - 90
+    else:
+        cuts = np.linspace(179.9, 0.1, wedges + 1) - 90
     wedges = list(zip(cuts, cuts[1:]))
     start, stop = wedges[wedgenum]
     if stop*start > 0.0:
@@ -91,7 +93,6 @@ def radialSpeeds(fname, elevation=5, depth=5,
 def par_speedHisto(wedgenum, wedges=5, fname='', geom='cartesian',
                    resolution=4e7, dimension=2, ref='x', antipode=False):
     """wedge-parallelizable speedHisto."""
-    delta = 180.0/wedges
     # slight offset to avoid division by zero.
     cuts = np.linspace(179.9, 0.1, wedges+1)-90
     wedges = list(zip(cuts, cuts[1:]))

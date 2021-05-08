@@ -40,9 +40,13 @@ class simulation(object):
             self.plotfiles = getFileList(self.chk,
                                          glob='cart_flash_hdf5_plt_',
                                          fullpath=True)
+            self.partfiles = getFileList(self.chk,
+                                         glob='cart_flash_hdf5_part_',
+                                         fullpath=True)
         else:
             self.checkpoints = getFileList(self.chk, glob='chk', fullpath=True)
             self.plotfiles = getFileList(self.chk, glob='plt', fullpath=True)
+            self.partfiles = getFileList(self.chk, glob='part', fullpath=True)
 
         log.debug('Reading metadata')
         # build step data from FLASH output (log and stats)
@@ -394,10 +398,17 @@ def readLog(logfile):
         steps.loc[mask, 'mpi_ranks'] = mpis[i]
     log.debug('.readLog: adding refinement')
     refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
-    tags = ['minblocks', 'maxblocks', 'totblocks',
-            'leaf_minblocks', 'leaf_maxblocks', 'leaf_totblocks']
+    # particles maim the output to 2 lines instead of 5
+    # this can be picked by an extra refinement complete line at end
+    subs = refinementLines[:10]
+    stpchk = [l for l in subs if 'refinement complete' in l]
+    if len(stpchk) > 0:
+        stp = 5
+    else:
+        stp = 2
+    tags = ['minblocks', 'maxblocks', 'totblocks']
     nsteps = len(steps.index)
-    for i, rfb in enumerate(blockGenerator(refinementLines)):
+    for i, rfb in enumerate(blockGenerator(refinementLines, step=stp)):
         tstamp, vals = refBreakdown(rfb)
         if not i:
             ddict = {}
@@ -622,6 +633,34 @@ def chkBreakdown(refBlock):
 
 
 def refBreakdown(refBlock):
+    blockstencil = [2, 5, 8]
+    # get tstamp from first line
+    try:
+        tstampstr, _, _ = refBlock[0].partition(']')
+    except IndexError:
+        log.debug("ref block timestamp fail: \n{}".format('\n'.join(refBlock)))
+        tstampstr = '[ 01-01-2000  20:20:20.200 '
+    tstamp = datetime.datetime.strptime(tstampstr, '[ %m-%d-%Y %H:%M:%S.%f ')
+    # block information from line 2 or 3 (depending on input from log)
+    if len(refBlock) > 2:
+        blkline = 2
+    else:
+        blkline = 1
+    try:
+        _, _, blockstr = refBlock[blkline].partition(']')
+        min, max, tot = [int(x) for i, x in enumerate(blockstr.split())
+                         if i in blockstencil]
+    # if anything fails set to a fixed number
+    except IndexError:
+        log.debug("ref block numbers fail: \n{}".format('\n'.join(refBlock)))
+        min, max, tot = 2, 2, 2
+    except ValueError:
+        log.debug("ref block numbers fail: \n{}".format('\n'.join(refBlock)))
+        min, max, tot = 2, 2, 2
+    return tstamp, [min, max, tot]
+
+
+def refBreakdown_old(refBlock):
     """detailed breakdown of the refinement block from a flash log.
     e.g.:
     '[ 06-17-2019  18:15:06.134 ]

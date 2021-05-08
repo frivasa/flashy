@@ -29,6 +29,10 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'],
         species (list of str): names of species in the checkpoint.
 
     """
+    for f in fields:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
     ds = yt.load(fname)
     # spherical (r, theta, phi)
     # cartesian (x, y, z)
@@ -152,7 +156,7 @@ def getExtrema(fname, flist=['density', 'temperature', 'pressure']):
         return [x.value for x in ad.quantities.extrema(flist)]
 
 
-def getYields(fname):
+def getYields(fname, subsetR=0.0):
     """returns time, summed masses and species in a flash otp file.
     all units are msun or cgs.
     1D assumes spherical geometry
@@ -160,6 +164,7 @@ def getYields(fname):
 
     Args:
         fname(str): filename to inspect.
+        subsetR(float): radius cutoff for extraction.
 
     Returns:
         time (float) [s],
@@ -173,7 +178,11 @@ def getYields(fname):
     else:
         filename = fname
     ds = yt.load(filename)
-    ad = ds.all_data()
+    if subsetR:
+        log.warning('R subset for yields: {:.2E}'.format(subsetR))
+        ad = ds.sphere([0.0, 0.0, 0.0], (subsetR, 'cm'))
+    else:
+        ad = ds.all_data()
     _, species = getFields(ds.field_list)
     species = [s.ljust(4) for s in species]
     # 2d glitches due to dz being nonsensical
@@ -304,7 +313,7 @@ def wedge2d(fname, elevation, depth, fields=[]):
         # ask yt for data, as always this takes forever.
         rawd = []
         for f in fields:
-            if len(f) < 4:
+            if len(f) < 4 and len(f) > 1:  # 'o16 ', 'n14 ', etc
                 rawd.append(wedge[f.ljust(4)].value)
             else:
                 rawd.append(wedge[f].value)
@@ -314,7 +323,7 @@ def wedge2d(fname, elevation, depth, fields=[]):
     else:
         rawd = []
         for f in fields:
-            if len(f) < 4:
+            if len(f) < 4 and len(f) > 1:  # 'x', 'y', etc
                 rawd.append(wedge[f.ljust(4)].value)
             else:
                 rawd.append(wedge[f].value)

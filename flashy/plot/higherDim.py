@@ -18,8 +18,9 @@ _alphas = ['he4 ', 'c12 ', 'o16 ', 'ne20',
 def slice_cube(fname, grids=False, batch=False,
                frame=1e9, center=[0.0, 0.0, 0.0], sliceAxis='z',
                fields=['density', 'pressure', 'temperature'],
-               linear=False, mins=[1.0, 1e+18, 1e7],
-               maxs=[6e7, 3e+25, 8e9], mark=[], cmap='', filetag='ytprops'):
+               linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+               maxs=[6e7, 3e+25, 8e9], mark=[], fac=8, cmap='',
+               particles=False, pwidth=1e6, filetag='ytprops', dpi=80):
     """YT 2D plots of a specified list of fields through a defined slice.
 
     Args:
@@ -30,12 +31,16 @@ def slice_cube(fname, grids=False, batch=False,
         center(float list): center for slice.
         sliceAxis(str): normal axis for slice.
         fields(list of str): list of named fields to plot.
-        linear(bool): set linear or log scale(false).
+        linear(bool list): set linear or log scale(false) for each plot.
         mins(float list): minima of scale for each field.
         maxs(float list): maxima of scale for each field.
         mark(float list): mark a (x,y) coordinate in the plot.
+        fac(int): custom formatter exponent factor(cm to km = 5). 
         cmap(str): matplotlib colormap for the plot.
+        particles(bool): overplot particles on the leftmost plot.
+        pwidth(float): particle sliver thickness.
         filetag(str): override default filetag (ytprops).
+        dpi(int): force dpi of figure
 
     Returns:
         (mpl.figure or None)
@@ -43,12 +48,16 @@ def slice_cube(fname, grids=False, batch=False,
     """
     ds = yt.load(fname)
     size = len(fields)
-    fig = plt.figure(figsize=(7*size, 7))
+    fig = plt.figure(figsize=(7*size, 7), dpi=dpi)
     grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
                     nrows_ncols=(1, size),
                     axes_pad=1.2, label_mode="L",
                     share_all=True, cbar_location="right",
                     cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
     p = yt.SlicePlot(ds, sliceAxis, list(fields),
                      origin='native', center=center)
     p.set_width((frame, frame))
@@ -62,8 +71,8 @@ def slice_cube(fname, grids=False, batch=False,
                                      'facecolors': "None"})
     if grids:
         p.annotate_grids()
-    pvars = zip(fields, mins, maxs)
-    for i, (f, mi, mx) in enumerate(pvars):
+    pvars = zip(fields, mins, maxs, linear)
+    for i, (f, mi, mx, lin) in enumerate(pvars):
         if not i:
             p.annotate_title(header.format(float(ds.current_time),
                                            sliceAxis.capitalize(),
@@ -73,13 +82,63 @@ def slice_cube(fname, grids=False, batch=False,
         else:
             p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
         p.set_zlim(f, mi, mx)
-        if linear:
+        if lin:
             p.set_log(f, False)
+        else:
+            p.set_log(f, True)  # some fields start linear
         plot = p.plots[f]
         # plot.figure = fig
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
+    axes = {
+        'x': ('y', 'z'),
+        'y': ('z', 'x'),
+        'z': ('x', 'y')
+    }.get(sliceAxis, ('x', 'y'))
+    for i, ax in enumerate(fig.axes):
+        ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
+        if fac == 5:
+            ax.set_xlabel(u'{} (km)'.format(axes[0]))
+        else:
+            lbl = u'{} ($10^{{{}}}$ km)'.format(axes[0], fac-5)
+            ax.set_xlabel(lbl)
+        if not i:
+            if particles:
+                if 'plt' in fname:
+                    pre, name = os.path.split(fname)
+                    nsp = name.split('_')
+                    if 'plt' in nsp:
+                        del(nsp[-2])
+                        nsp[-2] = 'part'
+                    newname = '_'.join(nsp)
+                    pfname = os.path.join(pre, newname)
+                    dsp = yt.load(pfname)
+                    ad = dsp.all_data(fields=[('all', 'particle_position')])
+                else:
+                    ad = ds.all_data(fields=[('all', 'particle_position')])
+                allp = ad[('all', 'particle_position')].v
+                ax2num = {'x': 0, 'y': 1, 'z': 2}
+                n = ax2num[sliceAxis]
+                refh = center[n]
+                subs = [p for p in allp if p[n] < (refh + 0.5*pwidth)]
+                subs = [p for p in subs if p[n] > (refh - 0.5*pwidth)]
+                lm = 'Total/Drawn Particles: {} {}'.format(len(allp), len(subs))
+                log.debug(lm)
+                prx = [p[ax2num[axes[0]]] for p in subs]
+                pry = [p[ax2num[axes[1]]] for p in subs]
+                ax.scatter(prx, pry, marker='.', s=7, c='green')
+            ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
+            if fac == 5:
+                ax.set_ylabel(u'{} (km)'.format(axes[1], fac-5))
+            else:
+                lbl = u'{} ($10^{{{}}}$ km)'.format(axes[1], fac-5)
+                ax.set_ylabel(lbl)
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
     if not batch:
         return fig
     else:
@@ -148,7 +207,7 @@ def metaProps(fname, mhead=False, grids=False, batch=False, frame=1e9,
     for f in fields + ['speed']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
-            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
     # in situ calculations
     if not display:
         ad = ds.all_data()
@@ -326,7 +385,8 @@ def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
                  linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
                  maxs=[6e7, 3e+25, 8e9], mark=[], lineouts=[],
                  cmaps=['RdBu_r']*3,
-                 linthresh=1e15, dpi=90, fac=8, comm='', display=False,
+                 linthresh=1e15, dpi=90, fac=8, comm='',
+                 display=False, particles=False,
                  metaprops={'radius': 4e8}):
     """YT 2D plots of a specified list of fields through a slice
     perpedicular to the z-axis. Batch build a meta plaintext file with
@@ -382,10 +442,13 @@ def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
     for f in fields + ['speed']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
-            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
-    # in situ calculations
-    if not display:
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
+    # in situ calculations and particle data
+    if not display or particles:
         ad = ds.all_data()
+    if particles:
+        allp = ad[('all', 'particle_position')].v
+    if not display:
         mvpos = ad['speed'].argmax()
         maxsp = ad['speed'].value[mvpos]
         mvlocx, mvlocy = ad['x'].value[mvpos], ad['y'].value[mvpos]
@@ -523,7 +586,7 @@ def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
         plot.axes = grid[i].axes
         plot.cax = grid.cbar_axes[i]
     p._setup_plots()
-
+    
     if display:
         datb, datb2 = ytt.get_plotTitles(ds, comment=comm)
         ll = len(datb.split('\n')[-1])
@@ -545,12 +608,20 @@ def mprops_split(fname, mhead=False, grids=False, batch=False, frame=1e9,
         else:
             ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
         if not i:
+            if particles:
+                uniq, unpos = np.unique(allp, axis=0, return_index=True)
+                subset = [x for i, x in enumerate(uniq) if i in unpos]
+                prx, pry, _ =list(zip(*subset))
+                ax.scatter(prx, pry, marker='.', s=5, c='green')
+                subset = [x for i, x in enumerate(uniq) if i not in unpos]
+                if subset:
+                    prx, pry, _ =list(zip(*subset))
+                    ax.scatter(prx, pry, marker='.', s=7, c='yellow')
             ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
             if fac == 5:
                 ax.set_ylabel(u'y (km)'.format(fac-5))
             else:
                 ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
-    for i, ax in enumerate(fig.axes):
         # skip the leftmost ylabel
         if i:
             tag, changed = reformatTag(ax.yaxis.get_label_text())
@@ -613,7 +684,7 @@ def contourProps(fname, grids=False, batch=False, frame=1e9,
     for f in fields + ['speed']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
-            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
     if contp['maxbased']:
         ad = ds.all_data()
         pkp = ad[contp['contour']].argmax()
@@ -767,7 +838,7 @@ def sphereProps(fname, sphR=1e5, sphC=(0.0, 0.0, 0.0),
     for f in fields + ['speed']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
-            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
 
     ad = ds.sphere(sphC, (sphR, 'cm'))
     metatxt.append('# time timedelta')
@@ -775,7 +846,7 @@ def sphereProps(fname, sphR=1e5, sphC=(0.0, 0.0, 0.0),
     delT = ds.parameters['dt']
     mline = mline.format(float(ds.current_time), delT)
     metatxt.append(mline)
-    # make mask all cells in the sphere
+    # make a mask for all cells in the sphere
     msk = ad['temp'].value > -1.0
 
     r = ad['x'][msk].value
@@ -918,7 +989,7 @@ def zoneProps(fname, ledge=(0.0, 0.0, 0.0), redge=(40e5, 50e5, 0.0175),
     for f in fields + ['speed']:
         if f in dir(ytf):
             meta = getattr(ytf, '_' + f)
-            yt.add_field(("flash", f), function=getattr(ytf, f), **meta)
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
 
     ad = ds.box(ledge, redge)
     metatxt.append('# time timedelta')
@@ -1268,70 +1339,134 @@ def delt_runs_2D(fname, fields=['speed', 'velx', 'vely'],
         filetag = '_'.join(['delta'] + [s.strip() for s in fields])
         writeFig(fig, fname, filetag)
 
-
-def PARA_delt_runs_2D(bview, fname, fields=['speed', 'velx', 'vely'],
-                      compdir='', cmap='RdBu_r',
-                      subset=[0.0, 1e9, -1e9, 1e9], linthresh=1e7,
-                      vmin=-1e9, vmax=1e9, batch=False,
-                      nticks=4, wedges=8, fac=8):
-    """plots deltas with contiguous checkpoint/plotfile
-    for a list of fields.
+        
+def adhoc_plot(fname, batch=False, frame=1e9,
+               center=(0.0, 0.0), fields=['density', 'pressure', 'temperature'],
+               linear=[False, False, False], mins=[1.0, 1e+18, 1e7],
+               maxs=[6e7, 3e+25, 8e9], cmaps=['RdBu_r']*3,
+               linthresh=1e15, dpi=90, fac=8, comm=''):
+    """same as meta props without meta file.
 
     Args:
-        bview(ipp.LoadBalancedView): ipp setup workhorse.
-        fname(str): file path.
-        fields(str list): fields to process.
-        compdir(str): folderpath for comparison run.
-        subset(float list): domain window for plotting.
-        cmap(str): colormap name.
-        linthresh(float): linear range around zero.
-        vmin(float): minimum value.
-        vmax(float): maximum value.
-        batch(bool): print to file toggle.
-        nticks(int): ticks for xaxis.
-        wedges(int): slices for data extraction.
+        fname(str): filename to plot.
+        batch(bool): if true save figure to file instead of returning it.
+        frame(float): physical extent of plot in x (twice for y) .
+        center(float tuple): physical center of plot.
+        fields(str list): list of named fields to plot.
+        linear(bool list): set linear or log scale(false).
+        mins(float list): minima of scale for each field.
+        maxs(float list): maxima of scale for each field.
+        cmaps(str): matplotlib colormap for the plot.
+        linthresh(float): symlog linea area around 0.
+        dpi(float): dpi of figure returned/saved.
+        fac(int): custom formatter exponent factor(cm to km = 5).
+        comm(str): add custom mesage to plot.
 
     Returns:
         (mpl.figure or None)
 
     """
-    dat = []
-    for f in fields:
-        t0, dt, ext, datmat = tmat.get2dPane(bview, fname, f, wedges=wedges)
-        dat.append(datmat)
-    shift = os.path.join(compdir, os.path.basename(fname))
-    shiftDat = []
-    for f in fields:
-        t1, dt, ext, datmat = tmat.get2dPane(bview, shift, f)
-        shiftDat.append(datmat)
-    delts = [y-x for (x, y) in zip(dat, shiftDat)]
-    fig, axs = plt.subplots(nrows=1, ncols=len(fields), dpi=90,
-                            sharey=True, sharex=True, constrained_layout=True)
-    for i, ax in enumerate(axs.flat):
-        mshow = axs[i].matshow(delts[i], extent=ext, cmap=cmap,
-                               norm=SymLogNorm(linthresh=linthresh,
-                                               linscale=0.8,
-                                               vmin=vmin, vmax=vmax))
-        ax.set_title(fields[i])
-        ax.axis(subset)
-        ax.xaxis.set_ticks_position('bottom')
+    if batch:
+        print(fname, fields)
+    ds = yt.load(fname)
+    size = len(fields)
+    fig = plt.figure(figsize=(5*size, 8), dpi=dpi)
+    grid = AxesGrid(fig, (0.075, 0.075, 0.85, 0.85),
+                    nrows_ncols=(1, size),
+                    axes_pad=1.2, label_mode="L",
+                    share_all=True, cbar_location="right",
+                    cbar_mode="each", cbar_size="10%", cbar_pad="0%")
+    metatxt = []
+    # check for custom fields and add them to yt.
+    for f in fields + ['speed']:
+        if f in dir(ytf):
+            meta = getattr(ytf, '_' + f)
+            ds.add_field(("flash", f), function=getattr(ytf, f), **meta)
+
+    ledge = (0.0, -frame, 0.0)
+    redge = (frame, frame, 0.0175)
+    box = ds.box(ledge, redge)
+    p = yt.SlicePlot(ds, 'z', list(fields), data_source=box)
+    p.set_font({'family': 'monospace'})
+    if sum(center) == 0.0:
+        p.set_center((frame*0.5, 0.0))
+    else:
+        p.set_center(center)
+    p.set_width((frame, 2*frame))
+    p.set_origin(("center", "left", "domain"))
+    p.set_axes_unit('cm')
+    pvars = zip(fields, mins, maxs, linear, cmaps)
+    for i, (f, mi, mx, lin, cm) in enumerate(pvars):
+        if cm:
+            p.set_cmap(f, cm)
+        else:
+            p.set_cmap(f, 'RdBu_r')  # fall back to RdBu
+        p.set_zlim(f, mi, mx)
+        if lin:
+            p.set_log(f, False)
+        else:
+            if mi < 0 or mx < 0:
+                log.debug('{} with limit <0: {:E} {:E}'.format(f, mi, mx))
+                # this is prone to error so check the subset
+                cent = np.array((center[0], center[1], 0.0))
+                delt = np.array((frame*0.5, frame, ds.domain_dimensions[2]))
+                le = cent-delt
+                re = cent+delt
+                if any(le < ds.domain_left_edge.v):
+                    le = ds.domain_left_edge.v
+                if any(re < ds.domain_right_edge.v):
+                    re = ds.domain_right_edge.v
+                viewbox = ds.region(cent, le, re)
+                if not np.nanmax(viewbox[f].v):
+                    # there's only 0 or nans so fall back to linear scale
+                    p.set_zlim(f, 0, 1)
+                    p.set_log(f, False)
+                else:
+                    p.set_log(f, True, linthresh=linthresh)
+            else:
+                p.set_log(f, True)
+        plot = p.plots[f]
+        plot.axes = grid[i].axes
+        plot.cax = grid.cbar_axes[i]
+#     pargs = {'color': 'green', 's': 100}
+#     p.annotate_marker((x_match, y_match), coord_system='plot', plot_args=pargs)
+#     pargs = {'color': 'green', 's': 250, 'linewidth': 2, 'facecolors': "None"}
+#     p.annotate_marker((xm, ym), coord_system='plot', marker='o', plot_args=pargs)
+#     p.annotate_grids()
+    cargs = {'color': 'white', 'ls': '--', 'linewidth': 1}
+    p.annotate_sphere([0.0, 0.0, 0.0], radius=(4120e5, 'cm'), circle_args=cargs)
+    pargs = {'colors': 'green', 'linewidths': 1, 'linestyles':'--'}
+    p.annotate_contour("temperature", ncont=1, clim=(1e9,1e9), label=False,
+                       text_args={'colors': 'k'},
+                       plot_args=pargs)
+    p._setup_plots()
+#     datb, datb2 = ytt.get_plotTitles(ds, comment=comm)
+#     fig.axes[0].set_title(datb2)
+#     fig.axes[1].set_title(datb2)
+
     for i, ax in enumerate(fig.axes):
         ax.xaxis.set_major_formatter(customFormatter(fac, prec=0))
-        ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
+        if fac == 5:
+            ax.set_xlabel(u'x (km)')
+        else:
+            ax.set_xlabel(u'x ($10^{{{}}}$ km)'.format(fac-5))
         if not i:
+            timetag = '{:.3f}s'.format(float(ds.current_time))
+            ax.set_title(timetag, loc='right')
             ax.yaxis.set_major_formatter(customFormatter(fac, prec=0))
-            ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
-    cbar = fig.colorbar(mshow, ax=[axs[:]], location='bottom', extend='both')
-
-    log.warning('assuming filename folder structure: {}'.format(fname))
-    finn = '/'.join(fname.split('/')[-4:-2])
-    jake = '/'.join(compdir.split('/')[-3:-1])
-    suptitle = '{}\n{}\n'.format(finn, jake)
-    suptitle += '\n{:.5f}'.format(t0)
-    fig.suptitle(suptitle)
-
+            if fac == 5:
+                ax.set_ylabel(u'y (km)'.format(fac-5))
+            else:
+                ax.set_ylabel(u'y ($10^{{{}}}$ km)'.format(fac-5))
+    for i, ax in enumerate(fig.axes):
+        # skip the leftmost ylabel
+        if i:
+            tag, changed = reformatTag(ax.yaxis.get_label_text())
+            if changed:
+                ax.set_ylabel(tag, {'rotation': 0})
     if not batch:
         return fig
     else:
-        filetag = '_'.join(['delta'] + [s.strip() for s in fields])
-        writeFig(fig, fname, filetag)
+        filetag = 'adhoc'
+        filepath = os.path.join(ds.fullpath, ds.basename)
+        writeFig(fig, filepath, filetag)
