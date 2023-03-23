@@ -1,0 +1,5 @@
+numpy
+astropy
+scipy>=0.19.1
+matplotlib
+palettable

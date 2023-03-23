@@ -1,0 +1,21 @@
+# Benchmark model for (Leung.2017ArXiV.1710.04254): 300-1-c3-1
+# rhoC 3e9, Solar Metallicity (which one? lol), M 1.38, M_Ni 0.63
+# radioactive isotopes
+Na22 3.99E-10
+Al26 3.45E-7
+Ar39 5.00E-9 
+K40  3.85E-8 
+Ca41 1.34E-5 
+Ti44 2.46E-5 
+V48  1.10E-7 
+V49  3.20E-7 
+Mn53 3.81E-4 
+Fe60 1.60E-9 
+Co56 9.96E-5 
+Co57 1.19E-3 
+Co60 7.70E-8 
+Ni56 6.27E-1 
+Ni57 1.95E-2 
+Ni59 4.50E-4 
+Ni63 5.61E-8 
+

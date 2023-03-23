@@ -1,0 +1,44 @@
+lines.linewidth:1.5
+lines.linestyle:-
+lines.marker:None
+
+font.family:monospace
+font.size:11.0
+ 
+text.color:000000
+
+axes.linewidth:2 
+axes.grid:False 
+axes.labelsize:large 
+axes.axisbelow:False
+axes.titlepad:10.0  # these break RTD webhook
+axes.autolimit_mode:data  # round_numbers
+
+axes.formatter.limits: -1, 1
+
+xtick.top:True 
+xtick.direction:in
+
+xtick.major.size:9 
+xtick.major.width:1.4 
+xtick.major.pad:7
+
+xtick.minor.size:5 
+xtick.minor.width:1.0 
+xtick.minor.pad:7
+
+ytick.right:True 
+ytick.direction:in
+
+ytick.major.size:9 
+ytick.major.width:1.4 
+ytick.major.pad:7
+
+ytick.minor.size:5 
+ytick.minor.width:1.0 
+ytick.minor.pad:7
+
+savefig.facecolor:ffffff
+savefig.bbox:tight
+
+axes.facecolor:ffffff

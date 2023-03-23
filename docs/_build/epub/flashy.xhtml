@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <meta charset="utf-8" />
+    <title>flashy package</title>
+    <link rel="stylesheet" href="_static/epub.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" /> 
+  </head><body>
+
+    <div class="document">
+      <div class="documentwrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="flashy-package">
+<h1>flashy package</h1>
+<div class="section" id="subpackages">
+<h2>Subpackages</h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="flashy.plot.xhtml">flashy.plot package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="flashy.plot.xhtml#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flashy.plot.xhtml#module-flashy.plot.oneDim">flashy.plot.oneDim module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flashy.plot.xhtml#module-flashy.plot.twoDim">flashy.plot.twoDim module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flashy.plot.xhtml#module-flashy.plot">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules</h2>
+</div>
+<div class="section" id="module-flashy.butils">
+<span id="flashy-butils-module"></span><h2>flashy.butils module</h2>
+<dl class="function">
+<dt id="flashy.butils.cpList">
+<code class="descclassname">flashy.butils.</code><code class="descname">cpList</code><span class="sig-paren">(</span><em>files</em>, <em>src</em>, <em>dst</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#cpList"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.butils.emptyFileTree">
+<code class="descclassname">flashy.butils.</code><code class="descname">emptyFileTree</code><span class="sig-paren">(</span><em>root</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#emptyFileTree"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Empties ‘root’ folder.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.butils.execute">
+<code class="descclassname">flashy.butils.</code><code class="descname">execute</code><span class="sig-paren">(</span><em>outpath</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#execute"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>qsubs the sumbit.pbs at outpath</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>outpath</strong> (<em>str</em>) – runfolder</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>STDOUT, STDERR, ERRCODE</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(tuple)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.butils.fortParse">
+<code class="descclassname">flashy.butils.</code><code class="descname">fortParse</code><span class="sig-paren">(</span><em>arg</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#fortParse"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>returns a parsed variable from a parameter (bool,
+str, or number)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>arg</strong> (<em>str</em>) – parameter value</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>decorated argument for fortran parsing.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.butils.makeGIF">
+<code class="descclassname">flashy.butils.</code><code class="descname">makeGIF</code><span class="sig-paren">(</span><em>runfolder</em>, <em>prefix=''</em>, <em>subf=''</em>, <em>speed=0.2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#makeGIF"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Join all png images within a folder in an animated .gif</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>runfolder</strong> (<em>str</em>) – folder path</p></li>
+<li><p><strong>prefix</strong> (<em>str</em>) – prefix for files</p></li>
+<li><p><strong>subf</strong> (<em>str</em>) – subfolder for files</p></li>
+<li><p><strong>speed</strong> (<em>float</em>) – seconds between frames</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.butils.probeFile">
+<code class="descclassname">flashy.butils.</code><code class="descname">probeFile</code><span class="sig-paren">(</span><em>file</em>, <em>showrows=3</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#probeFile"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Shows ‘showrows’ lines from the start, midfile and
+ending of a plaintext file</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.butils.writeSubmit">
+<code class="descclassname">flashy.butils.</code><code class="descname">writeSubmit</code><span class="sig-paren">(</span><em>subfile</em>, <em>code</em>, <em>pbsins=[]</em>, <em>time='12:00:00'</em>, <em>nodes=1252</em>, <em>ompth=16</em>, <em>proj=''</em>, <em>mail=''</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/butils.xhtml#writeSubmit"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>builds a submit.pbs with a typical header, specifying walltime and nodes,
+then adding slines of code below. Exports OMP_NUM_THREADS=ompth
+titan: aprun (-j1) -n 1 -d 16
+debug: -D (int)
+rhea: mpirun –map-by ppr:N:node:pe=Th or -n
+debug: –display-map / –report-bindings
+Rhea max: 48 hours on 16 nodes (2x8 core p/node: -np 256)
+Titan: &lt;125 nodes 2h, &lt;312 nodes 6h…</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.cgs">
+<span id="flashy-cgs-module"></span><h2>flashy.cgs module</h2>
+<p>CGS and Nuclide module. This module can handle abundances,
+mass fractions and Isotope weighing.</p>
+<dl class="function">
+<dt id="flashy.cgs.convXmass2Abun">
+<code class="descclassname">flashy.cgs.</code><code class="descname">convXmass2Abun</code><span class="sig-paren">(</span><em>species</em>, <em>xmasses</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#convXmass2Abun"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Returns abundances, abar and zbar from a list of nuclide
+codes and mass fractions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.convertYield2Abundance">
+<code class="descclassname">flashy.cgs.</code><code class="descname">convertYield2Abundance</code><span class="sig-paren">(</span><em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#convertYield2Abundance"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Turns mass yields into abundances.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.elemSplit">
+<code class="descclassname">flashy.cgs.</code><code class="descname">elemSplit</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#elemSplit"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Standalone element name spliter.
+(A, name)
+he4 -&gt; (4, He)</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.fetchNuclides">
+<code class="descclassname">flashy.cgs.</code><code class="descname">fetchNuclides</code><span class="sig-paren">(</span><em>flist</em>, <em>lowercase=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#fetchNuclides"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>filters flash otp field list, extracting species found
+in the checkpoint.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getAbundances">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getAbundances</code><span class="sig-paren">(</span><em>names</em>, <em>massfrac</em>, <em>scale='H'</em>, <em>offset=12</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#getAbundances"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Returns abundances for a list of species and mass Fractions,
+scaled by a set species.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getMassFractions">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getMassFractions</code><span class="sig-paren">(</span><em>names</em>, <em>abun</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#getMassFractions"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Takes log abundances and species names to weigh them and return
+mass fractions.
+returns mass fractions.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getTotalMass">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getTotalMass</code><span class="sig-paren">(</span><em>massdict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#getTotalMass"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Sums all isotope masses in a massdict</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.getXYZ">
+<code class="descclassname">flashy.cgs.</code><code class="descname">getXYZ</code><span class="sig-paren">(</span><em>masses</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#getXYZ"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Returns Hydrogen, Helium and Metal Fractions from
+given mass fractions (assumes H and He at start of list).</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.plotAbun">
+<code class="descclassname">flashy.cgs.</code><code class="descname">plotAbun</code><span class="sig-paren">(</span><em>ax</em>, <em>mdict</em>, <em>norm='H'</em>, <em>offset=12.0</em>, <em>label='W7'</em>, <em>color='black'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#plotAbun"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>draws abundances vs atomic number, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.plotIsoMasses">
+<code class="descclassname">flashy.cgs.</code><code class="descname">plotIsoMasses</code><span class="sig-paren">(</span><em>ax, mdict, label='W7', color='black', ylims=[1e-18, 1.0], notag=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#plotIsoMasses"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>draws isotopic masses vs atomic mass, returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.plotPfac">
+<code class="descclassname">flashy.cgs.</code><code class="descname">plotPfac</code><span class="sig-paren">(</span><em>ax</em>, <em>querym</em>, <em>refname='/lustre/atlas/proj-shared/csc198/frivas/02.flashy/flashy/data/suncomp/AGSS09.comp'</em>, <em>label='Sun vs Ref'</em>, <em>norm='Si'</em>, <em>offset=6</em>, <em>reftype='solar'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#plotPfac"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>draws abundquery/abundref from a massdict and a filename,
+types of reference are ‘solar’(for solar composition) and ‘yield’ (for other sims)
+returns label and line element for legend</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readNuclideMasses">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readNuclideMasses</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#readNuclideMasses"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Reads an AMDC format table (Wang 2017 41 030003).
+AMDC atomic masses (2017): <a class="reference external" href="http://amdc.in2p3.fr/web/masseval.html">http://amdc.in2p3.fr/web/masseval.html</a>
+Reads only masses, there’s more data within it so
+this function is extensible.
+output is a dict with capitalized element names, then a
+z and n key to access z and a keyset of N numbers.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readStandardWeights">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readStandardWeights</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#readStandardWeights"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Returns a species dict with standard atomic weights from:
+<a class="reference external" href="http://www.ciaaw.org/atomic-weights.htm">http://www.ciaaw.org/atomic-weights.htm</a>:
+<a class="reference external" href="http://www.ciaaw.org/pubs/TSAW2013_xls.xls">http://www.ciaaw.org/pubs/TSAW2013_xls.xls</a>
+# CIAAW only tabulates 2013 values  so no Tennessine :( and only in xls.
+# Abridged values. Ranges are picked on their lower end.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readSunComp">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readSunComp</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#readSunComp"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Read a 6 column file with solar composition
+(Z name abundance abunerror meteoriticAb mAberror)
+mixes meteor and spectral/inferred abundances for completion.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.readYield">
+<code class="descclassname">flashy.cgs.</code><code class="descname">readYield</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#readYield"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Reads a mass yield file or a zipped list (for simulation yields)
+Returns a mass dictionary.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.speciesGrid">
+<code class="descclassname">flashy.cgs.</code><code class="descname">speciesGrid</code><span class="sig-paren">(</span><em>ax</em>, <em>spcodes</em>, <em>yoffset=5.0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#speciesGrid"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>draws a grid of the specified species on target ax.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.cgs.splitSpecies">
+<code class="descclassname">flashy.cgs.</code><code class="descname">splitSpecies</code><span class="sig-paren">(</span><em>Spcodes</em>, <em>trueA=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/cgs.xhtml#splitSpecies"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>returns list of symbols, Z, N, A from a list of
+nuclide codes.(Ni56, He4, U238, …)</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-flashy.paramSetup">
+<span id="flashy-paramsetup-module"></span><h2>flashy.paramSetup module</h2>
+<dl class="function">
+<dt id="flashy.paramSetup.compileFLASH">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">compileFLASH</code><span class="sig-paren">(</span><em>runfolder</em>, <em>resultlines=20</em>, <em>slines=[]</em>, <em>procs=8</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#compileFLASH"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>calls ‘make -j procs’ at outpath, compiling the run</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.cpFLASHrun">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">cpFLASHrun</code><span class="sig-paren">(</span><em>runfolder</em>, <em>newrunfol</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#cpFLASHrun"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>copy the cdx folder to a new runfolder</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.getFileList">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">getFileList</code><span class="sig-paren">(</span><em>folder</em>, <em>prefix='plt'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#getFileList"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.getListedDefs">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">getListedDefs</code><span class="sig-paren">(</span><em>supradict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#getListedDefs"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.makeParDict">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">makeParDict</code><span class="sig-paren">(</span><em>parfile</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#makeParDict"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>get a dictionary of parameters from a flash.par file</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="flashy.paramSetup.parameterGroup">
+<em class="property">class </em><code class="descclassname">flashy.paramSetup.</code><code class="descname">parameterGroup</code><span class="sig-paren">(</span><em>parfile</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.addDocs">
+<code class="descname">addDocs</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.addDocs"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.comp">
+<code class="descname">comp</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.comp"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>compares self.defaults to self.params, returning only changed
+parameters</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.deleteSkipped">
+<code class="descname">deleteSkipped</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.deleteSkipped"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.readChanges">
+<code class="descname">readChanges</code><span class="sig-paren">(</span><em>df</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.readChanges"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.setPars">
+<code class="descname">setPars</code><span class="sig-paren">(</span><em>parfile</em>, <em>defaults=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.setPars"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>sets the parameters from a .par file in the
+object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.tabulate">
+<code class="descname">tabulate</code><span class="sig-paren">(</span><em>defaults=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.tabulate"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>returns a pandas dataframe with parameters
+being used.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.tabulateDocked">
+<code class="descname">tabulateDocked</code><span class="sig-paren">(</span><em>docked</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.tabulateDocked"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>returns a pandas dataframe with defaults from setup_params.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="flashy.paramSetup.parameterGroup.writeParfile">
+<code class="descname">writeParfile</code><span class="sig-paren">(</span><em>outfile</em>, <em>terse=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#parameterGroup.writeParfile"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.readSetupParams">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">readSetupParams</code><span class="sig-paren">(</span><em>filename</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#readSetupParams"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.setupFLASH">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">setupFLASH</code><span class="sig-paren">(</span><em>module</em>, <em>runfolder</em>, <em>kwargs={'threadBlockList': 'true'}</em>, <em>nxb=4</em>, <em>nyb=8</em>, <em>nzb=0</em>, <em>geometry='cylindrical'</em>, <em>maxbl=500</em>, <em>debug=False</em>, <em>portable=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#setupFLASH"><span class="viewcode-link">[source]</span></a></dt>
+<dd><p>calls ./setup at _FLASH_DIR with given parameters,
+writing the code to destination for compiling afterwards.
+(must be run on a Py2.X kernel)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>module</strong> (<em>str</em>) – name of Simulation folder to setup.</p></li>
+<li><p><strong>runfolder</strong> (<em>str</em>) – run folder (creates _cdx, and _otp within it).</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – keyword arguments to setup</p></li>
+<li><p><strong>n</strong><strong>[</strong><strong>xyz</strong><strong>]</strong><strong>b</strong> (<em>int</em>) – cells per block for setup.</p></li>
+<li><p><strong>geometry</strong> (<em>str</em>) – cartesian, spherical, cylindrical(default).</p></li>
+<li><p><strong>maxbl</strong> (<em>int</em>) – maximum blocks per proc. elem.</p></li>
+<li><p><strong>debug</strong> (<em>bool</em>) – show terminal output.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.switchGeometry">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">switchGeometry</code><span class="sig-paren">(</span><em>file</em>, <em>output</em>, <em>verbose=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#switchGeometry"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.turn2cartesian">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">turn2cartesian</code><span class="sig-paren">(</span><em>folder</em>, <em>prefix='all'</em>, <em>nowitness=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#turn2cartesian"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="flashy.paramSetup.writeDictionary">
+<code class="descclassname">flashy.paramSetup.</code><code class="descname">writeDictionary</code><span class="sig-paren">(</span><em>indict</em>, <em>outfile</em>, <em>meta=False</em>, <em>terse=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/flashy/paramSetup.xhtml#writeDictionary"><span class="viewcode-link">[source]</span></a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-flashy">
+<span id="module-contents"></span><h2>Module contents</h2>
+</div>
+</div>
+
+
+          </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+  </body>
+</html>

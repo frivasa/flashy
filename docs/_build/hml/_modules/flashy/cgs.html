@@ -1,0 +1,416 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>flashy.cgs &#8212; flashy 0.0.4 documentation</title>
+    <link rel="stylesheet" href="../../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for flashy.cgs</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;CGS and Nuclide module. This module can handle abundances,</span>
+<span class="sd">mass fractions and Isotope weighing.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">scipy.constants</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">astropy.constants</span> <span class="k">import</span> <span class="n">M_sun</span><span class="p">,</span> <span class="n">L_sun</span><span class="p">,</span> <span class="n">R_sun</span>
+<span class="kn">import</span> <span class="nn">pkg_resources</span>
+<span class="kn">from</span> <span class="nn">matplotlib.ticker</span> <span class="k">import</span> <span class="n">StrMethodFormatter</span>
+<span class="kn">from</span> <span class="nn">flashy.plot._globals</span> <span class="k">import</span> <span class="n">colIter</span>
+
+<span class="n">AMDC</span> <span class="o">=</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">resource_filename</span><span class="p">(</span><span class="s1">&#39;flashy&#39;</span><span class="p">,</span> <span class="s1">&#39;data/nuclides/ame2017.masses&#39;</span><span class="p">)</span>
+<span class="n">CIAAW</span> <span class="o">=</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">resource_filename</span><span class="p">(</span><span class="s1">&#39;flashy&#39;</span><span class="p">,</span> <span class="s1">&#39;data/nuclides/ciaaw2013.masses&#39;</span><span class="p">)</span>
+<span class="n">AGSS09</span> <span class="o">=</span> <span class="n">pkg_resources</span><span class="o">.</span><span class="n">resource_filename</span><span class="p">(</span><span class="s1">&#39;flashy&#39;</span><span class="p">,</span> <span class="s1">&#39;data/suncomp/AGSS09.comp&#39;</span><span class="p">)</span>
+
+<span class="c1"># CODATA 2014</span>
+<span class="c1"># tex source: https://arxiv.org/abs/1507.07956</span>
+<span class="c1"># web source: https://physics.nist.gov/cuu/Constants/index.html</span>
+<span class="c1"># enabled through scipy.constants</span>
+<span class="c1"># WARNING: EVERYTHING IS ADJUSTED TO CGS</span>
+<span class="n">G</span> <span class="o">=</span> <span class="n">G</span><span class="o">*</span><span class="n">hecto</span><span class="o">*</span><span class="n">hecto</span><span class="o">*</span><span class="n">hecto</span><span class="o">/</span><span class="n">kilo</span>  <span class="c1"># Newtonian constant of gravitation cm3/g/s2</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">c</span><span class="o">*</span><span class="n">hecto</span>  <span class="c1"># speed of light in vacuum cm/s</span>
+<span class="n">h</span> <span class="o">=</span> <span class="n">Planck</span><span class="o">/</span><span class="n">erg</span>  <span class="c1"># Planck constant erg/s</span>
+<span class="n">sigma</span> <span class="o">=</span> <span class="n">value</span><span class="p">(</span><span class="s1">&#39;Stefan-Boltzmann constant&#39;</span><span class="p">)</span><span class="o">/</span><span class="n">hecto</span><span class="o">/</span><span class="n">hecto</span><span class="o">/</span><span class="n">erg</span>
+<span class="n">msol</span> <span class="o">=</span> <span class="n">M_sun</span><span class="o">*</span><span class="n">kilo</span>
+<span class="n">lsol</span> <span class="o">=</span> <span class="n">L_sun</span><span class="o">/</span><span class="n">erg</span>
+<span class="n">rsol</span> <span class="o">=</span> <span class="n">R_sun</span><span class="o">*</span><span class="n">hecto</span>
+
+
+<div class="viewcode-block" id="readStandardWeights"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readStandardWeights">[docs]</a><span class="k">def</span> <span class="nf">readStandardWeights</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Returns a species dict with standard atomic weights from:</span>
+<span class="sd">    http://www.ciaaw.org/atomic-weights.htm:</span>
+<span class="sd">    http://www.ciaaw.org/pubs/TSAW2013_xls.xls</span>
+<span class="sd">    # CIAAW only tabulates 2013 values  so no Tennessine :( and only in xls.</span>
+<span class="sd">    # Abridged values. Ranges are picked on their lower end.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">raw</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">CIAAW</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;i4,|S4,f8&#39;</span><span class="p">)</span>
+    <span class="n">dblock</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">raw</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">&gt;</span><span class="mf">0.0</span><span class="p">]</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">dblock</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">dblock</span><span class="p">]</span>  <span class="c1"># set both name and Z as keys</span>
+    <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">dblock</span><span class="p">]</span>
+    <span class="n">masses</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="mi">2</span><span class="o">*</span><span class="n">vals</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">masses</span></div>
+
+
+<div class="viewcode-block" id="readNuclideMasses"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readNuclideMasses">[docs]</a><span class="k">def</span> <span class="nf">readNuclideMasses</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;Reads an AMDC format table (Wang 2017 41 030003).</span>
+<span class="sd">    AMDC atomic masses (2017): http://amdc.in2p3.fr/web/masseval.html</span>
+<span class="sd">    Reads only masses, there&#39;s more data within it so</span>
+<span class="sd">    this function is extensible.</span>
+<span class="sd">    output is a dict with capitalized element names, then a</span>
+<span class="sd">    z and n key to access z and a keyset of N numbers.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">massdict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">AMDC</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="c1"># skip header</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">xrange</span><span class="p">(</span><span class="mi">39</span><span class="p">):</span>
+            <span class="nb">next</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">l</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span> <span class="s1">&#39;.&#39;</span><span class="p">)</span>
+            <span class="n">n</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">6</span><span class="p">:</span><span class="mi">10</span><span class="p">]),</span> <span class="nb">int</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">12</span><span class="p">:</span><span class="mi">15</span><span class="p">]),</span> <span class="n">l</span><span class="p">[</span><span class="mi">20</span><span class="p">:</span><span class="mi">23</span><span class="p">]</span>
+            <span class="n">excess</span><span class="p">,</span> <span class="n">exunc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">30</span><span class="p">:</span><span class="mi">42</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">43</span><span class="p">:</span><span class="mi">54</span><span class="p">])</span>  <span class="c1"># [M(in u) - A] keV</span>
+            <span class="n">bind</span><span class="p">,</span> <span class="n">biunc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">55</span><span class="p">:</span><span class="mi">64</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">66</span><span class="p">:</span><span class="mi">73</span><span class="p">])</span>  <span class="c1"># B/A in keV</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">beta</span><span class="p">,</span> <span class="n">beunc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">77</span><span class="p">:</span><span class="mi">87</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">88</span><span class="p">:</span><span class="mi">97</span><span class="p">])</span>
+            <span class="k">except</span><span class="p">:</span>
+                <span class="n">beta</span><span class="p">,</span> <span class="n">beunc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="n">mass</span><span class="p">,</span> <span class="n">maunc</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">96</span><span class="p">:</span><span class="mi">114</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)),</span> <span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">[</span><span class="mi">115</span><span class="p">:])</span>
+            <span class="c1"># neutrons have the same name as nitrogen x_x</span>
+            <span class="c1"># dictionaries are case sensitive though.</span>
+            <span class="k">if</span> <span class="s1">&#39; n&#39;</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="s1">&#39;n&#39;</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">massdict</span><span class="p">:</span>
+                <span class="n">massdict</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass</span><span class="o">*</span><span class="mf">1e-6</span>  <span class="c1"># source mass is in micro u</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">massdict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">massdict</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">massdict</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]</span> <span class="o">=</span> <span class="n">mass</span><span class="o">*</span><span class="mf">1e-6</span>  <span class="c1"># source mass is in micro u</span>
+                <span class="n">massdict</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span>
+    <span class="k">return</span> <span class="n">massdict</span></div>
+
+
+<div class="viewcode-block" id="readYield"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readYield">[docs]</a><span class="k">def</span> <span class="nf">readYield</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Reads a mass yield file or a zipped list (for simulation yields)</span>
+<span class="sd">    Returns a mass dictionary.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">==</span><span class="nb">list</span><span class="p">:</span>
+        <span class="n">codes</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">comments</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;|S4,f8&#39;</span><span class="p">)</span>
+        <span class="n">codes</span><span class="p">,</span> <span class="n">values</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">comp</span><span class="p">)</span>
+    <span class="n">sp</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">splitSpecies</span><span class="p">(</span><span class="n">codes</span><span class="p">)</span>
+    <span class="n">mdict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sp</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">mdict</span><span class="p">:</span>
+            <span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">mdict</span></div>
+
+
+<div class="viewcode-block" id="convertYield2Abundance"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.convertYield2Abundance">[docs]</a><span class="k">def</span> <span class="nf">convertYield2Abundance</span><span class="p">(</span><span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">12.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Turns mass yields into abundances.&quot;&quot;&quot;</span>
+    <span class="n">nucmass</span> <span class="o">=</span> <span class="n">readNuclideMasses</span><span class="p">()</span>
+    <span class="n">partdict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mdict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">zz</span> <span class="o">=</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span>
+        <span class="n">particles</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">]:</span>
+            <span class="n">particles</span> <span class="o">+=</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]</span><span class="o">*</span><span class="n">msol</span><span class="o">.</span><span class="n">value</span><span class="o">/</span><span class="n">nucmass</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]</span><span class="o">*</span><span class="n">Avogadro</span>
+        <span class="n">partdict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">particles</span>
+    <span class="nb">print</span> <span class="n">partdict</span>
+    <span class="n">nrm</span> <span class="o">=</span> <span class="n">partdict</span><span class="p">[</span><span class="n">norm</span><span class="p">]</span>
+    <span class="n">otp</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">partdict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">v</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">otp</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">],</span> <span class="n">k</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">partdict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">/</span><span class="n">nrm</span><span class="p">)</span><span class="o">+</span><span class="n">offset</span><span class="p">))</span>
+    <span class="n">zs</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">mix</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">sorted</span><span class="p">(</span><span class="n">otp</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">zs</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">mix</span></div>
+
+
+<div class="viewcode-block" id="readSunComp"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.readSunComp">[docs]</a><span class="k">def</span> <span class="nf">readSunComp</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Read a 6 column file with solar composition</span>
+<span class="sd">    (Z name abundance abunerror meteoriticAb mAberror)</span>
+<span class="sd">    mixes meteor and spectral/inferred abundances for completion.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">comp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">comments</span><span class="o">=</span><span class="s1">&#39;#&#39;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">zs</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">abun</span><span class="p">,</span> <span class="n">aerr</span><span class="p">,</span> <span class="n">met</span><span class="p">,</span> <span class="n">emet</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">comp</span><span class="p">)</span>
+    <span class="c1"># pick meteorite values when photospheric is unavailable (AGSS09)</span>
+    <span class="n">mix</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">abun</span><span class="p">,</span><span class="n">met</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span><span class="o">==-</span><span class="mf">9.99</span><span class="p">:</span>
+            <span class="n">mix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mix</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">zs</span><span class="p">,</span> <span class="p">[</span><span class="n">n</span><span class="o">.</span><span class="n">capitalize</span><span class="p">()</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">],</span> <span class="n">mix</span></div>
+
+
+<div class="viewcode-block" id="getAbundances"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getAbundances">[docs]</a><span class="k">def</span> <span class="nf">getAbundances</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">massfrac</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">12</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns abundances for a list of species and mass Fractions,</span>
+<span class="sd">    scaled by a set species.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">scale</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;Scaling species not in the specified species group.&#39;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">totmass</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">massfrac</span><span class="p">)</span>
+        <span class="n">wgtdict</span> <span class="o">=</span> <span class="n">readStandardWeights</span><span class="p">()</span>
+        <span class="n">wgts</span> <span class="o">=</span> <span class="p">[</span><span class="n">wgtdict</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span>
+        <span class="n">normnum</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
+        <span class="n">allabun</span> <span class="o">=</span> <span class="p">[</span><span class="n">totmass</span><span class="o">*</span><span class="n">massfrac</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">/</span><span class="n">wgts</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">))]</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">allabun</span><span class="p">[</span><span class="n">normnum</span><span class="p">]</span>
+        <span class="n">allabun</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">/</span><span class="n">norm</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">allabun</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">allabun</span><span class="p">)</span><span class="o">+</span><span class="n">offset</span></div>
+
+
+<div class="viewcode-block" id="getMassFractions"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getMassFractions">[docs]</a><span class="k">def</span> <span class="nf">getMassFractions</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">abun</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Takes log abundances and species names to weigh them and return</span>
+<span class="sd">    mass fractions.</span>
+<span class="sd">    returns mass fractions.&quot;&quot;&quot;</span>
+    <span class="n">wgtdict</span> <span class="o">=</span> <span class="n">readStandardWeights</span><span class="p">()</span>
+    <span class="n">wgts</span> <span class="o">=</span> <span class="p">[</span><span class="n">wgtdict</span><span class="p">[</span><span class="n">x</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">names</span><span class="p">]</span>
+    <span class="n">powabun</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="n">abun</span><span class="p">)</span>
+    <span class="n">masses</span> <span class="o">=</span> <span class="n">powabun</span><span class="o">*</span><span class="n">wgts</span>
+    <span class="n">totmass</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">masses</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">masses</span><span class="o">/</span><span class="n">totmass</span></div>
+
+
+<div class="viewcode-block" id="getXYZ"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getXYZ">[docs]</a><span class="k">def</span> <span class="nf">getXYZ</span><span class="p">(</span><span class="n">masses</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns Hydrogen, Helium and Metal Fractions from</span>
+<span class="sd">    given mass fractions (assumes H and He at start of list).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">atot</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">,</span> <span class="n">masses</span><span class="p">)</span>
+    <span class="n">z</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="p">,</span> <span class="n">masses</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span><span class="o">/</span><span class="n">atot</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">masses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="n">atot</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">masses</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">atot</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span></div>
+
+
+<div class="viewcode-block" id="getTotalMass"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.getTotalMass">[docs]</a><span class="k">def</span> <span class="nf">getTotalMass</span><span class="p">(</span><span class="n">massdict</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Sums all isotope masses in a massdict&quot;&quot;&quot;</span>
+    <span class="n">mass</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">massdict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">massdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">]:</span>
+            <span class="n">mass</span> <span class="o">+=</span> <span class="n">massdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]</span>
+    <span class="nb">print</span> <span class="nb">sum</span><span class="p">(</span><span class="n">mass</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="fetchNuclides"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.fetchNuclides">[docs]</a><span class="k">def</span> <span class="nf">fetchNuclides</span><span class="p">(</span><span class="n">flist</span><span class="p">,</span> <span class="n">lowercase</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;filters flash otp field list, extracting species found</span>
+<span class="sd">    in the checkpoint.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">species</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">field</span><span class="p">)</span> <span class="ow">in</span> <span class="n">flist</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">char</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="n">field</span><span class="p">):</span>
+            <span class="n">species</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+    <span class="n">ss</span><span class="p">,</span> <span class="n">zs</span><span class="p">,</span> <span class="n">ns</span><span class="p">,</span> <span class="n">ms</span> <span class="o">=</span> <span class="n">splitSpecies</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">trueA</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">otp</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">ms</span><span class="p">,</span> <span class="n">ss</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">[</span><span class="s1">&#39;</span><span class="si">{}{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span> <span class="n">m</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span> <span class="ow">in</span> <span class="n">otp</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="convXmass2Abun"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.convXmass2Abun">[docs]</a><span class="k">def</span> <span class="nf">convXmass2Abun</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns abundances, abar and zbar from a list of nuclide</span>
+<span class="sd">    codes and mass fractions.&quot;&quot;&quot;</span>
+    <span class="n">_</span><span class="p">,</span> <span class="n">Zs</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">As</span> <span class="o">=</span> <span class="n">splitSpecies</span><span class="p">(</span><span class="n">species</span><span class="p">,</span> <span class="n">trueA</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">abar</span> <span class="o">=</span> <span class="mf">1.0e0</span><span class="o">/</span><span class="nb">sum</span><span class="p">([</span><span class="n">x</span><span class="o">/</span><span class="n">a</span> <span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">xmasses</span><span class="p">,</span> <span class="n">As</span><span class="p">)])</span>
+    <span class="n">zbar</span> <span class="o">=</span> <span class="n">abar</span> <span class="o">*</span> <span class="nb">sum</span><span class="p">([</span><span class="n">x</span><span class="o">*</span><span class="n">z</span><span class="o">/</span><span class="n">a</span> <span class="k">for</span> <span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">Zs</span><span class="p">,</span> <span class="n">xmasses</span><span class="p">,</span> <span class="n">As</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">x</span><span class="o">/</span><span class="n">a</span> <span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">a</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">xmasses</span><span class="p">,</span> <span class="n">As</span><span class="p">)],</span> <span class="n">abar</span><span class="p">,</span> <span class="n">zbar</span></div>
+
+
+<div class="viewcode-block" id="splitSpecies"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.splitSpecies">[docs]</a><span class="k">def</span> <span class="nf">splitSpecies</span><span class="p">(</span><span class="n">Spcodes</span><span class="p">,</span> <span class="n">trueA</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;returns list of symbols, Z, N, A from a list of</span>
+<span class="sd">    nuclide codes.(Ni56, He4, U238, ...)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">Sp</span><span class="p">,</span> <span class="n">As</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">elemSplit</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">Spcodes</span><span class="p">])</span>
+    <span class="n">As</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">As</span><span class="p">)</span>
+    <span class="n">mdict</span> <span class="o">=</span> <span class="n">readNuclideMasses</span><span class="p">()</span>
+    <span class="n">Zs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">mdict</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">Sp</span><span class="p">])</span>
+    <span class="n">Ns</span> <span class="o">=</span> <span class="n">As</span> <span class="o">-</span> <span class="n">Zs</span>
+    <span class="k">if</span> <span class="n">trueA</span><span class="p">:</span>
+        <span class="n">As</span> <span class="o">=</span> <span class="p">[</span><span class="n">mdict</span><span class="p">[</span><span class="n">s</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]</span> <span class="k">for</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="n">n</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">Sp</span><span class="p">,</span><span class="n">Ns</span><span class="p">)]</span>
+    <span class="k">return</span> <span class="n">Sp</span><span class="p">,</span> <span class="n">Zs</span><span class="p">,</span> <span class="n">Ns</span><span class="p">,</span> <span class="n">As</span></div>
+
+
+<div class="viewcode-block" id="elemSplit"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.elemSplit">[docs]</a><span class="k">def</span> <span class="nf">elemSplit</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Standalone element name spliter.</span>
+<span class="sd">    (A, name)</span>
+<span class="sd">    he4 -&gt; (4, He)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">==</span><span class="s1">&#39;n&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;n&#39;</span><span class="p">,</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">==</span><span class="s1">&#39;p&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">==</span><span class="s1">&#39;d&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="mi">2</span>
+        <span class="k">elif</span> <span class="n">s</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">==</span><span class="s1">&#39;t&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="mi">3</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sym</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;0123456789 &#39;</span><span class="p">)</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">s</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">sym</span><span class="p">):]</span>
+    <span class="k">return</span> <span class="n">sym</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span> <span class="nb">int</span><span class="p">(</span><span class="n">A</span><span class="p">)</span></div>
+
+<span class="c1">#Plotting. this should be elsewhere... maybe this whole module can be isolated</span>
+<div class="viewcode-block" id="plotPfac"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.plotPfac">[docs]</a><span class="k">def</span> <span class="nf">plotPfac</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">querym</span><span class="p">,</span> <span class="n">refname</span><span class="o">=</span><span class="n">AGSS09</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Sun vs Ref&#39;</span><span class="p">,</span><span class="c1">#  ylims=[1e-9, 1],</span>
+             <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;Si&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">reftype</span><span class="o">=</span><span class="s1">&#39;solar&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;draws abundquery/abundref from a massdict and a filename,</span>
+<span class="sd">    types of reference are &#39;solar&#39;(for solar composition) and &#39;yield&#39; (for other sims)</span>
+<span class="sd">    returns label and line element for legend&quot;&quot;&quot;</span>
+    <span class="n">zs</span><span class="p">,</span> <span class="n">ns</span><span class="p">,</span> <span class="n">ab</span> <span class="o">=</span> <span class="n">convertYield2Abundance</span><span class="p">(</span><span class="n">querym</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">reftype</span><span class="o">==</span><span class="s1">&#39;solar&#39;</span><span class="p">:</span>
+        <span class="n">zss</span><span class="p">,</span> <span class="n">nss</span><span class="p">,</span> <span class="n">solab</span> <span class="o">=</span> <span class="n">readSunComp</span><span class="p">(</span><span class="n">refname</span><span class="p">)</span>
+        <span class="n">massF</span> <span class="o">=</span> <span class="n">getMassFractions</span><span class="p">(</span><span class="n">nss</span><span class="p">,</span> <span class="n">solab</span><span class="p">)</span>
+        <span class="n">rescaledsolab</span> <span class="o">=</span> <span class="n">getAbundances</span><span class="p">(</span><span class="n">nss</span><span class="p">,</span> <span class="n">massF</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+        <span class="n">soldict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">nss</span><span class="p">,</span> <span class="n">rescaledsolab</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">reftype</span><span class="o">==</span><span class="s1">&#39;yield&#39;</span><span class="p">:</span>
+        <span class="n">massdict</span> <span class="o">=</span> <span class="n">readYield</span><span class="p">(</span><span class="n">refname</span><span class="p">)</span>
+        <span class="n">zss</span><span class="p">,</span> <span class="n">nss</span><span class="p">,</span> <span class="n">solab</span> <span class="o">=</span> <span class="n">convertYield2Abundance</span><span class="p">(</span><span class="n">massdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+        <span class="n">soldict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">nss</span><span class="p">,</span> <span class="n">solab</span><span class="p">))</span>
+    <span class="n">pfacs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">soldict</span><span class="p">:</span>
+            <span class="n">pfacs</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">zs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">n</span><span class="p">,</span> <span class="n">ab</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-</span><span class="n">soldict</span><span class="p">[</span><span class="n">n</span><span class="p">]))</span>
+            <span class="c1">#pfacs.append((zs[i], n, ab[i]/soldict[n]))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> not found in ref.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n</span><span class="p">)</span>
+    <span class="n">x</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">sorted</span><span class="p">(</span><span class="n">pfacs</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">axhline</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;green&#39;</span><span class="p">)</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">)</span>
+    <span class="c1"># Prettify</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Atomic Number (Z)&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;$[X/</span><span class="si">{}</span><span class="s1">]- [X/</span><span class="si">{}</span><span class="s1">]_{{ref}}$&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">norm</span><span class="p">,</span> <span class="n">norm</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">autoscale</span><span class="p">()</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">StrMethodFormatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{x:2.0f}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">StrMethodFormatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{x:2.0f}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span></div>
+
+
+<div class="viewcode-block" id="plotIsoMasses"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.plotIsoMasses">[docs]</a><span class="k">def</span> <span class="nf">plotIsoMasses</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">mdict</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;W7&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">,</span> <span class="n">ylims</span><span class="o">=</span><span class="p">[</span><span class="mf">1e-18</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span> <span class="n">notag</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;draws isotopic masses vs atomic mass, returns label and line element for legend&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">mdict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+        <span class="n">zz</span> <span class="o">=</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;z&#39;</span><span class="p">]</span>
+        <span class="n">vals</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">vals</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">n</span><span class="o">+</span><span class="n">zz</span><span class="p">,</span> <span class="n">mdict</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;n&#39;</span><span class="p">][</span><span class="n">n</span><span class="p">]))</span>
+        <span class="n">purgevals</span> <span class="o">=</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vals</span> <span class="k">if</span> <span class="n">ylims</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">&lt;=</span> <span class="n">v</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">&lt;=</span><span class="n">ylims</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">purgevals</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">xs</span><span class="p">,</span> <span class="n">ys</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="nb">sorted</span><span class="p">(</span><span class="n">purgevals</span><span class="p">))</span>
+        <span class="n">line</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">semilogy</span><span class="p">(</span><span class="n">xs</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">notag</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">xs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ys</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s1">&#39;$</span><span class="si">{}</span><span class="s1">$&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">horizontalalignment</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="n">verticalalignment</span><span class="o">=</span><span class="s1">&#39;bottom&#39;</span><span class="p">,)</span>
+    <span class="c1"># Prettify</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Atomic Mass (A)&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Mass ($M_{\odot}$)&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="mi">78</span><span class="p">])</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylim</span><span class="p">(</span><span class="n">ylims</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">StrMethodFormatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{x:0.0e}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">StrMethodFormatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{x:2.0f}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span></div>
+
+
+<div class="viewcode-block" id="plotAbun"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.plotAbun">[docs]</a><span class="k">def</span> <span class="nf">plotAbun</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="s1">&#39;H&#39;</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="mf">12.0</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;W7&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;black&#39;</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;draws abundances vs atomic number, returns label and line element for legend&quot;&quot;&quot;</span>
+    <span class="n">zs</span><span class="p">,</span> <span class="n">names</span><span class="p">,</span> <span class="n">mix</span> <span class="o">=</span> <span class="n">convertYield2Abundance</span><span class="p">(</span><span class="n">mdict</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span> <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">)</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">zs</span><span class="p">,</span> <span class="n">mix</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="c1"># Prettify</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="sa">u</span><span class="s1">&#39;Atomic Number (Z)&#39;</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;[X/</span><span class="si">{}</span><span class="s1">] + </span><span class="si">{:2.1f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">norm</span><span class="p">,</span> <span class="n">offset</span><span class="p">))</span>
+    <span class="c1">#ax.set_xlim([-2, 78])</span>
+    <span class="c1">#ax.set_ylim(ylims)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">StrMethodFormatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{x:2.0f}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_major_formatter</span><span class="p">(</span><span class="n">StrMethodFormatter</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{x:2.0f}</span><span class="s1">&#39;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">line</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span></div>
+
+
+<div class="viewcode-block" id="speciesGrid"><a class="viewcode-back" href="../../flashy.html#flashy.cgs.speciesGrid">[docs]</a><span class="k">def</span> <span class="nf">speciesGrid</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span> <span class="n">spcodes</span><span class="p">,</span> <span class="n">yoffset</span><span class="o">=</span><span class="mf">5.0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;draws a grid of the specified species on target ax.&quot;&quot;&quot;</span>
+    <span class="n">Sp</span><span class="p">,</span> <span class="n">Zs</span><span class="p">,</span> <span class="n">Ns</span><span class="p">,</span> <span class="n">As</span> <span class="o">=</span> <span class="n">splitSpecies</span><span class="p">(</span><span class="n">spcodes</span><span class="p">)</span>
+    <span class="n">clrs</span> <span class="o">=</span> <span class="n">colIter</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sp</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">Sp</span><span class="p">):</span>
+        <span class="n">col</span> <span class="o">=</span> <span class="n">clrs</span><span class="o">.</span><span class="n">next</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">Zs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">lw</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="n">col</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">Zs</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">+</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">yoffset</span><span class="p">,</span> <span class="s1">&#39;$</span><span class="si">{}</span><span class="s1">$&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sp</span><span class="p">),</span> <span class="n">color</span><span class="o">=</span><span class="n">col</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                <span class="n">horizontalalignment</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">,</span> <span class="n">verticalalignment</span><span class="o">=</span><span class="s1">&#39;bottom&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">flashy 0.0.4 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2018, Fernando Rivas.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.2.
+    </div>
+  </body>
+</html>
