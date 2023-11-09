@@ -1,6 +1,6 @@
 # FLASHY
 
-compilation of tools for post processing FLASH code runs.
+Compilation of tools for post processing FLASH code runs.
 
 # components
 
@@ -8,3 +8,6 @@ compilation of tools for post processing FLASH code runs.
 * CJ detonation probes
 * plotting routines for 1-3D (only slices for 3D) through YT
 
+# Documentation
+
+https://flashy.readthedocs.io/en/latest/index.html
