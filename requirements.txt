@@ -3,3 +3,5 @@ astropy
 scipy>=0.19.1
 matplotlib
 palettable
+pandas
+cycler
