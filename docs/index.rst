@@ -1,9 +1,8 @@
-.. flashy documentation
-
-flashy
-======
+Welcome to flashy's docs
+========================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
-   flashy
+   source/flashy
+
