@@ -163,4 +163,11 @@ texinfo_documents = [
 
 # -- Extension configuration -------------------------------------------------
 
-autodoc_mock_imports = ["yt", "helmholtz", "h5py", "imageio", "solve_ivp"]
+autodoc_mock_imports = [
+    "yt",
+    "helmholtz",
+    "h5py",
+    "imageio",
+    "solve_ivp",
+    "mpl_toolkits.axes_grid1.axes_grid",
+]
