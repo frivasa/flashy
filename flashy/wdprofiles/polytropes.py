@@ -3,8 +3,8 @@
 # Giant Hammer
 from scipy.integrate import solve_ivp
 from ..utils import msol, rsol, G, c, gas_constant, np
-from ..nuclear import convXmass2Abun
-from ..datahaul.plainText import dataMatrix
+from ..nuclear import conv_xmass2abun
+from ..datahaul.plainText import DataMatrix
 _lown = 1.0e-10
 
 
@@ -25,7 +25,7 @@ def buildPolytropic(rstart, pc, rhoc, species=['he4'], xmass=[1.0],
         mind(float): curoff density for generated profile.
 
     Returns:
-        dataMatrix: profile object with properties as attributes.
+        DataMatrix: profile object with properties as attributes.
 
     """
     y0 = [rhoc*4.0*np.pi*np.power(rstart, 3.0)/3.0, pc]
@@ -48,12 +48,12 @@ def buildPolytropic(rstart, pc, rhoc, species=['he4'], xmass=[1.0],
     for i, x in enumerate(xmass):
         keys.append(species[i])
         dblock = np.column_stack((dblock, [x]*mult))
-    return dataMatrix([keys, dblock])
+    return DataMatrix([keys, dblock])
 
 
 def polyTemp(pres, rho, species, xmass):
     """returns the ideal gas temperature subject to a composition."""
-    yis, abar, zbar = convXmass2Abun(species, xmass)
+    yis, abar, zbar = conv_xmass2abun(species, xmass)
     molarmass = np.sum(yis)*1e-3  # turn to SI kg/mole
     # turn dyne to N and cm to m for gas_constant SI -> 1e-7
     return molarmass*pres/rho/gas_constant*1e-7

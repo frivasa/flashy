@@ -1,8 +1,8 @@
 import helmholtz
 import flashy.datahaul.hdf5yt as hdf5yt
-from flashy.utils import np
+import numpy as np
 from flashy.post import getRayleighVelocities
-from flashy.nuclear import convXmass2Abun
+from flashy.nuclear import conv_xmass2abun
 
 
 # external starkiller/Helmholtz package wrappers
@@ -68,11 +68,11 @@ def wrapVector(rho, var, xmass, species):
     try:
         pnts = len(rho)
     except TypeError:
-        _, abar, zbar = convXmass2Abun(species, xmass)
+        _, abar, zbar = conv_xmass2abun(species, xmass)
         return [[rho], [var], [abar], [zbar]]
     allp = []
     for p in range(pnts):
-        _, abar, zbar = convXmass2Abun(species, xmass[p])
+        _, abar, zbar = conv_xmass2abun(species, xmass[p])
         allp.append((rho[p], var[p], abar, zbar))
     vr, vv, va, vz = zip(*allp)
     return [vr, vv, va, vz]
@@ -160,10 +160,10 @@ def buildHelmTrojan(fname, offset=1, geom='spherical'):
     for i in range(nprops+1, nprops+1+nspecs):
         xmin.append(data[i][inw])
         xmou.append(data[i][ouw])
-    _, abar, zbar = convXmass2Abun(species, xmin)
+    _, abar, zbar = conv_xmass2abun(species, xmin)
     # [pressure, eint], [rho], [temp], [abar], [zbar]]
     fuelo = [[inv[-2], inv[-1]], [inv[0]], [inv[1]], [abar], [zbar]]
-    _, abar, zbar = convXmass2Abun(species, xmou)
+    _, abar, zbar = conv_xmass2abun(species, xmou)
     asho = [[ouv[-2], ouv[-1]], [ouv[0]], [ouv[1]], [abar], [zbar]]
 
     # get fuel and ash for inward shock
@@ -177,8 +177,8 @@ def buildHelmTrojan(fname, offset=1, geom='spherical'):
     for i in range(nprops+1, nprops+1+nspecs):
         xmin.append(data[i][inw])
         xmou.append(data[i][ouw])
-    _, abar, zbar = convXmass2Abun(species, xmin)
+    _, abar, zbar = conv_xmass2abun(species, xmin)
     fueli = [[inv[-2], inv[-1]], [inv[0]], [inv[1]], [abar], [zbar]]
-    _, abar, zbar = convXmass2Abun(species, xmou)
+    _, abar, zbar = conv_xmass2abun(species, xmou)
     ashi = [[ouv[-2], ouv[-1]], [ouv[0]], [ouv[1]], [abar], [zbar]]
     return fueli, ashi, fuelo, asho, [xin, xout, cjin, cjout, time, xmatch]

@@ -3,7 +3,7 @@ from .globals import (np, os, _ldpi, AxesGrid, plt, log, reformatTag,
                       writeFig, resizeText, ImageGrid)
 from flashy.datahaul.hdf5yt import getFields, yt
 from flashy.IOutils import pairGen, getFileList
-from flashy.datahaul.plainText import dataMatrix
+from flashy.datahaul.plainText import DataMatrix
 from yt.funcs import mylog  # avoid yt warnings
 import flashy.datahaul.ytfields as ytf
 import flashy.datahaul.ytDatasetTools as ytt

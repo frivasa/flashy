@@ -11,12 +11,12 @@ def goldenIdolShell(dmatr, limit, reference='rho'):
     of the reference key.
 
     Args:
-        dmatr(dataMatrix): starting profile.
+        dmatr(DataMatrix): starting profile.
         limit(float): cutoff for replacing composition.
         reference(str): cutoff reference ('rho' or 'mass').
 
     Returns:
-        (dataMatrix): shell profile obj.
+        (DataMatrix): shell profile obj.
 
     """
     if reference == 'mass':
@@ -46,11 +46,11 @@ def smudgeShell(dmatr, csp='he4'):
     species throughout the profile, conserving bulk properties.
 
     Args:
-        dmatr(dataMatrix): profile to modify.
+        dmatr(DataMatrix): profile to modify.
         csp(str): reference species.
 
     Returns:
-        (dataMatrix): modified profile.
+        (DataMatrix): modified profile.
 
     """
     for k, pos in getMaximaPositions(dmatr).items():
@@ -80,12 +80,12 @@ def fifty50Shell(dmatr, eps=1e-3, limdens=1e2):
     from any surface C/O ratio.
 
     Args:
-        dmatr(dataMatrix): starting profile.
+        dmatr(DataMatrix): starting profile.
         eps(float): tolerance for C/0 = 1 ratio.
         limdens(float): density for shell cutoff.
 
     Returns:
-        (dataMatrix): shell profile obj.
+        (DataMatrix): shell profile obj.
 
     """
     # find the 5050 pos starting from the middle outwards
@@ -114,11 +114,11 @@ def polyShell(dmatr, cut, index=1.5, species=['he4'], xmass=[1.0]):
     """return a polytropic shell for a given wd, starting at 'cut' radius.
 
     Args:
-        dmatr(dataMatrix): reference profile.
+        dmatr(DataMatrix): reference profile.
         cut(float): shell start radius .
 
     Returns:
-        (dataMatrix): shell profile obj.
+        (DataMatrix): shell profile obj.
 
     """
     trimmed = snipProf(dmatr, cut)
@@ -138,7 +138,7 @@ def getCond(dmatr, where, verbose=True):
     for dmatr, 0 is center and -1 is edge (MESA is reversed).
 
     Args:
-        dmatr(dataMatrix): profile to modify.
+        dmatr(DataMatrix): profile to modify.
         where(int): cell to probe.
 
     Returns:
@@ -181,7 +181,7 @@ def getSummedMasses(dmatr, range=(None, None)):
     """Returns summed masses from all species in the profile.
 
     Args:
-        dmatr(dataMatrix): reference profile.
+        dmatr(DataMatrix): reference profile.
         range(int tuple): slice indices for mass calculation.
 
     Returns:
@@ -204,7 +204,7 @@ def getMaximaPositions(dmatr):
     """returns cell-at-maximum for all properties in a profile.
 
     Args:
-        dmatr(dataMatrix): reference profile.
+        dmatr(DataMatrix): reference profile.
 
     Returns:
         (dict): {property/species: pos of maximum}.
@@ -225,7 +225,7 @@ def getInterfacePosition(dmatr, species='he4'):
     gradient > mean value.
 
     Args:
-        dmatr(dataMatrix): reference profile.
+        dmatr(DataMatrix): reference profile.
         species(str): interface nuclide
 
     Returns:
@@ -247,7 +247,7 @@ def getMaxima(dmatr):
     """returns dictionary with maximal values.
 
     Args:
-        dmatr(dataMatrix): reference profile.
+        dmatr(DataMatrix): reference profile.
 
     Returns:
         (dict): {property/species: maximum value}.

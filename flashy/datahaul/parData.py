@@ -1,5 +1,5 @@
 from flashy.datahaul.hdf5yt import wedge2d
-from flashy.IOutils import np
+import numpy as np
 
 
 def par_wedge2d(wedgenum, wedges=5, fname='', fields=[]):

@@ -1,5 +1,5 @@
 """nuclide aggregate plots, based on yield files."""
-from ..nuclear import (splitSpecies, convertYield2Abundance,
+from ..nuclear import (split_species, convertYield2Abundance,
                        getMassFractions, getAbundances,
                        Avogadro, readSunComp, decayYield,
                        readYield, sortNuclides,
@@ -381,7 +381,7 @@ def plotFlowMatrix(fname, dpi=100, edge=1e34,
     deltaT = t2 - t1
     deltaM = np.array(masses2) - np.array(masses1)
     # convert to particles via species masses
-    names, prot, neut, nucmass = splitSpecies(species, standardize=True)
+    names, prot, neut, nucmass = split_species(species, standardize=True)
     fluxes = ut.msol*deltaM/nucmass*Avogadro
     f, a = plt.subplots(dpi=dpi)
     sq = plotNuclideGrid(a, species, xmass=fluxes, sym=True, time=t1,
@@ -506,7 +506,7 @@ def plotNuclideGrid(ax, species, xmass=[], time=0.0, z_range=[-2, 35],
         clr = 'None'
     else:
         clr = 'black'
-    nam, zs, ns, As = splitSpecies(species, standardize=True)
+    nam, zs, ns, As = split_species(species, standardize=True)
     for (z, n, xi) in zip(zs, ns, xis):
         if forceColor:
             facecolor = fColor
@@ -783,7 +783,7 @@ def speciesGrid(ax, spcodes, yoffset=5.0):
         yoffset(float): line tag offset in plot.
 
     """
-    Sp, Zs, Ns, As = splitSpecies(spcodes)
+    Sp, Zs, Ns, As = split_species(spcodes)
     for i, sp in enumerate(Sp):
         props = next(ax._get_lines.prop_cycler)
         ax.axvline(Zs[i], alpha=1.0, lw=1, ls='--', color=props['color'])

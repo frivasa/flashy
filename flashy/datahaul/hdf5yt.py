@@ -1,8 +1,10 @@
 import yt
+import os
+import numpy as np
 from yt.utilities.exceptions import YTFieldNotFound
-from flashy.utils import np, getBearing, byMass, rot
-from flashy.IOutils import os, log, setFolders
-from flashy.nuclear import sortNuclides, msol
+from flashy.utils import get_bearing, by_mass, rot
+from flashy.IOutils import log, setFolders
+from flashy.nuclear import sort_nuclides, msol
 import flashy.datahaul.ytfields as ytf
 # avoid yt warnings
 from yt.funcs import mylog
@@ -39,7 +41,7 @@ def getLineout(fname, fields=['density', 'temperature', 'pressure'],
     ds = yt.load(fname)
     # spherical (r, theta (polar), phi(azimuth))
     # cartesian (x, y, z)
-    cname, bearing = getBearing(direction, geom=geom)
+    cname, bearing = get_bearing(direction, geom=geom)
 #     print("calculated bearing: ",bearing)
 #     ray = ds.ray([0.0, 0.0, 0.0], radius*bearing)
     ray = ds.ray(origin, radius*bearing)
@@ -106,7 +108,7 @@ def getFields(flist, srcnames=True):
             species.append(field)
         else:
             fields.append(field)
-    species = sortNuclides(species)
+    species = sort_nuclides(species)
     # once sorted, rename the exceptions
     if srcnames:
         for i, e in enumerate(parsedvals):

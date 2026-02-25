@@ -1,13 +1,9 @@
 import os
 import sys
 import shutil
-import io
-import collections as cl
 import logging
 from .utils import np
 from subprocess import PIPE, Popen
-import subprocess as subp
-import operator
 # import imageio
 import itertools
 

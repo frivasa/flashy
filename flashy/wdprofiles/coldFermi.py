@@ -6,8 +6,8 @@ EoS is a partially relativistic completely degenerate (cold) fermi gas
 20180430: Helmholtz Eos added for temperature. Composition can also change.
 """
 from ..utils import msol, rsol, G, c, h, m_e, Avogadro, np, kb
-from ..nuclear import convXmass2Abun
-from ..datahaul.plainText import dataMatrix
+from ..nuclear import conv_xmass2abun
+from ..datahaul.plainText import DataMatrix
 from ..datahaul.helmholtz import getTemps
 from ..post import nonRelFermi
 # Giant Hammer
@@ -38,10 +38,10 @@ def buildFermiHelmhotz(denc, xmass, species, pdens=0, hack=False):
         return a 'weighted' fermi temperature.
 
     Returns:
-        (dataMatrix): tabbable profile object.
+        (DataMatrix): tabbable profile object.
 
     """
-    ymass, abar, zbar = convXmass2Abun(species, xmass)
+    ymass, abar, zbar = conv_xmass2abun(species, xmass)
     ye = zbar/abar
     r, m, d, p = buildFermiProfile(denc, ye=ye, pdens=pdens)
     tH = getTemps([d[0]], [p[0]], [xmass], species)
@@ -55,7 +55,7 @@ def buildFermiHelmhotz(denc, xmass, species, pdens=0, hack=False):
     for i, x in enumerate(xmass):
         keys.append(species[i])
         datablock = np.column_stack((datablock, [x]*mult))
-    return dataMatrix([keys, datablock])
+    return DataMatrix([keys, datablock])
 
 
 def buildFermiProfile(denc, ye=0.5, start=1e4,

@@ -1,11 +1,11 @@
-from .globals import (np, os, mpl, plt, setFolders,
+from .globals import (np, os, plt, setFolders,
                       StrMethodFormatter, writeFig)
 from ..datahaul.hdf5yt import getLineout, probeDomain
 from ..datahaul.hdfdirect import directMeta
 import flashy.utils as ut
 import flashy.paraMan as pman
-from ..datahaul.plainText import dataMatrix
-from ..nuclear import sortNuclides, elemSplit, decayYield, getMus
+from ..datahaul.plainText import DataMatrix
+from ..nuclear import sort_nuclides, elemSplit, decayYield, getMus
 from ..simulation import simulation
 import flashy.post as fp
 from scipy.integrate import trapz
@@ -570,7 +570,7 @@ def plotSpeedHisto(bview, fname, geom='cartesian', dimension=2,
 
 
 def fetchData(fname, direction, origin=[0.0, 0.0, 0.0], fields=[]):
-    """builds a profile dataMatrix and retrieves metadata from a file.
+    """builds a profile DataMatrix and retrieves metadata from a file.
 
     Args:
         fname(str): filename.
@@ -584,7 +584,7 @@ def fetchData(fname, direction, origin=[0.0, 0.0, 0.0], fields=[]):
         (float): timestamp for the file.
         (dict): parameter dictionary for the checkpoint.
         (str list): filesystem paths for the file.
-        (dataMatrix): block of data for plotting.
+        (DataMatrix): block of data for plotting.
 
     """
     time, pars, _, _, paths = directMeta(fname)
@@ -606,7 +606,7 @@ def fetchData(fname, direction, origin=[0.0, 0.0, 0.0], fields=[]):
     # add time as a column so it can be read elsewhere easily
     ad = np.vstack([ad, [time]*ad.shape[1]])
     keys += ['simtime']
-    return time, pars, paths, dataMatrix([keys, ad.transpose()])
+    return time, pars, paths, DataMatrix([keys, ad.transpose()])
 
 
 def shockFollow(fname, simfolder='', thresh=1e-4, batch=False, byM=False,
@@ -769,7 +769,7 @@ def flashProfile(fname, thresh=1e-6, xrange=[0.0, 0.0],
         for ax in fig.axes:
             drawGrid(ax, prof.radius)
     if extgrid:
-        exgrdm = dataMatrix(extgrid)
+        exgrdm = DataMatrix(extgrid)
         for ax in fig.axes:
             drawGrid(ax, exgrdm.radius)
     if not batch:
@@ -934,7 +934,7 @@ def plainTprofile(fname, thresh=1e-4, xrange=[0.0, 0.0],
         byM (bool): abundance plot xaxis (by Mass or by Radius).
 
     """
-    prof = dataMatrix(fname)
+    prof = DataMatrix(fname)
     if merged:
         return plotDMatMerged(prof, thresh=thresh, xrange=xrange, byM=byM)
     else:
@@ -945,7 +945,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     """plots main properties of a profile object.
 
     Args:
-        prof (dataMatrix): dataMatrix obj.
+        prof (DataMatrix): DataMatrix obj.
         thresh (float): ymin for species fraction plot.
         xrange (list of float): if set, change the range of the plots.
         byM (bool): abundance plot xaxis (by Mass or by Radius).
@@ -954,7 +954,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     fig = plt.figure()
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
-    keys = sortNuclides(prof.species)
+    keys = sort_nuclides(prof.species)
     ncol = 4
     labelspace = -0.15
 
@@ -999,7 +999,7 @@ def plotDMat(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
         for j in range(i+1):
             ax3.plot([], [])
         ax3.semilogy(xs, getattr(prof, p))  # , color='k')
-        u = ut.getUnit(p)
+        u = ut.get_unit(p)
         spacer = labelspace if '\\' in u else labelspace - 0.02
         ax3.set_ylabel('{}({})'.format(p.capitalize(), u),
                        rotation=90, size=13, labelpad=0)
@@ -1023,7 +1023,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
     thermodynamic properties.
 
     Args:
-        prof (dataMatrix): dataMatrix obj.
+        prof (DataMatrix): DataMatrix obj.
         thresh (float): ymin for species fraction plot.
         xrange (list of float): if set, change the range of the plots.
         byM (bool): abundance plot xaxis (by Mass or by Radius).
@@ -1035,7 +1035,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
     fig = plt.figure()
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
-    keys = sortNuclides(prof.species)
+    keys = sort_nuclides(prof.species)
     ncol = 4
     labelspace = -0.1
     if byM:
@@ -1086,7 +1086,7 @@ def plotDMatMerged(prof, thresh=1e-4, xrange=[0.0, 0.0],
     tdax.yaxis.set_minor_formatter(StrMethodFormatter(''))
     tdax.tick_params(labelbottom=False)
     for i, p in enumerate(plotp):
-        u = ut.getUnit(p)
+        u = ut.get_unit(p)
         if p == 'pressure':
             labl = p.capitalize()+'$\cdot 10^{{-18}}$'
             tdax.plot(xs, getattr(prof, p)/1e18, label=labl, marker=mark)
@@ -1134,7 +1134,7 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     while \eta >> 1 or negative implies non-degenerate matter.
 
     Args:
-        prof (dataMatrix): dataMatrix obj.
+        prof (DataMatrix): DataMatrix obj.
         thresh (float): ymin for species fraction plot.
         xrange (list of float): if set, change the range of the plots.
         byM (bool): abundance plot xaxis (by Mass or by Radius).
@@ -1146,7 +1146,7 @@ def plotDegen(prof, thresh=1e-4, xrange=[0.0, 0.0], byM=True):
     fig = plt.figure()
     skip = ['radius', 'masses', 'density']
     plotp = [x for x in prof.bulkprops if x not in skip]
-    keys = sortNuclides(prof.species)
+    keys = sort_nuclides(prof.species)
     ncol = 4
     labelspace = -0.1
     if byM:
@@ -1230,7 +1230,7 @@ def plotSpecies(ax, dmatr, byMass=True, thresh=1e-4, log=True,
 
     Args:
         ax(mpl.axes): axes instance to draw on.
-        dmatr(dataMatrix): profile object to extract data.
+        dmatr(DataMatrix): profile object to extract data.
         byMass(bool): plot by Mass or radius (toggle).
         thresh(float): lower bound for plot.
         log(bool): x-axis log toggle.
@@ -1279,7 +1279,7 @@ def simplePlot(ax, dmatr, absc, attr, delt=0.0, log=True, **kwargs):
 
     Args:
         ax(mpl.axes): axes instance to draw on.
-        dmatr(dataMatrix): profile object to extract data.
+        dmatr(DataMatrix): profile object to extract data.
         absc(str): abscissa for the plot.
         attr(str): attribute to plot.
 

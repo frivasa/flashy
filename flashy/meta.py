@@ -1,7 +1,7 @@
 from .IOutils import _cdxfolder, _juptree, os
 from .utils import chunks, scientify, pd
 from .simulation import simulation
-from .datahaul.plainText import dataMatrix
+from .datahaul.plainText import DataMatrix
 import flashy.profile_workshop as pw
 _errortags = [
     'reached max wall clock time',
@@ -76,7 +76,7 @@ def getRunMeta(runpath, names=['t_ignite_outer', 'r_match_outer'],
     if not succinct:
         pprof = ['TotM', 'CoreM', 'EnvM', 'Rho_c',
                  'Rho_he', 'WDR', 'matchHeight', 'Rho_ign']
-        pobj = dataMatrix(sim.profile)
+        pobj = DataMatrix(sim.profile)
         intfpos = pw.getInterfacePosition(pobj)
         interface = pobj.radius[intfpos]
         corems = pw.getSummedMasses(pobj, range=(None, intfpos))

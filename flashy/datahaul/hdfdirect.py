@@ -1,7 +1,8 @@
 import h5py
-from flashy.nuclear import sortNuclides
-from flashy.IOutils import os, getFileList
-from flashy.utils import np
+import os
+from flashy.nuclear import sort_nuclides
+from flashy.IOutils import getFileList
+import numpy as np
 from decimal import Decimal
 _parameter_keys = ['integer runtime parameters', 'integer scalars',
                    'string runtime parameters', 'string scalars',
@@ -36,7 +37,7 @@ def getUNK(file, srcnames=True):
             species.append(field)
         else:
             fields.append(field)
-    species = sortNuclides(species)
+    species = sort_nuclides(species)
     # once sorted, rename the exceptions
     if srcnames:
         for i, e in enumerate(parsedvals):

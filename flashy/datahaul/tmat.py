@@ -1,4 +1,5 @@
-from flashy.IOutils import np, log
+from flashy.IOutils import log
+import numpy as np
 import flashy.paraMan as pman
 import flashy.datahaul.parData as pd
 from flashy.datahaul.hdf5yt import probeDomain, wedge2d

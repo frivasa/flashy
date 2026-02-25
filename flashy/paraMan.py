@@ -1,13 +1,11 @@
-from flashy.IOutils import os
 import functools
-import importlib
 
 
 def setupParaData(rc):
     balv = rc.load_balanced_view()
     dirv = rc.direct_view()
     with dirv.sync_imports():
-        import flashy.paraMan
+        pass
     return balv
 
 
@@ -15,7 +13,7 @@ def setupParaPost(rc):
     balv = rc.load_balanced_view()
     dirv = rc.direct_view()
     with dirv.sync_imports():
-        import flashy.post as fpo
+        pass
     return balv
 
 

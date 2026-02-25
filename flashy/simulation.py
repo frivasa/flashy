@@ -43,7 +43,7 @@ class simulation(object):
         self.netpath = os.path.join(self.cdx, 'Networks',
                                     self.pargroup.meta['network'])
         if self.pargroup.meta['geometry'] == 'cylindrical':
-            self.standardizeGeometry()
+            self.standardize_geometry()
             self.checkpoints = getFileList(self.chk,
                                            glob='cart_flash_hdf5_chk',
                                            fullpath=True)
@@ -67,10 +67,10 @@ class simulation(object):
         try:
             log.debug('Reading metadata.')
             self.steps, self.chkp, self.header, self.timings = \
-                readLogAndStats(os.path.join(name, _logfile),
+                read_log_and_stats(os.path.join(name, _logfile),
                                 os.path.join(name, _statsfile))
             log.debug("Setting up time deltas")
-            self.time = self.getStepProp('t')
+            self.time = self.get_step_prop('t')
             deltas = getIRLdeltas(self.steps)
             self.steps = self.steps.assign(irldelta=pd.Series(deltas))
             self.runtime = sum(deltas, datetime.timedelta(0))
@@ -115,7 +115,7 @@ class simulation(object):
             self.yields = []
             self.decayedyields = []
 
-    def getStepProp(self, which, range=[0, 0], src='steps'):
+    def get_step_prop(self, which, range=[0, 0], src='steps'):
         """get a property of all steps in a run.
 
         Args:
@@ -133,7 +133,7 @@ class simulation(object):
         else:
             return np.array(self.steps[which])
 
-    def printStepProps(self):
+    def print_step_props(self):
         """print all keys available to the steps."""
         selfnamelist = ['steps', 'refs', 'chkp']
         for sname in selfnamelist:
@@ -144,7 +144,7 @@ class simulation(object):
             except AttributeError:
                 print('no {} in simulation.object'.format(sname))
 
-    def standardizeGeometry(self, verbose=False):
+    def standardize_geometry(self, verbose=False):
         """convert hdf5 files from cylindrical to cartesian."""
         if self.pargroup.params.geometry.strip('"') == 'cylindrical':
             turn2cartesian(self.chk, prefix='all',
@@ -153,7 +153,7 @@ class simulation(object):
             print('Geometry already cartesian or spherical. '
                   'Skipping conversion.')
 
-    def getSlowCoord(self, direction='x'):
+    def get_slow_coord(self, direction='x'):
         """returns slowest position for each timestep in a given axis."""
         times, dirs = [], []
         for t in self.steps:
@@ -165,8 +165,8 @@ class simulation(object):
                 continue
         return dirs
 
-    def getAvgTstep(self):
-        ts = self.getStepProp('dt')
+    def get_avg_tstep(self):
+        ts = self.get_step_prop('dt')
         low = np.min(ts)
         high = np.max(ts)
         avg = np.mean(ts)
@@ -198,7 +198,7 @@ class simulation(object):
             self.steps.loc[rdat[:, 0]-1, t] = rdat[:, 3 + i]
 
 
-    def quickLook(self, retlist=False, refsimtime=0.1,
+    def quick_look(self, retlist=False, refsimtime=0.1,
                   refstep=100, rsets=42, rounding=8):
         """print a group of general information about the run.
 
@@ -219,19 +219,19 @@ class simulation(object):
         try:
             nodes = int(self.header.split('\n')[2].split()[-1])
         except AttributeError:  # workaround for different simuilation types
-            return "simulation.quickLook: quickLook unavailable for this simulation."
+            return "simulation.quick_look: quick_look unavailable for this simulation."
         info.insert(len(info), 'Nodes used: {:>19}'.format(int(nodes/rsets)))
         info.insert(len(info), 'MPI Ranks: {:>20}'.format(nodes))
         info.append('Achieved timesteps: {:>11}'.format(len(self.steps)))
-        tmax = self.getStepProp('t')[-1] + self.getStepProp('dt')[-1]
+        tmax = self.get_step_prop('t')[-1] + self.get_step_prop('dt')[-1]
         info.append('Achieved simtime: {:>13}'.format(round(tmax, rounding)))
         info.append('Tstep sizes (s) [min/max(mean)]: '
-                    '{:e}/{:e} ({:>10e})'.format(*self.getAvgTstep()))
+                    '{:e}/{:e} ({:>10e})'.format(*self.get_avg_tstep()))
         info.append('Total runtime (hh:mm:ss): {}'.format(str(self.runtime)))
         info.append('IRL timestep (hh:mm:ss): {}'.format(self.irlstep))
-        limblks = np.max(self.getStepProp('totblocks', src='refs'))
-        lowb = np.max(self.getStepProp('minblocks', src='refs'))
-        topb = np.max(self.getStepProp('maxblocks', src='refs'))
+        limblks = np.max(self.get_step_prop('totblocks', src='refs'))
+        lowb = np.max(self.get_step_prop('minblocks', src='refs'))
+        topb = np.max(self.get_step_prop('maxblocks', src='refs'))
         info.append('Max blocks used (min/max/per node): '
                     '{} ({}/{}/{:.2f})'.format(limblks, lowb, topb, limblks/(nodes/rsets)))
         info.append('Checkpoints/Plotfiles: '
@@ -249,7 +249,7 @@ class simulation(object):
         else:
             return '\n'.join(info)
 
-    def getTfom(self, refsimt, tol=1e-3):
+    def get_t_fom(self, refsimt, tol=1e-3):
         """get a figure of merit for the simulation:
         for a given simtime, get irl step and steps achieved.
         simtime is fixed, so:
@@ -268,7 +268,7 @@ class simulation(object):
         deltas = np.array([b-a for (a, b) in zip(tstamps[:-1], tstamps[1:])])
         totalwall = sum(deltas, datetime.timedelta(0))
         irlstep = np.mean(deltas)
-        ts = self.getStepProp('dt')
+        ts = self.get_step_prop('dt')
         breadth = ts[:int(N)]
         factor = 1e5
         avg = np.mean(breadth)  # order of 1e-5
@@ -284,7 +284,7 @@ class simulation(object):
         otp.append('Figure of Merit: {}'.format(int(sum(components))))
         return otp
 
-    def getNfom(self, refstep):
+    def get_n_fom(self, refstep):
         try:
             simtime = self.steps[refstep].t
         except IndexError:
@@ -295,7 +295,7 @@ class simulation(object):
         deltas = np.array([b-a for (a, b) in zip(tstamps[:-1], tstamps[1:])])
         totalwall = sum(deltas, datetime.timedelta(0))
         irlstep = np.mean(deltas)
-        ts = self.getStepProp('dt')
+        ts = self.get_step_prop('dt')
         breadth = ts[:refstep]
         factor = 1e5
         avg = np.mean(breadth)  # order of 1e-5
@@ -321,12 +321,12 @@ class simulation(object):
         return self.steps[-1].n-1, self.steps[-1].t
 
 
-def readLogAndStats(logfile, statsfile):
+def read_log_and_stats(logfile, statsfile):
     """reads both log and stats file,
     correlating the data to each simulation step.
     """
     # read log data
-    rsteps, chkps, header, timings = readLog(logfile)
+    rsteps, chkps, header, timings = read_log(logfile)
     log.debug("finished reading {}".format(logfile))
     log.debug("Steps from f.log: {}".format(len(rsteps)))
     # read stats data and remove pre-restart values
@@ -358,7 +358,7 @@ def readLogAndStats(logfile, statsfile):
     return rsteps, chkps, header, timings
 
 
-def readLog(logfile):
+def read_log(logfile):
     """read a flash log file grepping the first header,
     listing available timings
     and associating refinements to steps.
@@ -407,9 +407,9 @@ def readLog(logfile):
                          index=pd.RangeIndex(lines),
                          columns=['n', 't', 'dt'])
     steps = steps.assign(timestamp=pd.Series(tstamps).values)
-    log.debug(".readLog: initial read steps: {}".format(len(steps)))
+    log.debug(".read_log: initial read steps: {}".format(len(steps)))
     steps, removedrows = clearRestarts(steps)
-    log.debug(".readLog: cleared steps: {}".format(len(steps)))
+    log.debug(".read_log: cleared steps: {}".format(len(steps)))
     # add mpi ranks and the number of each restart
     cues, mpis = restartBreakdown(logfile)
     for i, s in enumerate(cues):
@@ -423,7 +423,7 @@ def readLog(logfile):
         mask = steps['timestamp'] > s
         steps.loc[mask, 'submit_number'] = i + 1
         steps.loc[mask, 'mpi_ranks'] = mpis[i]
-    log.debug('.readLog: adding refinement')
+    log.debug('.read_log: adding refinement')
     refinementLines = getLines(logfile, '[GRID amr_refine_derefine]')
     # particles maim the output to 2 lines instead of 5
     # this can be picked by an extra refinement complete line at end
@@ -445,13 +445,13 @@ def readLog(logfile):
         try:
             loc = np.where(mask==True)[0][0]
         except IndexError:
-            otag = '.readLog: refBreakdown mismatch loc {} vs {} steps'
+            otag = '.read_log: refBreakdown mismatch loc {} vs {} steps'
             log.debug(otag.format(loc, nsteps))
         for j, t in enumerate(tags):
             ddict[t][loc:] = [vals[j]]*(nsteps-loc)
     for t in tags:
         steps = steps.assign(**{t: pd.Series(ddict[t]).values})
-    log.debug('.readLog: adding checkpoint write-times')
+    log.debug('.read_log: adding checkpoint write-times')
     # checkpoint/plotfile timestamps
     # this varies between F versions and dimensionality.
     # assuming 2 lines with tag per checkpoint

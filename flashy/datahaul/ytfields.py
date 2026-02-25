@@ -3,8 +3,8 @@ method() describe operations over the ds
 _method fills the metadata for yt:
 units, take_log, sampling_type
 """
-from flashy.utils import np
-from flashy.nuclear import splitSpecies
+import numpy as np
+from flashy.nuclear import split_species
 _speed = {'units': 'cm/s', 'take_log': False, 'sampling_type': 'cell'}
 _fermiDeg = {'units': 'auto', 'take_log': False,
              'sampling_type': 'cell', 'dimensions': 'dimensionless'}
@@ -98,7 +98,7 @@ def pressure_scale_height(field, data):
     n_I = rho*N_A \Sigma_i x_i / A_i
     n_e = rho*N_A \Sigma_i x_i * Z_i / A_i
     """
-    _, ps, ns, ms = splitSpecies(_alphas)
+    _, ps, ns, ms = split_species(_alphas)
 #     ms = np.array(len(_alphas)*[np.array(ms)])
 #     ps = np.array(len(_alphas)*[np.array(ps)])
     ms = np.array(ms)
@@ -124,7 +124,7 @@ def mean_molec_weight(field, data):
     n_I = rho*N_A \Sigma_i x_i / A_i
     n_e = rho*N_A \Sigma_i x_i * Z_i / A_i
     """
-    _, ps, ns, ms = splitSpecies(_alphas)
+    _, ps, ns, ms = split_species(_alphas)
     ms = np.array(ms)
     ps = np.array(ps)
     xms = [data['flash', s].v for s in _alphas]

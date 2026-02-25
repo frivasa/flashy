@@ -1,6 +1,6 @@
 """module to format and process values from a yt dataset"""
-from flashy.utils import np
-from flashy.IOutils import os
+import os
+import numpy as np
 from .hdf5yt import getFields
 
 

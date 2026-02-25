@@ -3,7 +3,7 @@ from .globals import (np, os, AxesGrid, plt, log, reformatTag, SymLogNorm,
                       writeFig, resizeText)
 from flashy.datahaul.hdf5yt import getFields, yt
 from flashy.IOutils import pairGen, getFileList
-from flashy.datahaul.plainText import dataMatrix
+from flashy.datahaul.plainText import DataMatrix
 from yt.funcs import mylog  # avoid yt warnings
 import flashy.datahaul.ytfields as ytf
 import flashy.datahaul.ytDatasetTools as ytt
@@ -239,7 +239,7 @@ def pointTracing(fname, field='density', low=1e5, high=5e8,
             dat = ff.readline()
             data.append([float(d) for d in dat.strip().split()])
     vkeys = header.strip('#\n').split()
-    dm = dataMatrix([vkeys, np.array(data)])
+    dm = DataMatrix([vkeys, np.array(data)])
 
     ds = yt.load(fname)
     fig = plt.figure(dpi=dpi, figsize=(10, 5))  # resolution and size

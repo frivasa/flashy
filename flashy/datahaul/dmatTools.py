@@ -1,7 +1,8 @@
 """various profile(dmat) 1D methods"""
 import flashy.nuclear as nuc
 import flashy.post as post
-from flashy.utils import np, kb
+import numpy as np
+from flashy.utils import kb
 
 
 def getSphericalVolumes(prof):
@@ -30,7 +31,7 @@ def getMassEnergy(prof, trueA=False):
     for cell in range(len(prof.density)):
         # for each cell get all the mass fractions and convert to molar
         xis = prof.data[cell, len(prof.bulkprops)-1:]
-        molar, abar, zbar = nuc.convXmass2Abun(prof.species, xis)
+        molar, abar, zbar = nuc.conv_xmass2abun(prof.species, xis)
         sumy.append(np.sum(molar))
         binding.append(np.dot(factors, molar)*nuc.Avogadro)
     return sumy, binding  # binding in erg/g
@@ -43,7 +44,7 @@ def getProfDegen(prof, relativistic=False):
     while \eta >> 1 or negative implies non-degenerate matter.
 
     Args:
-        prof (dataMatrix): dataMatrix obj.
+        prof (DataMatrix): DataMatrix obj.
 
     Returns:
         (np.arrays): fermi temps, electron fractions, number fractions

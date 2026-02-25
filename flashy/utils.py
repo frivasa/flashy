@@ -21,7 +21,7 @@ m_p = m_p*kilo
 Rg = gas_constant
 
 
-def byMass(radii, dens):
+def by_mass(radii, dens):
     """Returns a mass abscissa for plots.
     WARNING: ASSUMES SPHERICAL SYMMETRY
 
@@ -47,7 +47,7 @@ def byMass(radii, dens):
     return absc
 
 
-def getBearing(angles, geom):
+def get_bearing(angles, geom):
     """returns a parsed variable name and direction for a given
     geometry and spherical angles (polar angle and azimuth).
 
@@ -103,7 +103,7 @@ def rot(ang, ref):
                          [0, 0, 1]])
 
 
-def roughCJ(dens, pres, index):
+def rough_cj(dens, pres, index):
     """returns rayleigh line velocity around index.
 
     Args:
@@ -126,7 +126,7 @@ def roughCJ(dens, pres, index):
     return svel
 
 
-def locateShock(radii, soundcs, xguess, vvv=True):
+def locate_shock(radii, soundcs, xguess, vvv=True):
     """returns index within ray of detected shock.
 
     Args:
@@ -196,14 +196,14 @@ def split(x, xsplit, inward=True):
         return filt, filt[0][0]
 
 
-def estimateMatch(direction, paramd, vvv=True):
+def estimate_match(direction, paramd, vvv=True):
     """returns index within ray of detected shock. """
     igr = np.array((paramd['x_match'], paramd['y_match'], paramd['z_match']))
     if np.linalg.norm(igr) == 0:  # match is a ring so return the middle of it
         spx = paramd['r_match_inner'] + \
             0.5*(paramd['r_match_outer'] - paramd['r_match_inner'])
     else:
-        name, r = getBearing(direction, paramd['geometry'])
+        name, r = get_bearing(direction, paramd['geometry'])
         cross = np.linalg.norm(np.cross(igr, r))
         dot = np.linalg.norm(np.dot(igr, r))
         angle = np.arctan(cross/dot)
@@ -214,7 +214,7 @@ def estimateMatch(direction, paramd, vvv=True):
     return spx
 
 
-def cart2sph(x, y, z):
+def cart_2_sph(x, y, z):
     """returns radius, polar angle and azimuth for a vector."""
     r = np.sqrt(x**2+y**2+z**2)
     if r == 0.0:
@@ -227,7 +227,7 @@ def cart2sph(x, y, z):
     return r, tht, phi
 
 
-def interpDiff(x1, y1, x2, y2):
+def interp_diff(x1, y1, x2, y2):
     """returns the difference between two ordinates
     subject to the x range of the first via interpolation.
 
@@ -246,7 +246,7 @@ def interpDiff(x1, y1, x2, y2):
     return diffs
 
 
-def percentDiff(x1, y1, x2, y2):
+def percent_diff(x1, y1, x2, y2):
     """returns the percentage difference between two ordinates
     subject to the x range of the first via interpolation.
 
@@ -282,7 +282,7 @@ def scientify(array):
     return formv
 
 
-def getUnit(bulkname):
+def get_unit(bulkname):
     """simple cgs unit dictionary for bulk properties."""
     units = {
         'density': '$\\frac{g}{cm^3}$',
@@ -313,7 +313,7 @@ def x2clog(x, cmin=1e-5, cmax=1.0):
         return y
 
 
-def reformatTag(tag):
+def reformat_tag(tag):
     """turns yt species colobar tag into Chemical notation."""
     if any([a.isdigit() for a in tag]):
         name = ''.join([l for l in tag if l.isalpha()])
@@ -330,7 +330,7 @@ def reformatTag(tag):
         return tag, False
 
 
-def rollingAverage(stat, step=5):
+def rolling_average(stat, step=5):
     N = len(stat)
     roll = np.zeros(N)
     for i in range(N):

@@ -101,7 +101,7 @@ def readNuclideMasses():
 def readDecays():
     sunData = np.genfromtxt(solDecays, dtype="U5,i4,i4,f8,i4")
     snames, _, _, _, scodes = zip(*sunData)
-    _, solZs, _, solAs = splitSpecies([s.capitalize() for s in snames],
+    _, solZs, _, solAs = split_species([s.capitalize() for s in snames],
                                       trueA=False)
     return snames, solZs, solAs, scodes
 
@@ -110,7 +110,7 @@ def decayYield(names, masses):
     """decays masses from radioactive species to stable 'solar' species."""
     snames, solZ, solA, scodes = readDecays()
     sunsp = len(snames)
-    _, Zs, Ns, As = splitSpecies([s.capitalize() for s in names],
+    _, Zs, Ns, As = split_species([s.capitalize() for s in names],
                                  standardize=True, trueA=False)
     tmass = sum(masses)
     normedm = masses/tmass
@@ -135,7 +135,7 @@ def readYield(filename):
     else:
         comp = np.genfromtxt(filename, comments='#', dtype='|U5,f8')
         codes, values = zip(*comp)
-    sp, z, n, a = splitSpecies(codes, standardize=True)
+    sp, z, n, a = split_species(codes, standardize=True)
     mdict = {}
     for i, s in enumerate(sp):
         if s in mdict:
@@ -177,7 +177,7 @@ def convertYield2Abundance(mdict, norm='H', offset=12.0):
     """
     percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
     names, percs = zip(*percdata)
-    sp, z, n, a = splitSpecies(names)  # , standardize=True)
+    sp, z, n, a = split_species(names)  # , standardize=True)
     sundict = {}
     for i, s in enumerate(sp):
         if s in sundict:
@@ -243,7 +243,7 @@ def readIsotopicSolar():
     """
     percdata = np.genfromtxt(AGSS09_ISO, dtype='U5,f8')
     names, percs = zip(*percdata)
-    elems, zees, ens, weights = splitSpecies(names)
+    elems, zees, ens, weights = split_species(names)
 
     parts = percs*np.array(weights)/Avogadro
     abunzees, _, abuns = readSunComp(AGSS09)
@@ -310,7 +310,7 @@ def getTotalMass(massdict):
     return mass
 
 
-def convXmass2Abun(species, xmasses):
+def conv_xmass2abun(species, xmasses):
     """Returns abundances, abar and zbar from a list of nuclide
     codes and mass fractions.
 
@@ -324,7 +324,7 @@ def convXmass2Abun(species, xmasses):
         (float): average charge (zbar).
 
     """
-    _, Zs, _, As = splitSpecies(species, trueA=True, standardize=True)
+    _, Zs, _, As = split_species(species, trueA=True, standardize=True)
     molar = [x/a for (x, a) in zip(xmasses, As)]
     abar = 1.0e0/sum(molar)
     zbar = abar*sum([x*z/a for (z, x, a) in zip(Zs, xmasses, As)])
@@ -344,7 +344,7 @@ def getMus(species, xmasses):
         (float): molec weight per free electron.
 
     """
-    _, Zs, _, As = splitSpecies(species, trueA=True, standardize=True)
+    _, Zs, _, As = split_species(species, trueA=True, standardize=True)
     mue = 1.0e0/sum([x*z/a for (z, x, a) in zip(Zs, xmasses, As)])
     muion = 1.0/sum([x*(z+1)/a for (z, x, a) in zip(Zs, xmasses, As)])
     return muion, mue
@@ -364,11 +364,11 @@ def getBinding(speclist, cgs=True, trueA=False):
     # get every binding energy known and subset to required species
     if not _nucData:
         readNuclideMasses()
-    splitspec = splitSpecies(speclist, standardize=True, zipped=True)
+    splitspec = split_species(speclist, standardize=True, zipped=True)
     binding = np.array([_nucData[elem]['n'][n]['binding']
                         for (elem, z, n, a) in splitspec])
     # zips can only run once so reset
-    splitspec = splitSpecies(speclist, standardize=True, zipped=True)
+    splitspec = split_species(speclist, standardize=True, zipped=True)
     if trueA:
         nucmasses = np.array([_nucData[elem]['n'][n]['mass']
                               for (elem, z, n, a) in splitspec])
@@ -382,7 +382,7 @@ def getBinding(speclist, cgs=True, trueA=False):
     return factors
 
 
-def splitSpecies(Spcodes, trueA=True, standardize=False, zipped=False):
+def split_species(Spcodes, trueA=True, standardize=False, zipped=False):
     """returns list of symbols, Z, N, A from a list of
     nuclide codes.(Ni56, He4, U238, ...)
 
@@ -423,7 +423,7 @@ def splitSpecies(Spcodes, trueA=True, standardize=False, zipped=False):
         return Sp, Zs, Ns, As
 
 
-def sortNuclides(spcodes, capitalize=False, sunet=False):
+def sort_nuclides(spcodes, capitalize=False, sunet=False):
     """sorts a list of nuclides by atomic number.
     
     Args:
@@ -433,7 +433,7 @@ def sortNuclides(spcodes, capitalize=False, sunet=False):
     
     """
     if sunet:
-        letter, ps, ns, As = splitSpecies(spcodes, trueA=False, standardize=True)
+        letter, ps, ns, As = split_species(spcodes, trueA=False, standardize=True)
         byatomic = sorted(zip(ps, letter, As))
         sunet = ["{}{}".format(*b[1:]) for b in byatomic]
         if not capitalize:
